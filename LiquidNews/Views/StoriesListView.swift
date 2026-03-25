@@ -47,8 +47,23 @@ struct StoriesListView: View {
         .navigationTitle("LiquidNews")
         .navigationBarTitleDisplayMode(.large)
         // Glass nav bar — blends with our background
-        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            // ── Trailing: overflow menu ──
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                } label: {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    settingsActionMenu
+                } label: {
+                    Label("More", systemImage: "ellipsis")
+                }
+            }
+        }
         .sheet(item: $selectedStory) { story in
             NavigationStack {
                 StoryDetailView(story: story)
@@ -63,6 +78,28 @@ struct StoriesListView: View {
         }
     }
 
+    // MARK: - Actions menu
+
+    @ViewBuilder
+    private var settingsActionMenu: some View {
+        // ── Core actions ──
+        Section {
+            Button {
+            } label: {
+                Label(
+                    "Settings",
+                    systemImage: "gearshape"
+                )
+            }
+            Button {
+            } label: {
+                Label(
+                    "Account",
+                    systemImage: "person.crop.circle"
+                )
+            }
+        }
+    }
     // MARK: - Stories list
 
     private var storiesList: some View {
