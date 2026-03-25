@@ -50,44 +50,45 @@ struct StoryDetailView: View {
     }
 
     var body: some View {
-        ZStack {
-            AppTheme.backgroundGradient.ignoresSafeArea()
-
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: 14) {
-                    storyHeaderCard
-                    commentsSection
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 24)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ScrollView(.vertical) {
+            VStack(alignment: .leading, spacing: 14) {
+                storyHeaderCard
+                commentsSection
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .clipped()
+        .scrollBounceBehavior(.basedOnSize)
+        // Gradient applied here rather than in a ZStack that fills the
+        // entire view including the toolbar area. An opaque layer behind
+        // the toolbar prevents the system from sampling content and
+        // rendering Liquid Glass — per WWDC25 guidance to remove
+        // backgrounds sitting behind toolbars.
+        .background(AppTheme.backgroundGradient.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        // Hide the nav bar's own background fill so the app gradient is
+        // continuous behind the toolbar. iOS 26 then renders each toolbar
+        // item group with its own automatic Liquid Glass backing — no manual
+        // glassEffect needed here (and adding one would double-layer glass
+        // on top of the system material, causing the dark band in image 1).
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            // ── Leading: glass circle close button ──
-            ToolbarItem(placement: .topBarLeading) {
-                Button { dismiss() } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .padding(8)
-                        .glassEffect(in: Circle())
+            // ── Leading: close ──
+            // .cancellationAction gets the system "close" glass group treatment.
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close", systemImage: "xmark") {
+                    dismiss()
                 }
-                .buttonStyle(.plain)
             }
 
-            // ── Trailing: story actions menu ──
+            // ── Trailing: overflow menu ──
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     storyActionsMenu
                 } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.secondary)
+                    Label("More", systemImage: "ellipsis")
                 }
             }
         }
@@ -270,8 +271,8 @@ struct StoryDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(14)
-        .glassCard(cornerRadius: 18, tint: AppTheme.accent)
+        .padding(18)
+        .glassCard()
     }
 
     // MARK: - Comments section
