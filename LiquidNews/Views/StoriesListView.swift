@@ -1,105 +1,103 @@
 // StoriesListView.swift
-// The main feed screen. Shows a horizontal category picker and a paging
-// list of story cards. Pull-to-refresh and infinite scroll are both supported.
+// The main feed screen. Shows a system nav bar (title + toolbar buttons) and a
+// sliding category picker, plus a paging list of story cards.
+//
+// Header hide/show strategy:
+//   The system nav bar is always visible — its ToolbarItems get automatic iOS 26
+//   glass grouping and we never toggle its visibility (which would change content
+//   insets and cause jitter). The category picker lives in a .safeAreaInset so it
+//   occupies a fixed layout slot; .offset() slides it visually without reflowing
+//   the scroll content, giving a smooth hide/show on scroll.
 
 import SwiftUI
 
 struct StoriesListView: View {
 
-    // `@State` creates a view-owned instance. Because StoriesViewModel is
-    // @Observable, SwiftUI tracks exactly which properties this view reads.
-    //
-    // The optional init parameter lets previews inject pre-seeded data
-    // without making a live network call.
     @State private var viewModel: StoriesViewModel
     @State private var selectedStory: HNItem?
+    @State private var showingSearch = false
+    @State private var headerVisible = true
 
     init(viewModel: StoriesViewModel = StoriesViewModel()) {
         _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
-        ZStack {
-            // Full-bleed background — sits behind the glass cards
-            AppTheme.backgroundGradient.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                CategoryPicker(selected: viewModel.selectedCategory) { category in
-                    Task { await viewModel.load(category: category) }
+        Group {
+            if viewModel.isLoading && viewModel.stories.isEmpty {
+                LoadingView()
+            } else if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
+                ErrorView(message: msg) {
+                    Task { await viewModel.refresh() }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-
-                // Main content area
-                Group {
-                    if viewModel.isLoading && viewModel.stories.isEmpty {
-                        LoadingView()
-                    } else if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
-                        ErrorView(message: msg) {
-                            Task { await viewModel.refresh() }
-                        }
-                    } else {
-                        storiesList
-                    }
-                }
+            } else {
+                storiesList
             }
         }
+        .background(AppTheme.backgroundGradient.ignoresSafeArea())
         .navigationTitle("LiquidNews")
-        .navigationBarTitleDisplayMode(.large)
-        // Glass nav bar — blends with our background
+        .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            // ── Trailing: overflow menu ──
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                } label: {
+                Button { showingSearch = true } label: {
                     Label("Search", systemImage: "magnifyingglass")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    settingsActionMenu
-                } label: {
+                Menu { settingsActionMenu } label: {
                     Label("More", systemImage: "ellipsis")
                 }
             }
+        }
+        // Category picker occupies a fixed layout slot via safeAreaInset.
+        // .offset() slides it visually without changing content insets.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            categoryPickerRow
+                .offset(y: headerVisible ? 0 : -300)
+                .animation(.spring(duration: 0.35, bounce: 0), value: headerVisible)
         }
         .sheet(item: $selectedStory) { story in
             NavigationStack {
                 StoryDetailView(story: story)
             }
-            // Grabber pill — required by Apple HIG for interactive sheets
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
         }
+        .sheet(isPresented: $showingSearch) {
+            SearchView()
+        }
         .task {
-            // Load top stories when the view first appears
             await viewModel.load(category: .top)
         }
     }
 
-    // MARK: - Actions menu
+    // MARK: - Category picker row (slides away on scroll)
+
+    private var categoryPickerRow: some View {
+        CategoryPicker(selected: viewModel.selectedCategory) { category in
+            Task { await viewModel.load(category: category) }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Settings menu content
 
     @ViewBuilder
     private var settingsActionMenu: some View {
-        // ── Core actions ──
         Section {
             Button {
             } label: {
-                Label(
-                    "Settings",
-                    systemImage: "gearshape"
-                )
+                Label("Settings", systemImage: "gearshape")
             }
             Button {
             } label: {
-                Label(
-                    "Account",
-                    systemImage: "person.crop.circle"
-                )
+                Label("Account", systemImage: "person.crop.circle")
             }
         }
     }
+
     // MARK: - Stories list
 
     private var storiesList: some View {
@@ -120,7 +118,6 @@ struct StoriesListView: View {
                     }
                 }
 
-                // Inline spinner shown only while paginating (not on initial load)
                 if viewModel.isPaginating {
                     ProgressView()
                         .tint(.white)
@@ -133,8 +130,25 @@ struct StoriesListView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .refreshable {
-            // The `refreshable` modifier hooks into pull-to-refresh automatically
             await viewModel.refresh()
+        }
+        // Direction-change with threshold to avoid micro-jitter.
+        // Because the header uses .offset (not layout), this callback never
+        // receives a spurious offset change caused by the header animating.
+        .onScrollGeometryChange(for: CGFloat.self) {
+            $0.contentOffset.y
+        } action: { old, new in
+            // Always restore at the top
+            if new <= 0 {
+                withAnimation(.spring(duration: 0.35, bounce: 0)) { headerVisible = true }
+                return
+            }
+            // Only react to moves larger than 4 pt to filter out bounce/noise
+            guard abs(new - old) > 4 else { return }
+            let scrollingDown = new > old
+            withAnimation(.spring(duration: 0.35, bounce: 0)) {
+                headerVisible = !scrollingDown
+            }
         }
     }
 }
@@ -173,14 +187,11 @@ struct CategoryChip: View {
                 Text(category.rawValue)
                     .font(.system(size: 14, weight: .semibold, design: .rounded))
             }
-            // Use the accent tint for selected, white for idle
             .foregroundStyle(isSelected ? AppTheme.accent : Color.white)
             .padding(.horizontal, 18)
             .padding(.vertical, 11)
-            // Native glass pill — adapts to whatever's behind it
             .glassEffect(in: Capsule())
             .overlay {
-                // Accent ring to mark the active selection
                 if isSelected {
                     Capsule()
                         .strokeBorder(AppTheme.accent.opacity(0.8), lineWidth: 1.5)

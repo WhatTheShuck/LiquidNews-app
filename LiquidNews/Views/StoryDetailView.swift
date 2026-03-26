@@ -99,8 +99,8 @@ struct StoryDetailView: View {
             switch sheet {
             case .webReader(let url):
                 NavigationStack { WebReaderView(url: url) }
-            case .share:
-                ShareSheet(items: shareItems)
+            case .share(let url):
+                ShareSheet(items: [url])
             }
         }
     }
@@ -193,13 +193,6 @@ struct StoryDetailView: View {
     }
 
     // MARK: - Helpers
-
-    private var shareItems: [Any] {
-        if let urlStr = story.url, let url = URL(string: urlStr) {
-            return [story.title ?? "", url]
-        }
-        return [story.title ?? "", hnURL]
-    }
 
     private var hnURL: URL {
         URL(string: "https://news.ycombinator.com/item?id=\(story.id)")!

@@ -73,6 +73,43 @@ final class HNAPIService {
         }
     }
 
+    // MARK: - Algolia Search
+
+    private struct AlgoliaResponse: Decodable {
+        let hits: [AlgoliaHit]
+    }
+
+    private struct AlgoliaHit: Decodable {
+        let objectID: String
+        let title: String?
+        let url: String?
+        let author: String?
+        let points: Int?
+        let num_comments: Int?
+        let created_at_i: TimeInterval?
+    }
+
+    func searchStories(query: String, since: Date) async throws -> [HNItem] {
+        var components = URLComponents(string: "https://hn.algolia.com/api/v1/search")!
+        components.queryItems = [
+            URLQueryItem(name: "query", value: query),
+            URLQueryItem(name: "tags", value: "story"),
+            URLQueryItem(name: "numericFilters", value: "created_at_i>\(Int(since.timeIntervalSince1970))"),
+            URLQueryItem(name: "hitsPerPage", value: "50"),
+        ]
+        let (data, _) = try await URLSession.shared.data(from: components.url!)
+        let response = try decoder.decode(AlgoliaResponse.self, from: data)
+        return response.hits.compactMap { hit in
+            guard let id = Int(hit.objectID) else { return nil }
+            return HNItem(
+                id: id, type: .story, by: hit.author, time: hit.created_at_i,
+                title: hit.title, url: hit.url, score: hit.points,
+                descendants: hit.num_comments, text: nil, kids: nil,
+                deleted: nil, dead: nil
+            )
+        }
+    }
+
     // MARK: - Private
 
     private func fetchIDs(path: String) async throws -> [Int] {
