@@ -84,8 +84,6 @@ struct StoriesListView: View {
                         }
                     } label: {
                         HStack(spacing: 5) {
-                            Image(systemName: viewModel.selectedCategory.systemImage)
-                                .font(.system(size: 17, weight: .semibold))
                             Text(viewModel.selectedCategory.rawValue)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                             Image(systemName: "chevron.up.chevron.down")
@@ -306,12 +304,8 @@ struct CategoryChip: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 7) {
-                Image(systemName: category.systemImage)
-                    .font(.system(size: 12, weight: .bold))
-                Text(category.rawValue)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-            }
+            Text(category.rawValue)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(isSelected ? AppTheme.accent : Color.white)
             .padding(.horizontal, 18)
             .padding(.vertical, 11)

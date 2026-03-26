@@ -13,15 +13,15 @@ enum StoryCategory: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var systemImage: String {
-        switch self {
-        case .top:  return "flame.fill"
-        case .new:  return "sparkles"
-        case .best: return "star.fill"
-        case .ask:  return "questionmark.bubble.fill"
-        case .show: return "eye.fill"
-        }
-    }
+    // var systemImage: String {
+    //     switch self {
+    //     case .top:  return "flame.fill"
+    //     case .new:  return "sparkles"
+    //     case .best: return "star.fill"
+    //     case .ask:  return "questionmark.bubble.fill"
+    //     case .show: return "eye.fill"
+    //     }
+//    }
 }
 
 @Observable
