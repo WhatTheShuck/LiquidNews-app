@@ -21,14 +21,15 @@ final class StoryDetailViewModel {
 
     /// Fetch the first 20 top-level comments for the story.
     func loadComments() async {
-        guard let kids = story.kids, !kids.isEmpty else { return }
-
         isLoading = true
         defer { isLoading = false }
         errorMessage = nil
 
         do {
-            // Only load the first batch; more can be added later with paging
+            // Stories from search (Algolia) don't include the kids list —
+            // fetch the full item from the HN API first to get it.
+            let source = story.kids != nil ? story : try await HNAPIService.shared.item(id: story.id)
+            guard let kids = source.kids, !kids.isEmpty else { return }
             let topLevel = Array(kids.prefix(20))
             comments = try await HNAPIService.shared.items(ids: topLevel)
         } catch {

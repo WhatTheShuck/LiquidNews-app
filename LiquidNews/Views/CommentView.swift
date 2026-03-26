@@ -127,19 +127,7 @@ struct CommentView: View {
         }
         .padding(14)
         .glassCard(cornerRadius: 18, tint: threadColor)
-        // Thread bar pinned to leading edge, spans full card height
-        .overlay(alignment: .leading) {
-            if depth > 0 {
-                Capsule()
-                    .fill(threadColor.opacity(0.55))
-                    .frame(width: 2.5)
-                    .padding(.vertical, 10)
-                    .offset(x: -6)
-            }
-        }
         .contextMenu { commentContextMenu }
-        // Depth indent via leading padding — stays within screen bounds
-        .padding(.leading, CGFloat(depth) * 14)
         .task {
             await autoLoadIfNeeded()
         }
@@ -164,10 +152,6 @@ struct CommentView: View {
                     showThread = comment
                 } label: {
                     HStack(spacing: 8) {
-                        Capsule()
-                            .fill(AppTheme.threadColor(depth: depth + 1).opacity(0.55))
-                            .frame(width: 2.5)
-
                         VStack(alignment: .leading, spacing: 4) {
                             Text(firstReply.by ?? "[deleted]")
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
