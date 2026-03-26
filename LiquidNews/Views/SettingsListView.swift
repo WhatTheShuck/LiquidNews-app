@@ -1,285 +1,241 @@
-////  SettingsListView.swift
-////  LiquidNews
-////
-////
-//
-//import SwiftUI
-//
-//// MARK: - View
-//struct SettingsListView: View {
-//    // @State private var viewModel: StoryDetailViewModel
-//    // @State private var activeSheet: DetailSheet?
-//    @Environment(\.dismiss) private var dismiss
-//    @Environment(\.openURL) private var openURL
-//
-//    private let isLoggedIn = false
-//
-//    var body: some View {
-//        ScrollView(.vertical) {
-//            VStack(alignment: .leading, spacing: 14) {
-////                storyHeaderCard
-////                commentsSection
-//            }
-//            .padding(.horizontal, 16)
-//            .padding(.top, 16)
-//            .padding(.bottom, 24)
-//            .frame(maxWidth: .infinity, alignment: .leading)
-//        }
-//        .scrollBounceBehavior(.basedOnSize)
-//        // Gradient applied here rather than in a ZStack that fills the
-//        // entire view including the toolbar area. An opaque layer behind
-//        // the toolbar prevents the system from sampling content and
-//        // rendering Liquid Glass — per WWDC25 guidance to remove
-//        // backgrounds sitting behind toolbars.
-//        .background(AppTheme.backgroundGradient.ignoresSafeArea())
-//        .navigationBarTitleDisplayMode(.inline)
-//        // Hide the nav bar's own background fill so the app gradient is
-//        // continuous behind the toolbar. iOS 26 then renders each toolbar
-//        // item group with its own automatic Liquid Glass backing — no manual
-//        // glassEffect needed here (and adding one would double-layer glass
-//        // on top of the system material, causing the dark band in image 1).
-//        .toolbarBackground(.hidden, for: .navigationBar)
-//        .toolbar {
-//            // ── Leading: close ──
-//            // .cancellationAction gets the system "close" glass group treatment.
-//            ToolbarItem(placement: .cancellationAction) {
-//                Button("Close", systemImage: "xmark") {
-//                    dismiss()
-//                }
-//            }
-//
-//            // ── Trailing: overflow menu ──
-//            ToolbarItem(placement: .topBarTrailing) {
-//                Menu {
-//                    storyActionsMenu
-//                } label: {
-//                    Label("More", systemImage: "ellipsis")
-//                }
-//            }
-//        }
-//        .task {
-//            await viewModel.loadComments()
-//        }
-//        .sheet(item: $activeSheet) { sheet in
-//            switch sheet {
-//            case .webReader(let url):
-//                NavigationStack { WebReaderView(url: url) }
-//            case .share(let url):
-//                ShareSheet(items: [url])
-//            }
-//        }
-//    }
-//
-//    // MARK: - Actions menu
-//
-////     @ViewBuilder
-////     private var storyActionsMenu: some View {
-////         // ── Core actions ──
-////         Section {
-////             Button {
-////                 saved.toggleFavourite(story.id)
-////             } label: {
-////                 Label(
-////                     saved.isFavourite(story.id) ? "Unfavourite" : "Favourite",
-////                     systemImage: saved.isFavourite(story.id) ? "heart.fill" : "heart"
-////                 )
-////             }
-//
-////             // Share sub-menu
-////             Menu {
-////                 if let urlString = story.url, let url = URL(string: urlString) {
-////                     Button {
-////                         activeSheet = .share(url)
-////                     } label: {
-////                         Label("Share Article Link", systemImage: "square.and.arrow.up")
-////                     }
-////                 }
-////                 Button {
-////                     activeSheet = .share(hnURL)
-////                 } label: {
-////                     Label("Share HN Link", systemImage: "square.and.arrow.up")
-////                 }
-////             } label: {
-////                 Label("Share", systemImage: "square.and.arrow.up")
-//
-////             }
-//
-////             if story.url != nil {
-////                 Button {
-////                     activeSheet = .webReader(URL(string: story.url!)!)
-////                 } label: {
-////                     Label("Read Article", systemImage: "doc.text")
-////                 }
-////             }
-////         }
-//
-////         // ── Engagement (auth-gated) ──
-////         Section {
-////             Button(action: {}) {
-////                 Label("Upvote", systemImage: "arrow.up")
-////             }
-////             .disabled(!isLoggedIn)
-//
-////             Button(action: {}) {
-////                 Label("Downvote", systemImage: "arrow.down")
-////             }
-////             .disabled(!isLoggedIn)
-//
-////             Button(action: {}) {
-////                 Label("Reply", systemImage: "bubble.left")
-////             }
-////             .disabled(!isLoggedIn)
-////         }
-//
-////         // ── Organisation ──
-////         Section {
-////             Button {
-////                 saved.togglePin(story.id)
-////             } label: {
-////                 Label(
-////                     saved.isPinned(story.id) ? "Unpin" : "Pin",
-////                     systemImage: saved.isPinned(story.id) ? "pin.slash.fill" : "pin.fill"
-////                 )
-////             }
-//
-////             Button(role: nil, action: {}) {
-////                 Label("Flag", systemImage: "flag")
-////             }
-////             .disabled(!isLoggedIn)
-////         }
-//
-////         // ── External ──
-////         Section {
-////             Button {
-////                 openURL(hnURL)
-////             } label: {
-////                 Label("Open in Hacker News", systemImage: "safari")
-////             }
-//
-////         }
-////     }
-//
-////     // MARK: - Helpers
-//
-////     private var hnURL: URL {
-////         URL(string: "https://news.ycombinator.com/item?id=\(story.id)")!
-////     }
-//
-////     // MARK: - Story header
-//
-////     private var storyHeaderCard: some View {
-////         VStack(alignment: .leading, spacing: 12) {
-//
-////             if let domain = story.displayURL {
-////                 Label(domain, systemImage: "link")
-////                     .font(.system(size: 12, weight: .semibold))
-////                     .foregroundStyle(AppTheme.accent)
-////                     .padding(.horizontal, 10)
-////                     .padding(.vertical, 4)
-////                     .background(AppTheme.accentMuted, in: Capsule())
-////             }
-//
-////             Text(story.title ?? "")
-////                 .font(.system(size: 20, weight: .bold, design: .rounded))
-////                 .foregroundStyle(.white)
-//
-////             HStack(spacing: 16) {
-////                 Label("\(story.score ?? 0) points", systemImage: "arrow.up")
-////                 Label("\(story.descendants ?? 0) comments", systemImage: "bubble.left")
-////             }
-////             .font(.system(size: 13, weight: .medium))
-////             .foregroundStyle(.secondary)
-//
-////             HStack(spacing: 8) {
-////                 if let by = story.by {
-////                     Label(by, systemImage: "person.fill")
-////                         .font(.system(size: 13))
-////                         .foregroundStyle(.secondary)
-////                 }
-////                 Spacer()
-////                 Text(story.timeAgo)
-////                     .font(.system(size: 13))
-////                     .foregroundStyle(.tertiary)
-////             }
-//
-////             // Read Article CTA
-////             if let urlString = story.url, let url = URL(string: urlString) {
-////                 Button {
-////                     activeSheet = .webReader(url)
-////                 } label: {
-////                     HStack {
-////                         Image(systemName: "doc.text.fill")
-////                         Text("Read Article")
-////                         Spacer()
-////                         Image(systemName: "chevron.right")
-////                             .font(.system(size: 12))
-////                     }
-////                     .font(.system(size: 15, weight: .semibold))
-////                     .foregroundStyle(.white)
-////                     .padding(.horizontal, 16)
-////                     .padding(.vertical, 14)
-////                     .background(
-////                         AppTheme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-////                 }
-////                 .buttonStyle(.plain)
-////                 .padding(.top, 2)
-////             }
-//
-////             // Self-post body
-////             if let text = story.text, !text.isEmpty {
-////                 Divider().overlay(AppTheme.glassBorder)
-////                 Text(text.htmlStripped)
-////                     .font(AppTheme.bodyFont(14))
-////                     .foregroundStyle(.secondary)
-////                     .fixedSize(horizontal: false, vertical: true)
-////             }
-////         }
-////         .padding(18)
-////         .glassCard()
-////     }
-//
-////     // MARK: - Comments section
-//
-////     private var commentsSection: some View {
-////         VStack(alignment: .leading, spacing: 10) {
-////             Text("Comments")
-////                 .font(.system(size: 17, weight: .bold, design: .rounded))
-////                 .foregroundStyle(.white)
-////                 .padding(.horizontal, 2)
-//
-////             if viewModel.isLoading {
-////                 HStack {
-////                     Spacer()
-////                     ProgressView().tint(.white).padding(.vertical, 32)
-////                     Spacer()
-////                 }
-////             } else if viewModel.comments.isEmpty {
-////                 Text("No comments yet.")
-////                     .font(AppTheme.bodyFont())
-////                     .foregroundStyle(.secondary)
-////                     .frame(maxWidth: .infinity)
-////                     .padding(.vertical, 24)
-////                     .glassCard()
-////             } else {
-////                 ForEach(viewModel.comments) { comment in
-////                     CommentView(comment: comment, depth: 0)
-////                 }
-////             }
-////         }
-////     }
-//// }
-//
-//// // MARK: - Previews
-//
-//// #Preview("Link story") {
-////     NavigationStack {
-////         StoryDetailView(story: PreviewData.stories[0])
-////     }
-////     .presentationDragIndicator(.visible)
-////     .preferredColorScheme(.dark)
-//// }
-//
-//
-//#Preview {
-//    SettingsListView()
-//}
+// SettingsListView.swift
+// App settings presented as a sheet from the main toolbar.
+
+import SwiftUI
+
+struct SettingsListView: View {
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var settings = UserSettings.shared
+    @State private var auth = HNAuthService.shared
+    @State private var navigateToAccount = false
+
+    var body: some View {
+        NavigationStack {
+            ScrollView(.vertical) {
+                VStack(spacing: 16) {
+                    accountSection
+                    navigationSection
+                    feedSection
+                    aboutSection
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .background(AppTheme.backgroundGradient.ignoresSafeArea())
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                }
+            }
+            .navigationDestination(isPresented: $navigateToAccount) {
+                AccountView()
+            }
+        }
+    }
+
+    // MARK: - Account section
+
+    private var accountSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Account")
+            Button {
+                navigateToAccount = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: auth.isLoggedIn ? "person.crop.circle.fill" : "person.crop.circle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(auth.isLoggedIn ? (auth.username ?? "Account") : "Sign In")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text(auth.isLoggedIn ? "Tap to manage your account" : "Log in with your HN account")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
+            }
+            .buttonStyle(.plain)
+        }
+        .glassCard()
+    }
+
+    // MARK: - Navigation section
+
+    private var navigationSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Navigation")
+
+            VStack(spacing: 0) {
+                ForEach(Array(AppTab.optional.enumerated()), id: \.element.id) { index, tab in
+                    if index > 0 {
+                        Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+                    }
+                    HStack(spacing: 12) {
+                        Image(systemName: tab.systemImage)
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        Text(tab.label)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { settings.enabledOptionalTabs.contains(tab) },
+                            set: { enabled in
+                                if enabled {
+                                    settings.enabledOptionalTabs.insert(tab)
+                                } else {
+                                    settings.enabledOptionalTabs.remove(tab)
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                    }
+                    .padding(16)
+                }
+            }
+        }
+        .glassCard()
+    }
+
+    // MARK: - Feed section
+
+    private var feedSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Feed")
+
+            // Auto-load reply count
+            VStack(spacing: 0) {
+                HStack {
+                    Image(systemName: "arrow.turn.down.right")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    Text("Auto-load replies")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Text("\(settings.autoLoadReplyCount)")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(minWidth: 28, alignment: .trailing)
+                    Stepper("", value: $settings.autoLoadReplyCount, in: 0...10)
+                        .labelsHidden()
+                }
+                .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Max auto-expand depth
+                HStack {
+                    Image(systemName: "list.indent")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Max auto-expand depth")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Replies deeper than this require a tap")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(settings.maxAutoExpandDepth)")
+                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(minWidth: 28, alignment: .trailing)
+                    Stepper("", value: $settings.maxAutoExpandDepth, in: 0...5)
+                        .labelsHidden()
+                }
+                .padding(16)
+            }
+        }
+        .glassCard()
+    }
+
+    // MARK: - About section
+
+    private var aboutSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("About")
+
+            Link(destination: URL(string: "https://news.ycombinator.com")!) {
+                HStack(spacing: 12) {
+                    Image(systemName: "safari")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    Text("Open Hacker News")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
+            }
+
+            Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+            HStack(spacing: 12) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30)
+                Text("LiquidNews")
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white)
+                Spacer()
+                Text(appVersion)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(16)
+        }
+        .glassCard()
+    }
+
+    // MARK: - Helpers
+
+    @ViewBuilder
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 11, weight: .semibold, design: .rounded))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 6)
+    }
+
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "v\(version) (\(build))"
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    SettingsListView()
+        .preferredColorScheme(.dark)
+}

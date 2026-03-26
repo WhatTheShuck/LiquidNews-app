@@ -29,11 +29,24 @@ final class UserSettings {
         didSet { UserDefaults.standard.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) }
     }
 
+    // MARK: - Tab bar
+
+    /// Which optional tabs appear in the bottom pill. Feed is always shown and not stored here.
+    var enabledOptionalTabs: Set<AppTab> {
+        didSet {
+            UserDefaults.standard.set(
+                enabledOptionalTabs.map(\.rawValue),
+                forKey: Keys.enabledOptionalTabs
+            )
+        }
+    }
+
     // MARK: - Init
 
     private enum Keys {
         static let autoLoadReplyCount  = "LN_autoLoadReplyCount"
         static let maxAutoExpandDepth  = "LN_maxAutoExpandDepth"
+        static let enabledOptionalTabs = "LN_enabledOptionalTabs"
     }
 
     private init() {
@@ -41,11 +54,16 @@ final class UserSettings {
 
         // Register sensible defaults for first launch
         defaults.register(defaults: [
-            Keys.autoLoadReplyCount: 3,
-            Keys.maxAutoExpandDepth: 2,
+            Keys.autoLoadReplyCount:  3,
+            Keys.maxAutoExpandDepth:  2,
+            Keys.enabledOptionalTabs: AppTab.optional.map(\.rawValue),
         ])
 
         autoLoadReplyCount = defaults.integer(forKey: Keys.autoLoadReplyCount)
         maxAutoExpandDepth = defaults.integer(forKey: Keys.maxAutoExpandDepth)
+
+        let rawTabs = defaults.stringArray(forKey: Keys.enabledOptionalTabs)
+            ?? AppTab.optional.map(\.rawValue)
+        enabledOptionalTabs = Set(rawTabs.compactMap(AppTab.init(rawValue:)))
     }
 }

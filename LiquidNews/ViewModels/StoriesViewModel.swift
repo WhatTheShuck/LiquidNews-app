@@ -15,11 +15,11 @@ enum StoryCategory: String, CaseIterable, Identifiable {
 
     var systemImage: String {
         switch self {
-        case .top:  "flame.fill"
-        case .new:  "sparkles"
-        case .best: "star.fill"
-        case .ask:  "questionmark.bubble.fill"
-        case .show: "eye.fill"
+        case .top:  return "flame.fill"
+        case .new:  return "sparkles"
+        case .best: return "star.fill"
+        case .ask:  return "questionmark.bubble.fill"
+        case .show: return "eye.fill"
         }
     }
 }

@@ -11,12 +11,30 @@
 
 import SwiftUI
 
+// MARK: - Preference key for chip centre measurement
+
+private struct ChipCenterKey: PreferenceKey {
+    static let defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
 struct StoriesListView: View {
 
     @State private var viewModel: StoriesViewModel
     @State private var selectedStory: HNItem?
     @State private var showingSearch = false
-    @State private var headerVisible = true
+    @State private var showingSettings = false
+    @State private var showingAccount = false
+    // 0 = picker fully visible, 1 = picker fully hidden.
+    // Driven directly from scroll offset so the animation tracks finger speed.
+    // Snapped to 0 or 1 with a spring once scrolling stops.
+    @State private var pickerProgress: Double = 0
+    // Measured chip centres (in the picker row's coordinate space) and row width,
+    // used to converge chips toward the true horizontal centre of the screen.
+    @State private var chipCenters: [Int: CGFloat] = [:]
+    @State private var pickerRowWidth: CGFloat = 0
 
     init(viewModel: StoriesViewModel = StoriesViewModel()) {
         _viewModel = State(initialValue: viewModel)
@@ -35,27 +53,76 @@ struct StoriesListView: View {
             }
         }
         .background(AppTheme.backgroundGradient.ignoresSafeArea())
-        .navigationTitle("LiquidNews")
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
+            // ── Principal: "LiquidNews" title fades/scales out as the category
+            // picker slides away, replaced by a compact category menu so the
+            // user can still switch feeds while scrolled down.
+            ToolbarItem(placement: .principal) {
+                // Title exits in the first half of the range (progress 0→0.5),
+                // category menu enters in the second half (0.5→1). This creates
+                // a staggered crossfade that tracks scroll speed directly.
+                ZStack {
+                    Text("LiquidNews")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .opacity(max(0, 1 - pickerProgress * 2))
+                        .scaleEffect(1 - pickerProgress * 0.25)
+
+                    Menu {
+                        ForEach(StoryCategory.allCases) { category in
+                            Button {
+                                Task { await viewModel.load(category: category) }
+                            } label: {
+                                if viewModel.selectedCategory == category {
+                                    Label(category.rawValue, systemImage: "checkmark")
+                                } else {
+                                    Text(category.rawValue)
+                                }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: viewModel.selectedCategory.systemImage)
+                                .font(.system(size: 17, weight: .semibold))
+                            Text(viewModel.selectedCategory.rawValue)
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .glassEffect(in: Capsule())
+                    }
+                    .opacity(max(0, pickerProgress * 2 - 1))
+                    .scaleEffect(0.75 + pickerProgress * 0.25)
+                }
+            }
+
+            // ── Trailing: search + overflow (always present) ──
             ToolbarItem(placement: .topBarTrailing) {
-                Button { showingSearch = true } label: {
+                Button {
+                    showingSearch = true
+                } label: {
                     Label("Search", systemImage: "magnifyingglass")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Menu { settingsActionMenu } label: {
+                Menu {
+                    settingsActionMenu
+                } label: {
                     Label("More", systemImage: "ellipsis")
                 }
             }
         }
-        // Category picker occupies a fixed layout slot via safeAreaInset.
-        // .offset() slides it visually without changing content insets.
+        // safeAreaInset gives a fixed layout slot. All transforms are visual-only.
         .safeAreaInset(edge: .top, spacing: 0) {
             categoryPickerRow
-                .offset(y: headerVisible ? 0 : -300)
-                .animation(.spring(duration: 0.35, bounce: 0), value: headerVisible)
+                .opacity(1 - pickerProgress * 1.6)
+                .offset(y: -pickerProgress * 24)
         }
         .sheet(item: $selectedStory) { story in
             NavigationStack {
@@ -67,6 +134,12 @@ struct StoriesListView: View {
         .sheet(isPresented: $showingSearch) {
             SearchView()
         }
+        .sheet(isPresented: $showingSettings) {
+            SettingsListView()
+        }
+        .sheet(isPresented: $showingAccount) {
+            NavigationStack { AccountView() }
+        }
         .task {
             await viewModel.load(category: .top)
         }
@@ -74,12 +147,63 @@ struct StoriesListView: View {
 
     // MARK: - Category picker row (slides away on scroll)
 
+    // Uses a ScrollView for normal interaction but disables scroll + clip during
+    // the convergence animation so chips can physically overlap each other.
     private var categoryPickerRow: some View {
-        CategoryPicker(selected: viewModel.selectedCategory) { category in
-            Task { await viewModel.load(category: category) }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(StoryCategory.allCases.enumerated()), id: \.element.id) {
+                    index, category in
+                    CategoryChip(
+                        category: category,
+                        isSelected: viewModel.selectedCategory == category,
+                        action: { Task { await viewModel.load(category: category) } }
+                    )
+                    // Measure each chip's natural centre X in the HStack coordinate
+                    // space before any offset is applied.
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: ChipCenterKey.self,
+                                value: [index: geo.frame(in: .named("pickerRow")).midX]
+                            )
+                        }
+                    }
+                    // Slide each chip toward the screen's horizontal centre.
+                    // At progress=0 offset is 0; at progress=1 all chips are stacked.
+                    .offset(x: chipConvergenceOffset(for: index))
+                    // Centre chip stays on top; outer chips slide underneath.
+                    .zIndex(Double(StoryCategory.allCases.count - abs(index - 2)) * pickerProgress)
+                }
+            }
+            .padding(.horizontal, 16)
+            .coordinateSpace(.named("pickerRow"))
         }
-        .padding(.horizontal, 16)
+        // Capture the visible row width (= screen width) for the convergence target.
+        .onGeometryChange(for: CGFloat.self) {
+            $0.size.width
+        } action: {
+            pickerRowWidth = $0
+        }
+        .onPreferenceChange(ChipCenterKey.self) { chipCenters = $0 }
+        // Allow chips to visually leave the scroll bounds once converging.
+        .scrollClipDisabled(pickerProgress > 0)
+        // Freeze scroll position while animating so offsets are consistent.
+        .scrollDisabled(pickerProgress > 0.05)
         .padding(.vertical, 10)
+    }
+
+    /// Returns the x offset that moves chip at `index` toward the true horizontal
+    /// centre of the row (= screen centre). Falls back to an index-based estimate
+    /// until the first geometry pass completes.
+    private func chipConvergenceOffset(for index: Int) -> CGFloat {
+        guard let center = chipCenters[index], pickerRowWidth > 0 else {
+            let fallbackCentre = StoryCategory.allCases.count / 2
+            return CGFloat(fallbackCentre - index) * 90 * CGFloat(pickerProgress)
+        }
+        // target is the midpoint of the visible row (= centre of the screen)
+        let target = pickerRowWidth / 2
+        return (target - center) * CGFloat(pickerProgress)
     }
 
     // MARK: - Settings menu content
@@ -88,10 +212,12 @@ struct StoriesListView: View {
     private var settingsActionMenu: some View {
         Section {
             Button {
+                showingSettings = true
             } label: {
                 Label("Settings", systemImage: "gearshape")
             }
             Button {
+                showingAccount = true
             } label: {
                 Label("Account", systemImage: "person.crop.circle")
             }
@@ -132,22 +258,21 @@ struct StoriesListView: View {
         .refreshable {
             await viewModel.refresh()
         }
-        // Direction-change with threshold to avoid micro-jitter.
-        // Because the header uses .offset (not layout), this callback never
-        // receives a spurious offset change caused by the header animating.
+        // Drive pickerProgress directly from scroll offset — no withAnimation
+        // wrapper so the transition speed exactly matches the user's finger.
+        // Range: 0–64 pt maps to progress 0–1.
         .onScrollGeometryChange(for: CGFloat.self) {
             $0.contentOffset.y
-        } action: { old, new in
-            // Always restore at the top
-            if new <= 0 {
-                withAnimation(.spring(duration: 0.35, bounce: 0)) { headerVisible = true }
-                return
-            }
-            // Only react to moves larger than 4 pt to filter out bounce/noise
-            guard abs(new - old) > 4 else { return }
-            let scrollingDown = new > old
-            withAnimation(.spring(duration: 0.35, bounce: 0)) {
-                headerVisible = !scrollingDown
+        } action: { _, new in
+            pickerProgress = Double(min(max(new / 64, 0), 1))
+        }
+        // Once the user's finger is fully off and inertia has settled, snap
+        // to whichever end state is closest using a springy finish.
+        .onScrollPhaseChange { _, new in
+            if new == .idle {
+                withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
+                    pickerProgress = pickerProgress > 0.5 ? 1 : 0
+                }
             }
         }
     }
