@@ -35,6 +35,9 @@ struct StoriesListView: View {
     // used to converge chips toward the true horizontal centre of the screen.
     @State private var chipCenters: [Int: CGFloat] = [:]
     @State private var pickerRowWidth: CGFloat = 0
+    // Namespace shared across all chips so glassEffectID can morph the active
+    // glass capsule between chips when the selection changes.
+    @Namespace private var chipNamespace
 
     init(viewModel: StoriesViewModel = StoriesViewModel()) {
         _viewModel = State(initialValue: viewModel)
@@ -145,20 +148,36 @@ struct StoriesListView: View {
 
     // MARK: - Category picker row (slides away on scroll)
 
-    // Uses a ScrollView for normal interaction but disables scroll + clip during
-    // the convergence animation so chips can physically overlap each other.
+    // Chips fill the full screen width equally (no ScrollView needed with 5 chips).
+    // All chips live inside a GlassEffectContainer so:
+    //   1. Each chip's glass capsule morphs to the adjacent chip when selection changes
+    //      (via glassEffectID — the same mechanism Apple's tab bar uses).
+    //   2. All capsules merge together liquidly as they converge on scroll.
+    // The selected chip also floats upward as it converges, making it appear to
+    // travel into the toolbar's category menu button.
+    // Chips fill the full screen width equally. All chips live inside a
+    // GlassEffectContainer so their glass capsules morph between positions
+    // when selection changes (glassEffectID mechanism), and merge together
+    // liquidly when the picker scrolls away.
+    //
+    // Interaction is handled by a single DragGesture(minimumDistance:0) on the
+    // HStack — this covers both taps (zero travel) and slides (finger moves
+    // between chips), exactly like Apple's own tab bar. Individual per-chip
+    // Buttons are intentionally absent: Button + .glassEffect(.interactive())
+    // compete for the same touch and produce unreliable firing.
     private var categoryPickerRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        GlassEffectContainer {
             HStack(spacing: 8) {
                 ForEach(Array(StoryCategory.allCases.enumerated()), id: \.element.id) {
                     index, category in
                     CategoryChip(
                         category: category,
                         isSelected: viewModel.selectedCategory == category,
-                        action: { Task { await viewModel.load(category: category) } }
+                        namespace: chipNamespace,
+                        mergeProgress: pickerProgress
                     )
-                    // Measure each chip's natural centre X in the HStack coordinate
-                    // space before any offset is applied.
+                    .frame(maxWidth: .infinity)
+                    // Measure each chip's natural centre X before any offset is applied.
                     .background {
                         GeometryReader { geo in
                             Color.clear.preference(
@@ -167,28 +186,50 @@ struct StoriesListView: View {
                             )
                         }
                     }
-                    // Slide each chip toward the screen's horizontal centre.
-                    // At progress=0 offset is 0; at progress=1 all chips are stacked.
+                    // Animate glass morph and highlight when selection changes.
+                    .animation(.bouncy(duration: 0.4), value: viewModel.selectedCategory)
+                    // Slide chips toward screen centre on scroll.
                     .offset(x: chipConvergenceOffset(for: index))
                     // Centre chip stays on top; outer chips slide underneath.
                     .zIndex(Double(StoryCategory.allCases.count - abs(index - 2)) * pickerProgress)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 12)
             .coordinateSpace(.named("pickerRow"))
+            .contentShape(Rectangle())
+            // Single gesture covers both taps (minimumDistance:0 fires on lift)
+            // and slides (onChanged fires as finger crosses chip boundaries).
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .named("pickerRow"))
+                    .onChanged { value in
+                        selectNearest(to: value.location.x)
+                    }
+                    .onEnded { value in
+                        selectNearest(to: value.location.x)
+                    }
+            )
         }
-        // Capture the visible row width (= screen width) for the convergence target.
+        // Capture visible row width for convergence target calculation.
         .onGeometryChange(for: CGFloat.self) {
             $0.size.width
         } action: {
             pickerRowWidth = $0
         }
         .onPreferenceChange(ChipCenterKey.self) { chipCenters = $0 }
-        // Allow chips to visually leave the scroll bounds once converging.
-        .scrollClipDisabled(pickerProgress > 0)
-        // Freeze scroll position while animating so offsets are consistent.
-        .scrollDisabled(pickerProgress > 0.05)
         .padding(.vertical, 10)
+    }
+
+    /// Selects the chip whose measured centre is nearest to x (pickerRow space).
+    /// Setting selectedCategory synchronously here guarantees the @Observable
+    /// change fires in the current render pass, so .animation picks it up.
+    private func selectNearest(to x: CGFloat) {
+        guard !chipCenters.isEmpty,
+              let nearest = chipCenters.min(by: { abs($0.value - x) < abs($1.value - x) }),
+              nearest.key < StoryCategory.allCases.count else { return }
+        let category = StoryCategory.allCases[nearest.key]
+        guard category != viewModel.selectedCategory else { return }
+        viewModel.selectedCategory = category
+        Task { await viewModel.load(category: category) }
     }
 
     /// Returns the x offset that moves chip at `index` toward the true horizontal
@@ -268,7 +309,8 @@ struct StoriesListView: View {
         // to whichever end state is closest using a springy finish.
         .onScrollPhaseChange { _, new in
             if new == .idle {
-                withAnimation(.spring(duration: 0.45, bounce: 0.2)) {
+                // Higher bounce (0.4) gives the glass merge its liquid snap feel.
+                withAnimation(.spring(duration: 0.42, bounce: 0.4)) {
                     pickerProgress = pickerProgress > 0.5 ? 1 : 0
                 }
             }
@@ -278,47 +320,85 @@ struct StoriesListView: View {
 
 // MARK: - Category Picker
 
+// CategoryPicker is a standalone scrollable version used outside StoriesListView.
+// It owns its namespace and gesture — same single-gesture pattern as the main row.
 struct CategoryPicker: View {
     let selected: StoryCategory
     let onSelect: (StoryCategory) -> Void
+    @Namespace private var ns
+    @State private var centers: [Int: CGFloat] = [:]
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        GlassEffectContainer {
             HStack(spacing: 8) {
-                ForEach(StoryCategory.allCases) { category in
+                ForEach(Array(StoryCategory.allCases.enumerated()), id: \.element.id) { index, category in
                     CategoryChip(
                         category: category,
                         isSelected: selected == category,
-                        action: { onSelect(category) }
+                        namespace: ns
                     )
+                    .background {
+                        GeometryReader { geo in
+                            Color.clear.preference(
+                                key: ChipCenterKey.self,
+                                value: [index: geo.frame(in: .named("cpRow")).midX]
+                            )
+                        }
+                    }
+                    .animation(.bouncy(duration: 0.4), value: selected)
                 }
             }
+            .padding(.horizontal, 12)
+            .coordinateSpace(.named("cpRow"))
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .named("cpRow"))
+                    .onChanged { v in selectNearest(to: v.location.x) }
+                    .onEnded   { v in selectNearest(to: v.location.x) }
+            )
         }
+        .onPreferenceChange(ChipCenterKey.self) { centers = $0 }
+    }
+
+    private func selectNearest(to x: CGFloat) {
+        guard !centers.isEmpty,
+              let nearest = centers.min(by: { abs($0.value - x) < abs($1.value - x) }),
+              nearest.key < StoryCategory.allCases.count else { return }
+        onSelect(StoryCategory.allCases[nearest.key])
     }
 }
 
+// Pure visual chip — no Button, no action. Interaction is owned by the parent
+// container's DragGesture so there is no gesture conflict with the glass effect.
 struct CategoryChip: View {
     let category: StoryCategory
     let isSelected: Bool
-    let action: () -> Void
+    /// Shared namespace so glassEffectID can morph the active capsule between chips.
+    let namespace: Namespace.ID
+    /// 0 = normal; 1 = fully converged. Non-selected labels fade during merge.
+    var mergeProgress: Double = 0
 
     var body: some View {
-        Button(action: action) {
-            Text(category.rawValue)
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+        Text(category.rawValue)
+            .font(.system(size: 14, weight: .semibold, design: .rounded))
             .foregroundStyle(isSelected ? AppTheme.accent : Color.white)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 11)
-            .glassEffect(in: Capsule())
+            // All chips fade identically during convergence — selected included.
+            // This leaves uniform plain-glass capsules for GlassEffectContainer
+            // to blend, rather than one visually distinct chip resisting the merge.
+            .opacity(max(0, 1 - mergeProgress * 2))
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
             .overlay {
                 if isSelected {
                     Capsule()
-                        .strokeBorder(AppTheme.accent.opacity(0.8), lineWidth: 1.5)
+                        .strokeBorder(AppTheme.accent.opacity(0.8 * (1 - mergeProgress)), lineWidth: 1.5)
                 }
             }
-        }
-        .buttonStyle(.plain)
-        .animation(.spring(duration: 0.22), value: isSelected)
+            .glassEffect(in: Capsule())
+            .glassEffectID(isSelected ? "activeChip" : category.rawValue, in: namespace)
     }
 }
 
