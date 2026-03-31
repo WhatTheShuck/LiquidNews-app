@@ -112,4 +112,20 @@ enum PreviewData {
         deleted: nil,
         dead: nil
     )
+
+    /// A comment with rich HTML formatting — used to preview CommentBodyView.
+    static let richComment = HNItem(
+        id: 39_897_200,
+        type: .comment,
+        by: "simonw",
+        time: Date().timeIntervalSince1970 - 1_200,
+        title: nil,
+        url: nil,
+        score: nil,
+        descendants: nil,
+        text: "The <i>real</i> advantage here is zero-setup execution. You can ship a one-liner that just works on any machine with uv installed:<p><pre><code>uv run --with httpx python -c \"\nimport httpx\nprint(httpx.get(&#x27;https://httpbin.org/ip&#x27;).json())\n\"</code></pre><p>No venv, no <code>pip install</code>, no requirements file. Compare that to the old approach — <b>six commands</b> before you can even run your script.<p>The performance numbers are genuinely wild too. See the benchmarks at <a href=\"https://astral.sh/blog/uv-unified-python-packaging\" rel=\"nofollow\">https://astral.sh/blog/uv-unified-python-packaging</a> — resolving a complex dependency tree in under 100ms versus pip&#x27;s 30+ seconds.",
+        kids: nil,
+        deleted: nil,
+        dead: nil
+    )
 }
