@@ -6,6 +6,7 @@
 
 import Foundation
 import Observation
+import SwiftUI
 
 @Observable
 final class UserSettings {
@@ -29,6 +30,14 @@ final class UserSettings {
         didSet { UserDefaults.standard.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) }
     }
 
+    // MARK: - Comment rendering
+
+    /// Global default for how comment text is rendered.
+    /// Can be overridden per-comment from the long-press context menu.
+    var commentRenderingStyle: CommentRenderMode {
+        didSet { UserDefaults.standard.set(commentRenderingStyle.rawValue, forKey: Keys.commentRenderingStyle) }
+    }
+
     // MARK: - Tab bar
 
     /// Which optional tabs appear in the bottom pill. Feed is always shown and not stored here.
@@ -41,12 +50,33 @@ final class UserSettings {
         }
     }
 
+    // MARK: - Curated sources
+
+    /// Which built-in curated sources are enabled (stored by rawValue).
+    var enabledBuiltInCuratedSources: Set<String> {
+        didSet {
+            UserDefaults.standard.set(Array(enabledBuiltInCuratedSources), forKey: Keys.enabledBuiltInCuratedSources)
+        }
+    }
+
+    /// User-added custom curated feed URLs.
+    var customCuratedFeeds: [CustomCuratedFeed] {
+        didSet {
+            if let data = try? JSONEncoder().encode(customCuratedFeeds) {
+                UserDefaults.standard.set(data, forKey: Keys.customCuratedFeeds)
+            }
+        }
+    }
+
     // MARK: - Init
 
     private enum Keys {
-        static let autoLoadReplyCount  = "LN_autoLoadReplyCount"
-        static let maxAutoExpandDepth  = "LN_maxAutoExpandDepth"
-        static let enabledOptionalTabs = "LN_enabledOptionalTabs"
+        static let autoLoadReplyCount           = "LN_autoLoadReplyCount"
+        static let maxAutoExpandDepth           = "LN_maxAutoExpandDepth"
+        static let enabledOptionalTabs          = "LN_enabledOptionalTabs"
+        static let commentRenderingStyle        = "LN_commentRenderingStyle"
+        static let enabledBuiltInCuratedSources = "LN_enabledBuiltInCuratedSources"
+        static let customCuratedFeeds           = "LN_customCuratedFeeds"
     }
 
     private init() {
@@ -54,9 +84,11 @@ final class UserSettings {
 
         // Register sensible defaults for first launch
         defaults.register(defaults: [
-            Keys.autoLoadReplyCount:  3,
-            Keys.maxAutoExpandDepth:  2,
-            Keys.enabledOptionalTabs: AppTab.optional.map(\.rawValue),
+            Keys.autoLoadReplyCount:           3,
+            Keys.maxAutoExpandDepth:           2,
+            Keys.enabledOptionalTabs:          AppTab.optional.map(\.rawValue),
+            Keys.commentRenderingStyle:        CommentRenderMode.rich.rawValue,
+            Keys.enabledBuiltInCuratedSources: BuiltInCuratedSource.allCases.map(\.rawValue),
         ])
 
         autoLoadReplyCount = defaults.integer(forKey: Keys.autoLoadReplyCount)
@@ -65,5 +97,19 @@ final class UserSettings {
         let rawTabs = defaults.stringArray(forKey: Keys.enabledOptionalTabs)
             ?? AppTab.optional.map(\.rawValue)
         enabledOptionalTabs = Set(rawTabs.compactMap(AppTab.init(rawValue:)))
+
+        let rawRenderMode = defaults.string(forKey: Keys.commentRenderingStyle) ?? CommentRenderMode.rich.rawValue
+        commentRenderingStyle = CommentRenderMode(rawValue: rawRenderMode) ?? .rich
+
+        let rawBuiltIn = defaults.stringArray(forKey: Keys.enabledBuiltInCuratedSources)
+            ?? BuiltInCuratedSource.allCases.map(\.rawValue)
+        enabledBuiltInCuratedSources = Set(rawBuiltIn)
+
+        if let data = defaults.data(forKey: Keys.customCuratedFeeds),
+           let feeds = try? JSONDecoder().decode([CustomCuratedFeed].self, from: data) {
+            customCuratedFeeds = feeds
+        } else {
+            customCuratedFeeds = []
+        }
     }
 }

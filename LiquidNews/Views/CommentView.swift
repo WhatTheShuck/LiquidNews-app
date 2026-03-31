@@ -4,7 +4,7 @@
 //   • Auto-expansion of the first N replies (controlled by UserSettings)
 //   • Tap the header to collapse/expand
 //   • "Continue thread →" at depth threshold → pushes ThreadView
-//   • Long-press context menu for comment actions
+//   • Long-press context menu for comment actions, including per-comment render mode override
 //   • Manual "Load N more" for replies beyond the auto-loaded batch
 
 import SwiftUI
@@ -23,7 +23,18 @@ struct CommentView: View {
     @State private var hasAutoLoaded = false
     @State private var showThread: HNItem?
 
+    // MARK: Rendering
+    /// Per-comment override. nil means "follow the global setting".
+    @State private var localRenderMode: CommentRenderMode?
+    /// Computed rich text for .rich mode; nil until computed.
+    @State private var richText: AttributedString?
+
     private var settings: UserSettings { .shared }
+
+    /// The effective rendering mode for this comment instance.
+    private var effectiveMode: CommentRenderMode {
+        localRenderMode ?? settings.commentRenderingStyle
+    }
 
     var threadColor: Color {
         AppTheme.threadColor(depth: depth)
@@ -73,10 +84,7 @@ struct CommentView: View {
             if isExpanded {
                 // Comment body
                 if let text = comment.text, !text.isEmpty {
-                    Text(text.htmlStripped)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.88))
-                        .fixedSize(horizontal: false, vertical: true)
+                    commentBody(for: text)
                 }
 
                 if atDepthLimit {
@@ -131,6 +139,9 @@ struct CommentView: View {
         .task {
             await autoLoadIfNeeded()
         }
+        .task(id: effectiveMode) {
+            await computeRichTextIfNeeded()
+        }
         .sheet(item: $showThread) { thread in
             NavigationStack {
                 ThreadView(rootComment: thread, depth: depth + 1)
@@ -138,6 +149,90 @@ struct CommentView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
         }
+    }
+
+    // MARK: - Comment body rendering
+
+    @ViewBuilder
+    private func commentBody(for text: String) -> some View {
+        switch effectiveMode {
+
+        case .textOnly:
+            Text(text.htmlStripped)
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+
+        case .textWithLinks:
+            Text(text.htmlWithLinks)
+                .font(.system(size: 14))
+                .foregroundStyle(.white.opacity(0.88))
+                .fixedSize(horizontal: false, vertical: true)
+                .tint(AppTheme.accent)
+
+        case .rich:
+            if let richText {
+                Text(richText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .tint(AppTheme.accent)
+            } else {
+                // Shown briefly while richText is being computed
+                Text(text.htmlStripped)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.white.opacity(0.88))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    // MARK: - Rich text computation
+
+    private func computeRichTextIfNeeded() async {
+        guard effectiveMode == .rich, richText == nil, let text = comment.text, !text.isEmpty else { return }
+        richText = makeRichText(from: text)
+    }
+
+    /// Parses HN HTML into a styled `AttributedString` using WebKit's HTML engine.
+    /// Preserves bold, italic, inline code, code blocks, and tappable links.
+    private func makeRichText(from html: String) -> AttributedString? {
+        // Inject CSS so the parsed text matches the app's dark glass aesthetic.
+        // NSAttributedString HTML parsing requires UTF-8 data.
+        let styledHTML = """
+        <html><head><meta charset="UTF-8"><style>
+        body  { font-family: -apple-system; font-size: 14px; color: #DCDCDC; }
+        a     { color: #FF6B14; text-decoration: none; }
+        code  { font-family: Menlo, 'SF Mono', monospace; font-size: 12px; }
+        pre   { font-family: Menlo, 'SF Mono', monospace; font-size: 12px; }
+        p     { margin: 0; padding: 0 0 8px 0; }
+        </style></head><body>\(html)</body></html>
+        """
+
+        guard let data = styledHTML.data(using: .utf8) else { return nil }
+
+        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
+            .documentType: NSAttributedString.DocumentType.html,
+            .characterEncoding: String.Encoding.utf8.rawValue,
+        ]
+
+        guard let nsAS = try? NSAttributedString(data: data, options: options, documentAttributes: nil) else {
+            return nil
+        }
+
+        // Trim the trailing newline that NSAttributedString HTML parsing always adds
+        let trimmed: NSAttributedString
+        if nsAS.length > 0 {
+            let str = nsAS.string
+            let trailingNewlines = str.reversed().prefix(while: { $0.isNewline }).count
+            if trailingNewlines > 0 {
+                trimmed = nsAS.attributedSubstring(from: NSRange(location: 0, length: nsAS.length - trailingNewlines))
+            } else {
+                trimmed = nsAS
+            }
+        } else {
+            trimmed = nsAS
+        }
+
+        return try? AttributedString(trimmed, including: \.uiKit)
     }
 
     // MARK: - Continue thread buttons
@@ -233,6 +328,24 @@ struct CommentView: View {
             let hnURL = URL(string: "https://news.ycombinator.com/item?id=\(comment.id)")!
             ShareLink(item: hnURL) {
                 Label("Share", systemImage: "square.and.arrow.up")
+            }
+        }
+
+        // ── Rendering mode override ──
+        Section {
+            if effectiveMode != .textOnly {
+                Button {
+                    localRenderMode = .textOnly
+                } label: {
+                    Label("View as Plain Text", systemImage: "text.alignleft")
+                }
+            } else {
+                Button {
+                    // Clear the override — falls back to global setting
+                    localRenderMode = nil
+                } label: {
+                    Label("Restore Full Rendering", systemImage: "textformat.alt")
+                }
             }
         }
 

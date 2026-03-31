@@ -63,15 +63,25 @@ struct HNItem: Identifiable, Codable, Hashable {
 // HN returns comment/post text as HTML. This strips tags for plain display.
 extension String {
     var htmlStripped: String {
-        // Replace paragraph breaks with newlines first
-        var result = replacingOccurrences(of: "<p>", with: "\n\n")
+        var result = self
+        // Extract the full URL from anchor hrefs before stripping.
+        // HN truncates long URLs in anchor display text (e.g. "https://example.com/ver…")
+        // but the href always contains the full URL. Replacing the whole anchor with
+        // its href preserves the untruncated URL in plain-text mode.
+        result = result.replacingOccurrences(
+            of: #"<a\s[^>]*href="([^"]*)"[^>]*>[^<]*</a>"#,
+            with: "$1",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        // Replace paragraph breaks with newlines
+        result = result.replacingOccurrences(of: "<p>", with: "\n\n")
         // Strip remaining tags
         result = result.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
         // Decode common HTML entities
         result = result
-            .replacingOccurrences(of: "&amp;", with: "&")
-            .replacingOccurrences(of: "&lt;", with: "<")
-            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&amp;",  with: "&")
+            .replacingOccurrences(of: "&lt;",   with: "<")
+            .replacingOccurrences(of: "&gt;",   with: ">")
             .replacingOccurrences(of: "&#x27;", with: "'")
             .replacingOccurrences(of: "&quot;", with: "\"")
             .replacingOccurrences(of: "&#x2F;", with: "/")

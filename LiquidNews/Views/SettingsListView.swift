@@ -9,6 +9,7 @@ struct SettingsListView: View {
     @State private var settings = UserSettings.shared
     @State private var auth = HNAuthService.shared
     @State private var navigateToAccount = false
+    @State private var showAddCuratedFeed = false
 
     var body: some View {
         NavigationStack {
@@ -16,6 +17,7 @@ struct SettingsListView: View {
                 VStack(spacing: 16) {
                     accountSection
                     navigationSection
+                    curatedSection
                     feedSection
                     aboutSection
                 }
@@ -115,6 +117,104 @@ struct SettingsListView: View {
         .glassCard()
     }
 
+    // MARK: - Curated section
+
+    private var curatedSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Curated Sources")
+
+            VStack(spacing: 0) {
+                // Built-in sources
+                ForEach(Array(BuiltInCuratedSource.allCases.enumerated()), id: \.element.id) { index, source in
+                    if index > 0 {
+                        Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+                    }
+                    HStack(spacing: 12) {
+                        Image(systemName: source.systemImage)
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        Text(source.name)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Toggle("", isOn: Binding(
+                            get: { settings.enabledBuiltInCuratedSources.contains(source.rawValue) },
+                            set: { enabled in
+                                if enabled {
+                                    settings.enabledBuiltInCuratedSources.insert(source.rawValue)
+                                } else {
+                                    settings.enabledBuiltInCuratedSources.remove(source.rawValue)
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                    }
+                    .padding(16)
+                }
+
+                // User-added custom feeds
+                ForEach($settings.customCuratedFeeds) { $feed in
+                    Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+                    HStack(spacing: 12) {
+                        Image(systemName: "list.bullet")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(feed.name)
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text(feed.urlString)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $feed.isEnabled)
+                            .labelsHidden()
+                            .tint(AppTheme.accent)
+                        Button {
+                            settings.customCuratedFeeds.removeAll { $0.id == feed.id }
+                        } label: {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundStyle(.red.opacity(0.8))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(16)
+                }
+
+                // Add custom feed button
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+                Button {
+                    showAddCuratedFeed = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        Text("Add Custom Feed")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(AppTheme.accent)
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .glassCard()
+        .sheet(isPresented: $showAddCuratedFeed) {
+            AddCuratedFeedView { newFeed in
+                settings.customCuratedFeeds.append(newFeed)
+            }
+        }
+    }
+
     // MARK: - Feed section
 
     private var feedSection: some View {
@@ -166,6 +266,71 @@ struct SettingsListView: View {
                         .labelsHidden()
                 }
                 .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Comment rendering style
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        Image(systemName: settings.commentRenderingStyle.systemImage)
+                            .font(.system(size: 16))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Comment rendering")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text(settings.commentRenderingStyle.subtitle)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 10)
+
+                    HStack(spacing: 0) {
+                        ForEach(CommentRenderMode.allCases, id: \.self) { mode in
+                            Button {
+                                settings.commentRenderingStyle = mode
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: mode.systemImage)
+                                        .font(.system(size: 14, weight: .medium))
+                                    Text(mode.label)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    settings.commentRenderingStyle == mode
+                                        ? AppTheme.accent.opacity(0.2)
+                                        : Color.clear
+                                )
+                                .foregroundStyle(
+                                    settings.commentRenderingStyle == mode
+                                        ? AppTheme.accent
+                                        : Color.secondary
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            if mode != CommentRenderMode.allCases.last {
+                                Divider()
+                                    .frame(height: 32)
+                                    .overlay(AppTheme.glassBorder)
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(AppTheme.glassBorder, lineWidth: 1)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                }
             }
         }
         .glassCard()
@@ -238,4 +403,143 @@ struct SettingsListView: View {
 #Preview {
     SettingsListView()
         .preferredColorScheme(.dark)
+}
+
+// MARK: - Add Curated Feed sheet
+
+private struct AddCuratedFeedView: View {
+
+    var onSave: (CustomCuratedFeed) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var name = ""
+    @State private var urlString = ""
+    @State private var showFormat = false
+
+    private var isValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty &&
+        URL(string: urlString.trimmingCharacters(in: .whitespaces)) != nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Input fields
+                    VStack(spacing: 0) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            fieldLabel("Feed name")
+                            TextField("My Curated List", text: $name)
+                                .font(.system(size: 15, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(16)
+                        }
+                        Divider().overlay(AppTheme.glassBorder).padding(.leading, 16)
+                        VStack(alignment: .leading, spacing: 0) {
+                            fieldLabel("JSON URL")
+                            TextField("https://example.com/curated.json", text: $urlString)
+                                .font(.system(size: 15, design: .rounded))
+                                .foregroundStyle(.white)
+                                .keyboardType(.URL)
+                                .autocorrectionDisabled()
+                                .textInputAutocapitalization(.never)
+                                .padding(16)
+                        }
+                    }
+                    .glassCard()
+
+                    // JSON format disclosure
+                    VStack(spacing: 0) {
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.2)) { showFormat.toggle() }
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 16))
+                                    .foregroundStyle(AppTheme.accent)
+                                    .frame(width: 30)
+                                Text("Expected JSON format")
+                                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                                Image(systemName: showFormat ? "chevron.up" : "chevron.down")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(16)
+                        }
+                        .buttonStyle(.plain)
+
+                        if showFormat {
+                            Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text(CuratedFeedFormat.exampleJSON)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundStyle(.secondary)
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.white.opacity(0.04))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                ForEach(CuratedFeedFormat.fieldDescriptions, id: \.field) { item in
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Text(item.field)
+                                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                            .foregroundStyle(AppTheme.accent)
+                                            .frame(width: 44, alignment: .leading)
+                                        Text(item.detail)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(16)
+                        }
+                    }
+                    .glassCard()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 32)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .background(AppTheme.backgroundGradient.ignoresSafeArea())
+            .navigationTitle("Add Custom Feed")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        let feed = CustomCuratedFeed(
+                            name: name.trimmingCharacters(in: .whitespaces),
+                            urlString: urlString.trimmingCharacters(in: .whitespaces)
+                        )
+                        onSave(feed)
+                        dismiss()
+                    }
+                    .disabled(!isValid)
+                    .fontWeight(.semibold)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func fieldLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .foregroundStyle(.tertiary)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 2)
+    }
+}
+
+#Preview("Add Feed") {
+    AddCuratedFeedView { _ in }
 }
