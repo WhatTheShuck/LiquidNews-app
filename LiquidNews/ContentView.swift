@@ -1,6 +1,7 @@
 // ContentView.swift
-// Root view. Builds a floating pill TabView from whichever tabs the user has enabled.
-// Feed is always first and cannot be removed. The remaining five are toggled in Settings.
+// Root view. Builds a floating pill TabView from whichever tabs the user has enabled,
+// in the order the user has arranged them in Settings.
+// Feed is always first and cannot be removed or reordered.
 
 import SwiftUI
 
@@ -10,34 +11,19 @@ struct ContentView: View {
     @State private var deepLinkedStory: HNItem?
     @Environment(DeepLinkState.self) private var deepLink
 
+    /// Optional tabs in user-defined order, filtered to only the enabled ones.
+    private var orderedEnabledTabs: [AppTab] {
+        settings.tabOrder.filter { settings.enabledOptionalTabs.contains($0) }
+    }
+
     var body: some View {
         TabView {
             Tab(AppTab.feed.label, systemImage: AppTab.feed.systemImage) {
                 NavigationStack { StoriesListView() }
             }
-            if settings.enabledOptionalTabs.contains(.catchUp) {
-                Tab(AppTab.catchUp.label, systemImage: AppTab.catchUp.systemImage) {
-                    NavigationStack { CatchUpView() }
-                }
-            }
-            if settings.enabledOptionalTabs.contains(.saved) {
-                Tab(AppTab.saved.label, systemImage: AppTab.saved.systemImage) {
-                    NavigationStack { SavedView() }
-                }
-            }
-            if settings.enabledOptionalTabs.contains(.history) {
-                Tab(AppTab.history.label, systemImage: AppTab.history.systemImage) {
-                    NavigationStack { HistoryView() }
-                }
-            }
-            if settings.enabledOptionalTabs.contains(.favourites) {
-                Tab(AppTab.favourites.label, systemImage: AppTab.favourites.systemImage) {
-                    NavigationStack { FavouritesView() }
-                }
-            }
-            if settings.enabledOptionalTabs.contains(.curated) {
-                Tab(AppTab.curated.label, systemImage: AppTab.curated.systemImage) {
-                    NavigationStack { CuratedView() }
+            ForEach(orderedEnabledTabs) { tab in
+                Tab(tab.label, systemImage: tab.systemImage) {
+                    tabContent(for: tab)
                 }
             }
         }
@@ -51,6 +37,20 @@ struct ContentView: View {
             guard let id else { return }
             deepLink.pendingItemID = nil
             Task { await openStory(id: id) }
+        }
+    }
+
+    // MARK: - Tab content
+
+    @ViewBuilder
+    private func tabContent(for tab: AppTab) -> some View {
+        switch tab {
+        case .feed:       NavigationStack { StoriesListView() }
+        case .catchUp:    NavigationStack { CatchUpView() }
+        case .saved:      NavigationStack { SavedView() }
+        case .history:    NavigationStack { HistoryView() }
+        case .favourites: NavigationStack { FavouritesView() }
+        case .curated:    NavigationStack { CuratedView() }
         }
     }
 

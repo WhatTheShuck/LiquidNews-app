@@ -83,11 +83,9 @@ struct SettingsListView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Navigation")
 
-            VStack(spacing: 0) {
-                ForEach(Array(AppTab.optional.enumerated()), id: \.element.id) { index, tab in
-                    if index > 0 {
-                        Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
-                    }
+            // Always-on edit mode so drag handles are visible without a separate Edit button.
+            List {
+                ForEach(settings.tabOrder) { tab in
                     HStack(spacing: 12) {
                         Image(systemName: tab.systemImage)
                             .font(.system(size: 18))
@@ -110,9 +108,20 @@ struct SettingsListView: View {
                         .labelsHidden()
                         .tint(AppTheme.accent)
                     }
-                    .padding(16)
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparatorTint(AppTheme.glassBorder)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                }
+                .onMove { from, to in
+                    settings.tabOrder.move(fromOffsets: from, toOffset: to)
                 }
             }
+            .listStyle(.plain)
+            .scrollDisabled(true)
+            .environment(\.editMode, .constant(.active))
+            // Fixed height: 5 tabs × ~54 pt per row
+            .frame(height: CGFloat(settings.tabOrder.count) * 54)
         }
         .glassCard()
     }

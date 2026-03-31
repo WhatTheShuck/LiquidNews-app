@@ -50,6 +50,12 @@ final class UserSettings {
         }
     }
 
+    /// Display order of all optional tabs. All five are always present here;
+    /// whether each is visible is controlled by `enabledOptionalTabs`.
+    var tabOrder: [AppTab] {
+        didSet { UserDefaults.standard.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
+    }
+
     // MARK: - Curated sources
 
     /// Which built-in curated sources are enabled (stored by rawValue).
@@ -74,6 +80,7 @@ final class UserSettings {
         static let autoLoadReplyCount           = "LN_autoLoadReplyCount"
         static let maxAutoExpandDepth           = "LN_maxAutoExpandDepth"
         static let enabledOptionalTabs          = "LN_enabledOptionalTabs"
+        static let tabOrder                     = "LN_tabOrder"
         static let commentRenderingStyle        = "LN_commentRenderingStyle"
         static let enabledBuiltInCuratedSources = "LN_enabledBuiltInCuratedSources"
         static let customCuratedFeeds           = "LN_customCuratedFeeds"
@@ -87,6 +94,7 @@ final class UserSettings {
             Keys.autoLoadReplyCount:           3,
             Keys.maxAutoExpandDepth:           2,
             Keys.enabledOptionalTabs:          AppTab.optional.map(\.rawValue),
+            Keys.tabOrder:                     AppTab.optional.map(\.rawValue),
             Keys.commentRenderingStyle:        CommentRenderMode.rich.rawValue,
             Keys.enabledBuiltInCuratedSources: BuiltInCuratedSource.allCases.map(\.rawValue),
         ])
@@ -97,6 +105,12 @@ final class UserSettings {
         let rawTabs = defaults.stringArray(forKey: Keys.enabledOptionalTabs)
             ?? AppTab.optional.map(\.rawValue)
         enabledOptionalTabs = Set(rawTabs.compactMap(AppTab.init(rawValue:)))
+
+        // Restore tab order; append any tabs missing from a previous version's saved order
+        let savedOrder = (defaults.stringArray(forKey: Keys.tabOrder) ?? [])
+            .compactMap(AppTab.init(rawValue:))
+        let missing = AppTab.optional.filter { !savedOrder.contains($0) }
+        tabOrder = savedOrder + missing
 
         let rawRenderMode = defaults.string(forKey: Keys.commentRenderingStyle) ?? CommentRenderMode.rich.rawValue
         commentRenderingStyle = CommentRenderMode(rawValue: rawRenderMode) ?? .rich
