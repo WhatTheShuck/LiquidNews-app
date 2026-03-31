@@ -1,6 +1,6 @@
 // AppTab.swift
-// The five navigatable sections of the app.
-// Feed is always present; the other four are user-configurable via Settings.
+// The six navigatable sections of the app.
+// Feed is always present; the other five are user-configurable via Settings.
 
 import Foundation
 
@@ -10,6 +10,7 @@ enum AppTab: String, CaseIterable, Identifiable {
     case saved
     case history
     case favourites
+    case curated
 
     var id: String { rawValue }
 
@@ -20,6 +21,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .saved:      return "Saved"
         case .history:    return "History"
         case .favourites: return "Favourites"
+        case .curated:    return "Curated"
         }
     }
 
@@ -30,6 +32,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .saved:      return "bookmark"
         case .history:    return "clock"
         case .favourites: return "heart"
+        case .curated:    return "list.star"
         }
     }
 
