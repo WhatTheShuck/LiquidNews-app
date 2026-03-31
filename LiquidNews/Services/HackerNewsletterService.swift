@@ -31,24 +31,25 @@ final class HackerNewsletterService {
 
     private let feedURL = URL(string: "https://buttondown.com/hacker-newsletter/rss")!
 
-    /// Fetches the RSS feed and returns all issues found (most recent first).
-    func fetchIssues() async throws -> [NewsletterIssue] {
+    // MARK: - Split API (used by CuratedStore)
+
+    /// Downloads and XML-parses the RSS feed, returning raw items (most recent first).
+    /// This is the network-heavy step. Parsing the HTML inside each item is separate.
+    func fetchRSSItems() async throws -> [HNLRSSParser.RSSItem] {
         let data: Data
         do {
             (data, _) = try await URLSession.shared.data(from: feedURL)
         } catch {
             throw NewsletterError.networkFailure(error)
         }
-
-        let rawItems = HNLRSSParser().parse(data: data)
-        guard !rawItems.isEmpty else { throw NewsletterError.noIssues }
-
-        return rawItems.map { parseIssue(from: $0) }
+        let items = HNLRSSParser().parse(data: data)
+        guard !items.isEmpty else { throw NewsletterError.noIssues }
+        return items
     }
 
-    // MARK: - Private
-
-    private func parseIssue(from item: HNLRSSParser.RSSItem) -> NewsletterIssue {
+    /// HTML-parses a single raw RSS item into a structured NewsletterIssue.
+    /// This is the CPU-heavy step — kept separate so CuratedStore can do it lazily.
+    func parseIssue(from item: HNLRSSParser.RSSItem) -> NewsletterIssue {
         let issueNumber = extractIssueNumber(from: item.title)
         let pubDate = parseRFC822(item.pubDate) ?? .now
         let entries = NewsletterHTMLParser.extractEntries(from: item.description)
@@ -61,8 +62,18 @@ final class HackerNewsletterService {
         )
     }
 
+    // MARK: - Convenience
+
+    /// Fetches and fully parses all issues in the RSS feed. Useful for one-shot use.
+    func fetchIssues() async throws -> [NewsletterIssue] {
+        let items = try await fetchRSSItems()
+        return items.map { parseIssue(from: $0) }
+    }
+
+    // MARK: - Private helpers
+
     /// Pulls the number from titles like "Hacker Newsletter #787".
-    private func extractIssueNumber(from title: String) -> Int {
+    func extractIssueNumber(from title: String) -> Int {
         guard let match = title.firstMatch(of: /#(\d+)/) else { return 0 }
         return Int(match.1) ?? 0
     }
@@ -84,7 +95,9 @@ final class HackerNewsletterService {
 
 final class HNLRSSParser: NSObject, XMLParserDelegate {
 
-    struct RSSItem {
+    /// A single parsed RSS item. Codable so CuratedStore can persist it to disk
+    /// and do lazy per-page HTML parsing across app sessions without re-fetching.
+    struct RSSItem: Codable {
         var title: String = ""
         var link: String = ""
         var description: String = ""

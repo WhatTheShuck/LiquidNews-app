@@ -29,7 +29,7 @@ enum BuiltInCuratedSource: String, CaseIterable, Identifiable {
     var url: URL {
         switch self {
         case .hackerNewsletter:
-            return URL(string: "https://hackernewsletter.com")!
+            return URL(string: "https://buttondown.com/hacker-newsletter/rss")!
         case .personal:
             return URL(string: "https://liquidnews.what-the-shuck.com/curated.json")!
         }
@@ -54,7 +54,34 @@ struct CustomCuratedFeed: Identifiable, Codable, Equatable {
     }
 }
 
-// MARK: - JSON format (for display in settings)
+// MARK: - JSON feed wire format
+
+/// The shape of any curated JSON feed (built-in personal feed or user-added custom feeds).
+struct CuratedJSONFeed: Codable {
+    let version: Int
+    let items: [CuratedJSONItem]
+}
+
+struct CuratedJSONItem: Codable {
+    let url: String
+    let title: String
+    let date: String    // "YYYY-MM-DD"
+    let note: String?
+}
+
+// MARK: - JSON feed disk cache entry
+
+/// Persisted per-feed cache. Stores entries + HTTP conditional request headers
+/// so we can use If-None-Match / If-Modified-Since to avoid re-downloading unchanged feeds.
+struct JSONFeedCacheEntry: Codable {
+    var feedID: String
+    var etag: String?
+    var lastModified: String?
+    var fetchedAt: Date
+    var entries: [CuratedEntry]
+}
+
+// MARK: - JSON format example (for display in settings)
 
 /// Documents the expected shape of a custom curated JSON feed.
 /// Shown to the user when they add a custom feed URL.
