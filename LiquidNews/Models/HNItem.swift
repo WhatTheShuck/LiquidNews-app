@@ -59,6 +59,13 @@ struct HNItem: Identifiable, Codable, Hashable {
     }
 }
 
+// MARK: - HN staff
+
+extension HNItem {
+    /// Usernames of official HN moderators.
+    static let moderators: Set<String> = ["dang", "tomhow"]
+}
+
 // MARK: - HTML stripping
 // HN returns comment/post text as HTML. This strips tags for plain display.
 extension String {

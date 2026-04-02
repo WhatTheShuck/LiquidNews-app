@@ -16,6 +16,8 @@ struct CommentView: View {
     /// replaces inline replies and pushes a focused ThreadView.
     /// Defaults to UserSettings value; ThreadView passes .max to disable.
     var maxDepth: Int = UserSettings.shared.maxAutoExpandDepth
+    /// Username of the story's original poster. Passed down from StoryDetailView.
+    var opUsername: String? = nil
 
     @State private var isExpanded = true
     @State private var replies: [HNItem] = []
@@ -49,6 +51,8 @@ struct CommentView: View {
     }
 
     private var isLoggedIn: Bool { false }
+    private var isMod: Bool { HNItem.moderators.contains(comment.by ?? "") }
+    private var isOP:  Bool { comment.by != nil && comment.by == opUsername }
 
     var body: some View {
         // ── Comment card ──
@@ -64,6 +68,9 @@ struct CommentView: View {
                     Text(comment.by ?? "[deleted]")
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(threadColor)
+
+                    if isMod  { CommentBadge(label: "mod", color: .green) }
+                    if isOP   { CommentBadge(label: "OP",  color: Color(red: 0.45, green: 0.65, blue: 1.0)) }
 
                     Spacer()
 
@@ -93,7 +100,7 @@ struct CommentView: View {
                     if !replies.isEmpty {
                         VStack(spacing: 8) {
                             ForEach(replies) { reply in
-                                CommentView(comment: reply, depth: depth + 1, maxDepth: maxDepth)
+                                CommentView(comment: reply, depth: depth + 1, maxDepth: maxDepth, opUsername: opUsername)
                             }
                         }
                         .padding(.top, 4)
@@ -139,7 +146,7 @@ struct CommentView: View {
         }
         .sheet(item: $showThread) { thread in
             NavigationStack {
-                ThreadView(rootComment: thread, depth: depth + 1)
+                ThreadView(rootComment: thread, depth: depth + 1, opUsername: opUsername)
             }
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
@@ -334,6 +341,24 @@ struct CommentView: View {
             // Silently fail
         }
         isLoadingReplies = false
+    }
+}
+
+// MARK: - Comment badge
+
+/// Small inline pill used to mark the OP or a mod next to the username.
+private struct CommentBadge: View {
+    let label: String
+    let color: Color
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 9, weight: .bold, design: .rounded))
+            .foregroundStyle(color)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(0.15)))
+            .overlay(Capsule().stroke(color.opacity(0.35), lineWidth: 0.5))
     }
 }
 

@@ -8,6 +8,7 @@ import SwiftUI
 struct ThreadView: View {
     let rootComment: HNItem
     let depth: Int
+    var opUsername: String? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -15,7 +16,7 @@ struct ThreadView: View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
                 // Root comment (always depth 0 in this focused view)
-                CommentView(comment: rootComment, depth: 0, maxDepth: .max)
+                CommentView(comment: rootComment, depth: 0, maxDepth: .max, opUsername: opUsername)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)

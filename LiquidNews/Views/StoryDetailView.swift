@@ -292,7 +292,7 @@ struct StoryDetailView: View {
                     .glassCard()
             } else {
                 ForEach(viewModel.comments) { comment in
-                    CommentView(comment: comment, depth: 0)
+                    CommentView(comment: comment, depth: 0, opUsername: story.by)
                 }
             }
         }

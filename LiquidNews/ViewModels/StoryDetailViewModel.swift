@@ -31,7 +31,11 @@ final class StoryDetailViewModel {
             let source = story.kids != nil ? story : try await HNAPIService.shared.item(id: story.id)
             guard let kids = source.kids, !kids.isEmpty else { return }
             let topLevel = Array(kids.prefix(20))
-            comments = try await HNAPIService.shared.items(ids: topLevel)
+            var fetched = try await HNAPIService.shared.items(ids: topLevel)
+            // Pin mod comments to the top (dang/tomhow responses are usually
+            // the most important; HN itself often places them first anyway).
+            fetched.sort { a, b in HNItem.moderators.contains(a.by ?? "") && !HNItem.moderators.contains(b.by ?? "") }
+            comments = fetched
         } catch {
             errorMessage = error.localizedDescription
         }
