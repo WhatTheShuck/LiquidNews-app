@@ -41,6 +41,11 @@ struct StoryDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
+    // Custom scroll indicator (replaces system glass indicator to avoid fade artifact)
+    @State private var scrollFraction: CGFloat = 0
+    @State private var showScrollIndicator = false
+    @State private var scrollHideTask: Task<Void, Never>?
+
     private var saved: SavedPostsStore { .shared }
     private let isLoggedIn = false
 
@@ -61,6 +66,34 @@ struct StoryDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .scrollIndicators(.hidden)
+        .onScrollGeometryChange(for: CGFloat.self) { geo in
+            let maxOffset = geo.contentSize.height - geo.containerSize.height
+            guard maxOffset > 1 else { return 0 }
+            return geo.contentOffset.y / maxOffset
+        } action: { _, fraction in
+            scrollFraction = max(0, min(1, fraction))
+            showScrollIndicator = true
+            scrollHideTask?.cancel()
+            scrollHideTask = Task {
+                try? await Task.sleep(for: .seconds(1.2))
+                withAnimation(.easeOut(duration: 0.3)) { showScrollIndicator = false }
+            }
+        }
+        .overlay(alignment: .trailing) {
+            GeometryReader { proxy in
+                let trackH = proxy.size.height - 40
+                let pillH = max(44, trackH * 0.12)
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.white.opacity(0.35))
+                    .frame(width: 3, height: pillH)
+                    .offset(y: 20 + scrollFraction * max(0, trackH - pillH))
+            }
+            .frame(width: 3)
+            .padding(.trailing, 4)
+            .opacity(showScrollIndicator ? 1 : 0)
+            .animation(.easeOut(duration: 0.3), value: showScrollIndicator)
+        }
         // Gradient applied here rather than in a ZStack that fills the
         // entire view including the toolbar area. An opaque layer behind
         // the toolbar prevents the system from sampling content and
