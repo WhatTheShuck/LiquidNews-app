@@ -4,24 +4,25 @@
 import Foundation
 import Observation
 
-enum StoryCategory: String, CaseIterable, Identifiable {
-    case top  = "Top"
-    case new  = "New"
-    case best = "Best"
-    case ask  = "Ask HN"
-    case show = "Show HN"
+enum StoryCategory: String, CaseIterable, Identifiable, Hashable {
+    case top      = "Top"
+    case new      = "New"
+    case best     = "Best"
+    case ask      = "Ask HN"
+    case show     = "Show HN"
+    case jobs     = "Jobs"
+    case classic  = "Classic"
+    case active   = "Active"
+    case shownew  = "Show New"
+    case asknew   = "Ask New"
+    case noob     = "Noob"
+    case launches = "Launches"
+    case pool     = "Pool"
 
     var id: String { rawValue }
 
-    // var systemImage: String {
-    //     switch self {
-    //     case .top:  return "flame.fill"
-    //     case .new:  return "sparkles"
-    //     case .best: return "star.fill"
-    //     case .ask:  return "questionmark.bubble.fill"
-    //     case .show: return "eye.fill"
-    //     }
-//    }
+    /// The default set shown on first launch, in order.
+    static let defaults: [StoryCategory] = [.top, .new, .best, .ask, .show]
 }
 
 @Observable
@@ -57,11 +58,19 @@ final class StoriesViewModel {
             let api = HNAPIService.shared
             allIDs = try await {
                 switch category {
-                case .top:  return try await api.topStoryIDs()
-                case .new:  return try await api.newStoryIDs()
-                case .best: return try await api.bestStoryIDs()
-                case .ask:  return try await api.askStoryIDs()
-                case .show: return try await api.showStoryIDs()
+                case .top:      return try await api.topStoryIDs()
+                case .new:      return try await api.newStoryIDs()
+                case .best:     return try await api.bestStoryIDs()
+                case .ask:      return try await api.askStoryIDs()
+                case .show:     return try await api.showStoryIDs()
+                case .jobs:     return try await api.jobStoryIDs()
+                case .classic:  return try await api.webStoryIDs(endpoint: "classic")
+                case .active:   return try await api.webStoryIDs(endpoint: "active")
+                case .shownew:  return try await api.webStoryIDs(endpoint: "shownew")
+                case .asknew:   return try await api.webStoryIDs(endpoint: "asknew")
+                case .noob:     return try await api.webStoryIDs(endpoint: "noobstories")
+                case .launches: return try await api.webStoryIDs(endpoint: "launches")
+                case .pool:     return try await api.webStoryIDs(endpoint: "pool")
                 }
             }()
             // Use the private helper that doesn't guard on isLoading,

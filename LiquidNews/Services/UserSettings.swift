@@ -8,6 +8,66 @@ import Foundation
 import Observation
 import SwiftUI
 
+// MARK: - Link open mode
+
+enum LinkOpenMode: String, CaseIterable, Identifiable {
+    case reader  = "reader"
+    case browser = "browser"
+    case safari  = "safari"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .reader:  "Reader"
+        case .browser: "In-App Browser"
+        case .safari:  "Safari"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .reader:  "Extract and display article content natively"
+        case .browser: "Open articles inside the app with full web rendering"
+        case .safari:  "Hand off to Safari for every link"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .reader:  "textformat"
+        case .browser: "globe"
+        case .safari:  "safari"
+        }
+    }
+}
+
+// MARK: - Swipe action options
+
+enum SwipeAction: String, CaseIterable, Identifiable {
+    case favourite = "favourite"
+    case saveLater = "saveLater"
+    case none      = "none"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .favourite: "Favourite"
+        case .saveLater: "Save for Later"
+        case .none:      "None"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .favourite: "heart"
+        case .saveLater: "bookmark"
+        case .none:      "minus"
+        }
+    }
+}
+
 @Observable
 final class UserSettings {
 
@@ -56,7 +116,49 @@ final class UserSettings {
         didSet { UserDefaults.standard.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
     }
 
+    // MARK: - Feed categories
+
+    /// Display order of all known feed categories (enabled and disabled).
+    var feedCategoryOrder: [StoryCategory] {
+        didSet { UserDefaults.standard.set(feedCategoryOrder.map(\.rawValue), forKey: Keys.feedCategoryOrder) }
+    }
+
+    /// Which feed categories the user has switched on.
+    /// At least one is always kept enabled.
+    var enabledFeedCategories: Set<StoryCategory> {
+        didSet { UserDefaults.standard.set(Array(enabledFeedCategories.map(\.rawValue)), forKey: Keys.enabledFeedCategories) }
+    }
+
+    /// Enabled categories in user-defined display order (used by the chip picker).
+    var orderedEnabledCategories: [StoryCategory] {
+        feedCategoryOrder.filter { enabledFeedCategories.contains($0) }
+    }
+
+    // MARK: - Link opening
+
+    /// How article links open by default. Users can one-off override via long-press.
+    var defaultLinkOpen: LinkOpenMode {
+        didSet { UserDefaults.standard.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) }
+    }
+
+    // MARK: - Swipe actions
+
+    /// Action triggered when swiping a story card left (trailing edge).
+    var swipeLeftAction: SwipeAction {
+        didSet { UserDefaults.standard.set(swipeLeftAction.rawValue, forKey: Keys.swipeLeftAction) }
+    }
+
+    /// Action triggered when swiping a story card right (leading edge).
+    var swipeRightAction: SwipeAction {
+        didSet { UserDefaults.standard.set(swipeRightAction.rawValue, forKey: Keys.swipeRightAction) }
+    }
+
     // MARK: - Curated sources
+
+    /// When true, the "loading may take a moment" banner is permanently hidden.
+    var hideCuratedLoadingBanner: Bool {
+        didSet { UserDefaults.standard.set(hideCuratedLoadingBanner, forKey: Keys.hideCuratedLoadingBanner) }
+    }
 
     /// Which built-in curated sources are enabled (stored by rawValue).
     var enabledBuiltInCuratedSources: Set<String> {
@@ -82,8 +184,14 @@ final class UserSettings {
         static let enabledOptionalTabs          = "LN_enabledOptionalTabs"
         static let tabOrder                     = "LN_tabOrder"
         static let commentRenderingStyle        = "LN_commentRenderingStyle"
+        static let hideCuratedLoadingBanner     = "LN_hideCuratedLoadingBanner"
         static let enabledBuiltInCuratedSources = "LN_enabledBuiltInCuratedSources"
         static let customCuratedFeeds           = "LN_customCuratedFeeds"
+        static let feedCategoryOrder            = "LN_feedCategoryOrder"
+        static let enabledFeedCategories        = "LN_enabledFeedCategories"
+        static let swipeLeftAction              = "LN_swipeLeftAction"
+        static let swipeRightAction             = "LN_swipeRightAction"
+        static let defaultLinkOpen              = "LN_defaultLinkOpen"
     }
 
     private init() {
@@ -97,6 +205,11 @@ final class UserSettings {
             Keys.tabOrder:                     AppTab.optional.map(\.rawValue),
             Keys.commentRenderingStyle:        CommentRenderMode.rich.rawValue,
             Keys.enabledBuiltInCuratedSources: BuiltInCuratedSource.allCases.map(\.rawValue),
+            Keys.feedCategoryOrder:            StoryCategory.allCases.map(\.rawValue),
+            Keys.enabledFeedCategories:        StoryCategory.defaults.map(\.rawValue),
+            Keys.swipeLeftAction:              SwipeAction.favourite.rawValue,
+            Keys.swipeRightAction:             SwipeAction.saveLater.rawValue,
+            Keys.defaultLinkOpen:              LinkOpenMode.browser.rawValue,
         ])
 
         autoLoadReplyCount = defaults.integer(forKey: Keys.autoLoadReplyCount)
@@ -119,11 +232,32 @@ final class UserSettings {
             ?? BuiltInCuratedSource.allCases.map(\.rawValue)
         enabledBuiltInCuratedSources = Set(rawBuiltIn)
 
+        hideCuratedLoadingBanner = defaults.bool(forKey: Keys.hideCuratedLoadingBanner)
+
         if let data = defaults.data(forKey: Keys.customCuratedFeeds),
            let feeds = try? JSONDecoder().decode([CustomCuratedFeed].self, from: data) {
             customCuratedFeeds = feeds
         } else {
             customCuratedFeeds = []
         }
+
+        // Feed categories: restore saved order and append any new categories added in updates
+        let savedCategoryOrder = (defaults.stringArray(forKey: Keys.feedCategoryOrder) ?? [])
+            .compactMap(StoryCategory.init(rawValue:))
+        let missingCategories = StoryCategory.allCases.filter { !savedCategoryOrder.contains($0) }
+        feedCategoryOrder = savedCategoryOrder + missingCategories
+
+        let rawEnabled = defaults.stringArray(forKey: Keys.enabledFeedCategories)
+            ?? StoryCategory.defaults.map(\.rawValue)
+        enabledFeedCategories = Set(rawEnabled.compactMap(StoryCategory.init(rawValue:)))
+
+        let rawSwipeLeft = defaults.string(forKey: Keys.swipeLeftAction) ?? SwipeAction.favourite.rawValue
+        swipeLeftAction = SwipeAction(rawValue: rawSwipeLeft) ?? .favourite
+
+        let rawSwipeRight = defaults.string(forKey: Keys.swipeRightAction) ?? SwipeAction.saveLater.rawValue
+        swipeRightAction = SwipeAction(rawValue: rawSwipeRight) ?? .saveLater
+
+        let rawLinkOpen = defaults.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.browser.rawValue
+        defaultLinkOpen = LinkOpenMode(rawValue: rawLinkOpen) ?? .browser
     }
 }
