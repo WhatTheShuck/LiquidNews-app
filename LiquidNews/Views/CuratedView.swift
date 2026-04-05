@@ -14,6 +14,7 @@ struct CuratedView: View {
     @State private var selectedStory: HNItem?
     @State private var webReaderURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
+    @Environment(\.openURL) private var openURL
     /// True when the user has dismissed the banner for the current load cycle only.
     @State private var bannerHiddenThisLoad = false
 
@@ -45,11 +46,17 @@ struct CuratedView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
         }
-        // Fallback for JSON-only entries that have no HN thread
+        // Fallback for JSON-only entries that have no HN thread — respects defaultLinkOpen
         .sheet(item: $webReaderURL) { item in
-            NavigationStack { WebReaderView(url: item.url) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+            NavigationStack {
+                switch settings.defaultLinkOpen {
+                case .reader:  ArticleReaderView(url: item.url)
+                case .browser: WebReaderView(url: item.url)
+                case .safari:  WebReaderView(url: item.url) // safari handled inline in open(_:)
+                }
+            }
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(.glassCornerRadius)
         }
     }
 
@@ -178,11 +185,13 @@ struct CuratedView: View {
 
     /// Opens the entry the same way the main feed does:
     /// HN thread first (StoryDetailView), article from within that view.
-    /// Falls back to WebReaderView for entries with no HN thread.
+    /// Falls back to the user's preferred open mode for entries with no HN thread.
     private func open(_ entry: CuratedEntry) async {
         if let hnID = entry.hnItemID,
            let story = try? await HNAPIService.shared.item(id: hnID) {
             selectedStory = story
+        } else if settings.defaultLinkOpen == .safari {
+            openURL(entry.url)
         } else {
             webReaderURL = IdentifiableURL(entry.url)
         }

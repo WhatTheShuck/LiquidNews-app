@@ -111,29 +111,27 @@ struct CommentView: View {
                         ProgressView()
                             .scaleEffect(0.7)
                             .tint(threadColor)
+                            .frame(maxWidth: .infinity)
                     }
 
                     // "Load more" — centered rounded capsule
                     if remainingCount > 0 && !isLoadingReplies {
-                        HStack {
-                            Spacer()
-                            Button {
-                                Task { await loadMoreReplies() }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "plus.bubble")
-                                        .font(.system(size: 11, weight: .semibold))
-                                    Text("\(remainingCount) more repl\(remainingCount == 1 ? "y" : "ies")")
-                                        .font(.system(size: 12, weight: .medium, design: .rounded))
-                                }
-                                .foregroundStyle(threadColor)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .glassCard(cornerRadius: 20, tint: threadColor)
+                        Button {
+                            Task { await loadMoreReplies() }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "plus.bubble")
+                                    .font(.system(size: 11, weight: .semibold))
+                                Text("\(remainingCount) more repl\(remainingCount == 1 ? "y" : "ies")")
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
                             }
-                            .buttonStyle(.plain)
-                            Spacer()
+                            .foregroundStyle(threadColor)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .glassCard(cornerRadius: 20, tint: threadColor)
                         }
+                        .buttonStyle(.plain)
+                        .frame(maxWidth: .infinity)
                     }
                 }
             }
@@ -190,9 +188,17 @@ struct CommentView: View {
                 } label: {
                     HStack(spacing: 8) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(firstReply.by ?? "[deleted]")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
-                                .foregroundStyle(AppTheme.threadColor(depth: depth + 1))
+                            HStack(spacing: 4) {
+                                Text(firstReply.by ?? "[deleted]")
+                                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                                    .foregroundStyle(AppTheme.threadColor(depth: depth + 1))
+                                if HNItem.moderators.contains(firstReply.by ?? "") {
+                                    CommentBadge(label: "mod", color: .green)
+                                }
+                                if firstReply.by != nil && firstReply.by == opUsername {
+                                    CommentBadge(label: "OP", color: Color(red: 0.45, green: 0.65, blue: 1.0))
+                                }
+                            }
 
                             if let text = firstReply.text {
                                 Text(text.htmlStripped)

@@ -7,6 +7,7 @@ struct FavouritesView: View {
 
     @State private var viewModel = FavouritesViewModel()
     @State private var selectedStory: HNItem?
+    @State private var settings = UserSettings.shared
 
     private let store = SavedPostsStore.shared
 
@@ -45,31 +46,61 @@ struct FavouritesView: View {
         }
     }
 
+    // MARK: - Swipe actions
+
+    @ViewBuilder
+    private func swipeActionButton(_ action: SwipeAction, story: HNItem) -> some View {
+        switch action {
+        case .none:
+            EmptyView()
+        case .favourite:
+            Button {
+                store.toggleFavourite(story.id)
+            } label: {
+                Label(
+                    store.isFavourite(story.id) ? "Unfavourite" : "Favourite",
+                    systemImage: store.isFavourite(story.id) ? "heart.slash" : "heart"
+                )
+            }
+            .tint(store.isFavourite(story.id) ? .gray : .orange)
+        case .saveLater:
+            Button {
+                store.toggleSaved(story.id)
+            } label: {
+                Label(
+                    store.isSaved(story.id) ? "Unsave" : "Save",
+                    systemImage: store.isSaved(story.id) ? "bookmark.slash" : "bookmark"
+                )
+            }
+            .tint(store.isSaved(story.id) ? .gray : .blue)
+        }
+    }
+
     // MARK: - Stories list
 
     private var favouritesList: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 12) {
-                ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
-                    Button {
-                        selectedStory = story
-                    } label: {
-                        StoryRowView(story: story, rank: index + 1)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            viewModel.remove(id: story.id)
-                        } label: {
-                            Label("Unfavourite", systemImage: "heart.slash")
-                        }
-                    }
+        List {
+            ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
+                Button {
+                    selectedStory = story
+                } label: {
+                    StoryRowView(story: story, rank: index + 1)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    swipeActionButton(settings.swipeLeftAction, story: story)
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    swipeActionButton(settings.swipeRightAction, story: story)
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .scrollBounceBehavior(.basedOnSize)
         .refreshable {
             await viewModel.load(ids: store.favouriteIDs)

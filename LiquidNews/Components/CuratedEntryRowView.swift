@@ -46,9 +46,11 @@ struct CuratedEntryRowView: View {
                     MetaBadge(icon: "bubble.left", value: "\(comments)")
                 }
                 Spacer()
-                Text(entry.date.curatedRelative)
-                    .font(AppTheme.captionFont(11))
-                    .foregroundStyle(.tertiary)
+                if let d = entry.displayDate {
+                    Text(d.curatedRelative)
+                        .font(AppTheme.captionFont(11))
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             // ── Source / section tags ─────────────────────────────────────────
@@ -76,8 +78,8 @@ struct CuratedEntryRowView: View {
     @ViewBuilder
     private func sourceTag(for source: CuratedEntrySource) -> some View {
         switch source {
-        case .newsletter(_, let sectionRaw):
-            let label = newsletterLabel(section: sectionRaw)
+        case .newsletter(let issueNumber, let sectionRaw):
+            let label = newsletterLabel(issueNumber: issueNumber, section: sectionRaw)
             Text(label)
                 .tagStyle(color: AppTheme.accent)
 
@@ -88,9 +90,9 @@ struct CuratedEntryRowView: View {
     }
 
     /// Builds the label for a newsletter source badge.
-    /// If the section is known and not .unknown, appends it: "Hacker Newsletter · Favorites".
-    private func newsletterLabel(section sectionRaw: String) -> String {
-        let base = "Hacker Newsletter"
+    /// Always includes issue number: "Hacker Newsletter #787 · Favorites".
+    private func newsletterLabel(issueNumber: Int, section sectionRaw: String) -> String {
+        let base = issueNumber > 0 ? "Hacker Newsletter #\(issueNumber)" : "Hacker Newsletter"
         if let s = NewsletterSection(rawValue: sectionRaw), s != .unknown {
             return "\(base) · \(s.displayName)"
         }

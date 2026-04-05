@@ -15,8 +15,12 @@ struct ThreadView: View {
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
-                // Root comment (always depth 0 in this focused view)
-                CommentView(comment: rootComment, depth: 0, maxDepth: .max, opUsername: opUsername)
+                // Root comment shown at depth 0 in this focused view.
+                // Use the same maxDepth as the main view so "Continue thread"
+                // buttons still appear for very deep replies, letting the user
+                // drill down via further sheets rather than infinite nesting
+                // (which would collapse the available width to nothing).
+                CommentView(comment: rootComment, depth: 0, maxDepth: UserSettings.shared.maxAutoExpandDepth, opUsername: opUsername)
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
