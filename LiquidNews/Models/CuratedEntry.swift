@@ -27,6 +27,15 @@ struct CuratedEntry: Identifiable, Codable, Hashable {
     let note: String?
     /// Bare domain shown under the title, e.g. "whoami.wiki".
     let sourceDomain: String?
+    /// The actual article publication date, resolved lazily from the HN API for
+    /// newsletter entries. JSON feed entries populate this directly from the feed.
+    /// Nil until fetched; CuratedStore fills it in and persists it to disk.
+    var articleDate: Date?
+
+    /// The date to show in the UI — the article's own date once resolved.
+    /// Uses `articleDate` when available; falls back to nil so the row shows
+    /// nothing rather than the misleading newsletter issue pubDate.
+    var displayDate: Date? { articleDate }
 
     /// Absorbs another sighting of the same article: appends any new sources,
     /// and promotes votes/commentCount to whichever value is higher.
@@ -84,7 +93,8 @@ extension CuratedEntry {
             commentCount: entry.commentCount,
             hnItemID: entry.hnItemID,
             note: nil,
-            sourceDomain: entry.sourceDomain
+            sourceDomain: entry.sourceDomain,
+            articleDate: nil
         )
     }
 
@@ -93,17 +103,19 @@ extension CuratedEntry {
         guard let url = URL(string: item.url) else { return nil }
         let domain = URLComponents(url: url, resolvingAgainstBaseURL: false)?.host?
             .replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression)
+        let articleDate = parseISODate(item.date)
         return CuratedEntry(
             id: normalise(url),
             title: item.title,
             url: url,
-            date: parseISODate(item.date) ?? .now,
+            date: articleDate ?? .now,
             sources: [.json(feedID: feedID)],
             votes: nil,
             commentCount: nil,
             hnItemID: nil,
             note: item.note,
-            sourceDomain: domain
+            sourceDomain: domain,
+            articleDate: articleDate
         )
     }
 

@@ -13,11 +13,14 @@ struct CuratedView: View {
     @State private var viewModel = CuratedViewModel()
     @State private var selectedStory: HNItem?
     @State private var webReaderURL: IdentifiableURL?
+    @State private var settings = UserSettings.shared
+    /// True when the user has dismissed the banner for the current load cycle only.
+    @State private var bannerHiddenThisLoad = false
 
     var body: some View {
         Group {
             if viewModel.isLoadingInitial && viewModel.entries.isEmpty {
-                LoadingView()
+                curatedLoadingView
             } else if let error = viewModel.error, viewModel.entries.isEmpty {
                 ErrorView(message: error) {
                     Task { await viewModel.refresh() }
@@ -55,11 +58,18 @@ struct CuratedView: View {
     private var entriesList: some View {
         ScrollView(.vertical) {
             LazyVStack(spacing: 12) {
+                if (viewModel.isLoadingInitial || viewModel.isRefreshing)
+                    && !settings.hideCuratedLoadingBanner
+                    && !bannerHiddenThisLoad {
+                    refreshingBanner
+                }
+
                 ForEach(Array(viewModel.entries.enumerated()), id: \.element.id) { index, entry in
                     Button {
                         Task { await open(entry) }
                     } label: {
                         CuratedEntryRowView(entry: entry)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     // Trigger next newsletter page when within 5 rows of the bottom.
@@ -91,6 +101,59 @@ struct CuratedView: View {
         .scrollBounceBehavior(.basedOnSize)
         .refreshable {
             await viewModel.refresh()
+        }
+        // Reset the "hide once" flag whenever a new load/refresh cycle begins.
+        .onChange(of: viewModel.isLoadingInitial) { _, isLoading in if isLoading { bannerHiddenThisLoad = false } }
+        .onChange(of: viewModel.isRefreshing)     { _, isRefreshing in if isRefreshing { bannerHiddenThisLoad = false } }
+    }
+
+    // MARK: - Refresh banner
+
+    private var refreshingBanner: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .tint(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Loading curated stories…")
+                    .font(AppTheme.bodyFont(13))
+                    .foregroundStyle(.white)
+                Text("Newsletter parsing may take a moment.")
+                    .font(AppTheme.captionFont(11))
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Menu {
+                Button("Hide this time") {
+                    bannerHiddenThisLoad = true
+                }
+                Button("Never show again") {
+                    settings.hideCuratedLoadingBanner = true
+                }
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .glassCard()
+    }
+
+    // MARK: - Loading state
+
+    private var curatedLoadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .tint(.white)
+                .scaleEffect(1.2)
+            Text("Loading curated stories…")
+                .font(AppTheme.bodyFont(15))
+                .foregroundStyle(.white)
+            Text("Parsing the newsletter may take\na moment on first load.")
+                .font(AppTheme.captionFont(12))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
 

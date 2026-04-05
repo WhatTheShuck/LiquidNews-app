@@ -24,7 +24,7 @@ enum NewsletterError: LocalizedError {
 
 // MARK: - Service
 
-final class HackerNewsletterService {
+final class HackerNewsletterService: @unchecked Sendable {
 
     static let shared = HackerNewsletterService()
     private init() {}

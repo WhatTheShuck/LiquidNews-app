@@ -139,7 +139,7 @@ final class CuratedStore {
 
         let item = rssItems[nextRSSPage]
         let issue = await Task.detached(priority: .userInitiated) {
-            HackerNewsletterService.shared.parseIssue(from: item)
+            await HackerNewsletterService.shared.parseIssue(from: item)
         }.value
 
         let newEntries = issue.entries.map {
@@ -236,6 +236,46 @@ final class CuratedStore {
             $0.date != $1.date ? $0.date > $1.date : ($0.votes ?? 0) > ($1.votes ?? 0)
         }
         persistEntriesCache()
+
+        // Kick off background date resolution for any entries that still need it.
+        Task { await resolveMissingArticleDates() }
+    }
+
+    // MARK: - Article date resolution
+
+    /// Fetches HN item timestamps for newsletter entries that don't yet have an
+    /// `articleDate`. Runs concurrently in batches, then patches `entriesByID`
+    /// and re-persists the cache. Safe to call multiple times — skips entries
+    /// that already have a date.
+    private func resolveMissingArticleDates() async {
+        let needsDate = entriesByID.values.filter { $0.articleDate == nil && $0.hnItemID != nil }
+        guard !needsDate.isEmpty else { return }
+
+        await withTaskGroup(of: (String, Date)?.self) { group in
+            for entry in needsDate {
+                guard let hnID = entry.hnItemID else { continue }
+                let entryID = entry.id
+                group.addTask {
+                    guard let item = try? await HNAPIService.shared.item(id: hnID),
+                          let time = item.time else { return nil }
+                    return (entryID, Date(timeIntervalSince1970: time))
+                }
+            }
+
+            var anyResolved = false
+            for await result in group {
+                guard let (entryID, date) = result else { continue }
+                entriesByID[entryID]?.articleDate = date
+                anyResolved = true
+            }
+
+            if anyResolved {
+                entries = entriesByID.values.sorted {
+                    $0.date != $1.date ? $0.date > $1.date : ($0.votes ?? 0) > ($1.votes ?? 0)
+                }
+                persistEntriesCache()
+            }
+        }
     }
 
     // MARK: - Newsletter staleness
