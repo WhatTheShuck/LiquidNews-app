@@ -37,6 +37,28 @@ final class WebViewState {
     }
 
     var currentURL: URL? { webView?.url }
+
+    /// Injects or removes a minimal reader-mode stylesheet without reloading.
+    func setReaderMode(_ enabled: Bool) {
+        let js = enabled ? """
+        var s = document.createElement('style');
+        s.id = '_lnReader';
+        s.textContent = [
+          'body { max-width: 680px !important; margin: 40px auto !important;',
+          '       padding: 0 24px !important; font-size: 18px !important;',
+          '       line-height: 1.75 !important; background: #0d0d0d !important;',
+          '       color: #ececec !important; }',
+          'header, nav, footer, aside, [class*="ad-"], [class*="-ad"],',
+          '[id*="sidebar"], [class*="sidebar"], [class*="banner"]',
+          '{ display: none !important; }'
+        ].join(' ');
+        if (!document.getElementById('_lnReader')) { document.head.appendChild(s); }
+        """ : """
+        var s = document.getElementById('_lnReader');
+        if (s) s.remove();
+        """
+        webView?.evaluateJavaScript(js, completionHandler: nil)
+    }
 }
 
 // MARK: - UIViewRepresentable
@@ -129,12 +151,13 @@ struct WebReaderView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var state = WebViewState()
     @State private var showingShareSheet = false
+    @State private var readerMode = false
 
     var body: some View {
         ZStack(alignment: .top) {
-            // The web content — fills everything including safe areas
+            // Web content extends under the nav bar so the glass blends into the page
             WebViewRepresentable(url: url, state: state)
-                .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea()
 
             // Thin progress bar that grows left-to-right while loading
             if state.isLoading {
@@ -142,32 +165,28 @@ struct WebReaderView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        // Hide the nav bar fill — iOS 26 applies liquid glass to each item group
+        // automatically. Adding our own background would double-layer the glass.
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            // Page title + domain in the nav bar centre
-            ToolbarItem(placement: .principal) {
-                VStack(spacing: 1) {
-                    if !state.pageTitle.isEmpty {
-                        Text(state.pageTitle)
-                            .font(.system(size: 13, weight: .semibold))
-                            .lineLimit(1)
-                            .foregroundStyle(.white)
-                    }
-                    if let host = url.host {
-                        Text(host.hasPrefix("www.") ? String(host.dropFirst(4)) : host)
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
-                    }
+            // ── Leading: dismiss ──
+            // .cancellationAction gets the system glass group treatment (leading position)
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Close", systemImage: "xmark") {
+                    dismiss()
                 }
             }
+
+            // ── Trailing: reader mode toggle ──
             ToolbarItem(placement: .topBarTrailing) {
-                Button("Done") { dismiss() }
-                    .foregroundStyle(AppTheme.accent)
-                    .fontWeight(.semibold)
+                Button(readerMode ? "Exit Reader" : "Reader",
+                       systemImage: readerMode ? "textformat.alt" : "textformat") {
+                    readerMode.toggle()
+                    state.setReaderMode(readerMode)
+                }
             }
         }
-        // Glass bottom toolbar inset above the home indicator
+        // Floating glass pill controls above the home indicator
         .safeAreaInset(edge: .bottom) {
             glassBottomBar
         }
@@ -180,42 +199,37 @@ struct WebReaderView: View {
 
     // MARK: - Glass bottom toolbar
 
+    // Floating pill groups — not a full-width bar. Liquid glass design language
+    // uses discrete, shape-fitted glass surfaces rather than edge-to-edge bands.
     private var glassBottomBar: some View {
-        HStack(spacing: 0) {
-            // Back / Forward on the left
-            ReaderToolbarButton(icon: "chevron.left", enabled: state.canGoBack) {
-                state.goBack()
+        HStack(spacing: 16) {
+            // ── Back / Forward pill ──
+            HStack(spacing: 0) {
+                ReaderToolbarButton(icon: "chevron.left", enabled: state.canGoBack) {
+                    state.goBack()
+                }
+                ReaderToolbarButton(icon: "chevron.right", enabled: state.canGoForward) {
+                    state.goForward()
+                }
             }
-            ReaderToolbarButton(icon: "chevron.right", enabled: state.canGoForward) {
-                state.goForward()
-            }
+            .glassEffect(in: Capsule())
 
-            Spacer()
-
-            // Reload / Stop in the centre
+            // ── Reload / Stop pill ──
             ReaderToolbarButton(
                 icon: state.isLoading ? "xmark" : "arrow.clockwise",
                 enabled: true
             ) {
                 state.reloadOrStop()
             }
+            .glassEffect(in: Circle())
 
-            Spacer()
-
-            // Share on the right
+            // ── Share pill ──
             ReaderToolbarButton(icon: "square.and.arrow.up", enabled: true) {
                 showingShareSheet = true
             }
+            .glassEffect(in: Circle())
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 10)
-        .background(.ultraThinMaterial)
-        .overlay(alignment: .top) {
-            // Hairline border at the top of the toolbar
-            Rectangle()
-                .fill(AppTheme.glassBorder)
-                .frame(height: 0.5)
-        }
+        .padding(.bottom, 12)
     }
 }
 
@@ -246,7 +260,7 @@ private struct ReaderToolbarButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 19, weight: .medium))
-                .foregroundStyle(enabled ? Color.white : Color.white.opacity(0.22))
+                .foregroundStyle(enabled ? Color.primary : Color.primary.opacity(0.25))
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
