@@ -20,13 +20,13 @@ struct CuratedEntry: Identifiable, Codable, Hashable {
     let date: Date
     /// Which source(s) this entry has appeared in. Grows when entries are merged.
     var sources: [CuratedEntrySource]
-    let votes: Int?
-    let commentCount: Int?
+    var votes: Int?
+    var commentCount: Int?
     let hnItemID: Int?
     /// Short curator comment (only present on JSON feed entries).
     let note: String?
     /// Bare domain shown under the title, e.g. "whoami.wiki".
-    let sourceDomain: String?
+    var sourceDomain: String?
     /// The actual article publication date, resolved lazily from the HN API for
     /// newsletter entries. JSON feed entries populate this directly from the feed.
     /// Nil until fetched; CuratedStore fills it in and persists it to disk.
@@ -98,23 +98,22 @@ extension CuratedEntry {
         )
     }
 
-    /// Converts a JSON feed item into a CuratedEntry. Returns nil if the URL is invalid.
+    /// Converts a JSON feed item into a CuratedEntry. Returns nil if hnID is not a valid integer.
     static func from(_ item: CuratedJSONItem, feedID: String) -> CuratedEntry? {
-        guard let url = URL(string: item.url) else { return nil }
-        let domain = URLComponents(url: url, resolvingAgainstBaseURL: false)?.host?
-            .replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression)
+        guard let hnIDInt = Int(item.hnID),
+              let url = URL(string: "https://news.ycombinator.com/item?id=\(item.hnID)") else { return nil }
         let articleDate = parseISODate(item.date)
         return CuratedEntry(
-            id: normalise(url),
+            id: "hn:\(item.hnID)",
             title: item.title,
             url: url,
             date: articleDate ?? .now,
             sources: [.json(feedID: feedID)],
             votes: nil,
             commentCount: nil,
-            hnItemID: nil,
+            hnItemID: hnIDInt,
             note: item.note,
-            sourceDomain: domain,
+            sourceDomain: nil,
             articleDate: articleDate
         )
     }

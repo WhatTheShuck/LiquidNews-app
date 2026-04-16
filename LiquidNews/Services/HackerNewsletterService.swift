@@ -216,10 +216,11 @@ enum NewsletterHTMLParser {
         // HN item ID from the comments anchor (may not exist for all sections).
         let hnItemID: Int? = paragraph.firstMatch(of: hnItemRegex).flatMap { Int($0.1) }
 
-        // Source domain from the // prefix span.
+        // Source domain: try the inline // span first, fall back to the article URL.
         let sourceDomain: String? = paragraph.firstMatch(of: domainRegex).map {
             String($0.1).trimmingCharacters(in: .whitespaces)
-        }
+        } ?? URLComponents(url: articleURL, resolvingAgainstBaseURL: false)?.host?
+            .replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression)
 
         return NewsletterEntry(
             title: title,

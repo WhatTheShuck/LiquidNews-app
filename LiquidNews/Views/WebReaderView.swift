@@ -38,6 +38,10 @@ final class WebViewState {
 
     var currentURL: URL? { webView?.url }
 
+    /// Incremented each time a new page commits (user tapped a link / went back).
+    /// WebReaderView observes this to reset reader mode so every new page loads clean.
+    var navigationEpoch: Int = 0
+
     /// Injects or removes a minimal reader-mode stylesheet without reloading.
     func setReaderMode(_ enabled: Bool) {
         let js = enabled ? """
@@ -114,6 +118,15 @@ struct WebViewRepresentable: UIViewRepresentable {
             self.state = state
         }
 
+        // WKNavigationDelegate — called when a new page's content starts arriving.
+        // Incrementing navigationEpoch lets WebReaderView reset reader mode so
+        // every new page loads completely unmodified by default.
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            DispatchQueue.main.async { [weak self] in
+                self?.state.navigationEpoch += 1
+            }
+        }
+
         // KVO — called whenever an observed keyPath changes value
         override func observeValue(
             forKeyPath keyPath: String?,
@@ -148,10 +161,17 @@ struct WebViewRepresentable: UIViewRepresentable {
 
 struct WebReaderView: View {
     let url: URL
+    var initialReaderMode: Bool = false
     @Environment(\.dismiss) private var dismiss
     @State private var state = WebViewState()
     @State private var showingShareSheet = false
-    @State private var readerMode = false
+    @State private var readerMode: Bool
+
+    init(url: URL, initialReaderMode: Bool = false) {
+        self.url = url
+        self.initialReaderMode = initialReaderMode
+        self._readerMode = State(initialValue: initialReaderMode)
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -189,6 +209,14 @@ struct WebReaderView: View {
         // Floating glass pill controls above the home indicator
         .safeAreaInset(edge: .bottom) {
             glassBottomBar
+        }
+        // Apply initial reader mode on the first page load; reset on subsequent navigations.
+        .onChange(of: state.navigationEpoch) { _, epoch in
+            if epoch == 1, initialReaderMode {
+                state.setReaderMode(true)
+            } else if epoch > 1 {
+                if readerMode { readerMode = false }
+            }
         }
         .sheet(isPresented: $showingShareSheet) {
             if let shareURL = state.currentURL {
@@ -251,7 +279,7 @@ private struct ProgressBar: View {
 }
 
 /// Individual icon button for the bottom toolbar
-private struct ReaderToolbarButton: View {
+struct ReaderToolbarButton: View {
     let icon: String
     let enabled: Bool
     let action: () -> Void

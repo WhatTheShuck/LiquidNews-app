@@ -63,7 +63,7 @@ struct CuratedJSONFeed: Codable {
 }
 
 struct CuratedJSONItem: Codable {
-    let url: String
+    let hnID: String
     let title: String
     let date: String    // "YYYY-MM-DD"
     let note: String?
@@ -91,7 +91,7 @@ enum CuratedFeedFormat {
       "version": 1,
       "items": [
         {
-          "url": "https://example.com/article",
+          "hnID": "39876543",
           "title": "Story title",
           "date": "2026-03-29",
           "note": "Why I curated this (optional)"
@@ -101,7 +101,7 @@ enum CuratedFeedFormat {
     """
 
     static let fieldDescriptions: [(field: String, detail: String)] = [
-        ("url",   "Required. The article URL."),
+        ("hnID",  "Required. The Hacker News item ID (numeric string)."),
         ("title", "Required. The article title."),
         ("date",  "Required. ISO format: YYYY-MM-DD."),
         ("note",  "Optional. A short curator comment."),

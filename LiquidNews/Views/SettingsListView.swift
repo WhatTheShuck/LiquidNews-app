@@ -2,6 +2,8 @@
 // App settings presented as a sheet from the main toolbar.
 
 import SwiftUI
+import UIKit
+import UniformTypeIdentifiers
 
 struct SettingsListView: View {
 
@@ -10,6 +12,20 @@ struct SettingsListView: View {
     @State private var auth = HNAuthService.shared
     @State private var navigateToAccount = false
     @State private var showAddCuratedFeed = false
+    @State private var showLicenses = false
+
+    // Data & Privacy state
+    private let store = SavedPostsStore.shared
+    @State private var exportURL: URL?
+    @State private var showingExportSheet = false
+    @State private var showingExportOptions = false
+    @State private var showingImporter = false
+    @State private var importError: String?
+    @State private var showingImportError = false
+    @State private var showingImportConfirm = false
+    @State private var pendingImportData: Data?
+    @State private var showingClearHistoryConfirm = false
+    @State private var navigateToHiddenPosts = false
 
     var body: some View {
         NavigationStack {
@@ -17,8 +33,12 @@ struct SettingsListView: View {
                 VStack(spacing: 16) {
                     accountSection
                     navigationSection
+                    feedCategoriesSection
                     curatedSection
                     feedSection
+                    readingSection
+                    swipeActionsSection
+                    dataPrivacySection
                     aboutSection
                 }
                 .padding(.horizontal, 16)
@@ -38,6 +58,67 @@ struct SettingsListView: View {
             .navigationDestination(isPresented: $navigateToAccount) {
                 AccountView()
             }
+            .navigationDestination(isPresented: $navigateToHiddenPosts) {
+                HiddenPostsView()
+            }
+        }
+        // Export share sheet
+        .sheet(isPresented: $showingExportSheet) {
+            if let url = exportURL {
+                ShareSheet(items: [url])
+            }
+        }
+        // Import file picker
+        .fileImporter(
+            isPresented: $showingImporter,
+            allowedContentTypes: [.json],
+            allowsMultipleSelection: false
+        ) { result in
+            guard case .success(let urls) = result, let url = urls.first else { return }
+            // Coordinate access — file may be outside sandbox
+            _ = url.startAccessingSecurityScopedResource()
+            defer { url.stopAccessingSecurityScopedResource() }
+            guard let data = try? Data(contentsOf: url) else {
+                importError = "Could not read the selected file."
+                showingImportError = true
+                return
+            }
+            pendingImportData = data
+            showingImportConfirm = true
+        }
+        .confirmationDialog(
+            "Import Data",
+            isPresented: $showingImportConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Merge with existing data") {
+                if let data = pendingImportData {
+                    try? store.importData(data, replacing: false)
+                }
+            }
+            Button("Replace all data", role: .destructive) {
+                if let data = pendingImportData {
+                    try? store.importData(data, replacing: true)
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(
+                "Merge keeps your existing favourites, saved posts, and history. Replace will overwrite everything with the imported data."
+            )
+        }
+        .alert("Import Failed", isPresented: $showingImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importError ?? "Unknown error.")
+        }
+        .confirmationDialog(
+            "Clear all read history?",
+            isPresented: $showingClearHistoryConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Clear All History", role: .destructive) { store.clearHistory() }
+            Button("Cancel", role: .cancel) {}
         }
     }
 
@@ -50,18 +131,24 @@ struct SettingsListView: View {
                 navigateToAccount = true
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: auth.isLoggedIn ? "person.crop.circle.fill" : "person.crop.circle")
-                        .font(.system(size: 22))
-                        .foregroundStyle(AppTheme.accent)
-                        .frame(width: 30)
+                    Image(
+                        systemName: auth.isLoggedIn
+                            ? "person.crop.circle.fill" : "person.crop.circle"
+                    )
+                    .font(.system(size: 22))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(auth.isLoggedIn ? (auth.username ?? "Account") : "Sign In")
                             .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
-                        Text(auth.isLoggedIn ? "Tap to manage your account" : "Log in with your HN account")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                        Text(
+                            auth.isLoggedIn
+                                ? "Tap to manage your account" : "Log in with your HN account"
+                        )
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
                     }
 
                     Spacer()
@@ -95,16 +182,19 @@ struct SettingsListView: View {
                             .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { settings.enabledOptionalTabs.contains(tab) },
-                            set: { enabled in
-                                if enabled {
-                                    settings.enabledOptionalTabs.insert(tab)
-                                } else {
-                                    settings.enabledOptionalTabs.remove(tab)
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { settings.enabledOptionalTabs.contains(tab) },
+                                set: { enabled in
+                                    if enabled {
+                                        settings.enabledOptionalTabs.insert(tab)
+                                    } else {
+                                        settings.enabledOptionalTabs.remove(tab)
+                                    }
                                 }
-                            }
-                        ))
+                            )
+                        )
                         .labelsHidden()
                         .tint(AppTheme.accent)
                     }
@@ -126,6 +216,83 @@ struct SettingsListView: View {
         .glassCard()
     }
 
+    // MARK: - Feed categories section
+
+    private var feedCategoriesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Feed Categories")
+
+            List {
+                ForEach(settings.feedCategoryOrder) { category in
+                    HStack(spacing: 12) {
+                        Image(systemName: feedCategoryIcon(for: category))
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        Text(category.rawValue)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { settings.enabledFeedCategories.contains(category) },
+                                set: { enabled in
+                                    if enabled {
+                                        settings.enabledFeedCategories.insert(category)
+                                    } else if settings.enabledFeedCategories.count > 1 {
+                                        // Always keep at least one enabled
+                                        settings.enabledFeedCategories.remove(category)
+                                    }
+                                }
+                            )
+                        )
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                    }
+                    .padding(.vertical, 8)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparatorTint(AppTheme.glassBorder)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
+                }
+                .onMove { from, to in
+                    settings.feedCategoryOrder.move(fromOffsets: from, toOffset: to)
+                }
+            }
+            .listStyle(.plain)
+            .scrollDisabled(true)
+            .environment(\.editMode, .constant(.active))
+            .frame(height: CGFloat(settings.feedCategoryOrder.count) * 54)
+
+            Text(
+                "The first 5 enabled categories appear as chips. Additional enabled categories are available via the last chip."
+            )
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 14)
+        }
+        .glassCard()
+    }
+
+    private func feedCategoryIcon(for category: StoryCategory) -> String {
+        switch category {
+        case .top: "flame"
+        case .new: "sparkles"
+        case .best: "star"
+        case .ask: "questionmark.bubble"
+        case .show: "eye"
+        case .jobs: "briefcase"
+        case .classic: "clock.arrow.circlepath"
+        case .active: "bubble.left.and.bubble.right"
+        case .shownew: "hourglass.badge.eye"
+        case .asknew: "questionmark.bubble.fill"
+        case .noob: "person.badge.plus"
+        case .launches: "airplane.up.right"
+        case .pool: "person.2"
+        }
+    }
+
     // MARK: - Curated section
 
     private var curatedSection: some View {
@@ -134,7 +301,8 @@ struct SettingsListView: View {
 
             VStack(spacing: 0) {
                 // Built-in sources
-                ForEach(Array(BuiltInCuratedSource.allCases.enumerated()), id: \.element.id) { index, source in
+                ForEach(Array(BuiltInCuratedSource.allCases.enumerated()), id: \.element.id) {
+                    index, source in
                     if index > 0 {
                         Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
                     }
@@ -147,16 +315,23 @@ struct SettingsListView: View {
                             .font(.system(size: 15, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Spacer()
-                        Toggle("", isOn: Binding(
-                            get: { settings.enabledBuiltInCuratedSources.contains(source.rawValue) },
-                            set: { enabled in
-                                if enabled {
-                                    settings.enabledBuiltInCuratedSources.insert(source.rawValue)
-                                } else {
-                                    settings.enabledBuiltInCuratedSources.remove(source.rawValue)
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: {
+                                    settings.enabledBuiltInCuratedSources.contains(source.rawValue)
+                                },
+                                set: { enabled in
+                                    if enabled {
+                                        settings.enabledBuiltInCuratedSources.insert(
+                                            source.rawValue)
+                                    } else {
+                                        settings.enabledBuiltInCuratedSources.remove(
+                                            source.rawValue)
+                                    }
                                 }
-                            }
-                        ))
+                            )
+                        )
                         .labelsHidden()
                         .tint(AppTheme.accent)
                     }
@@ -214,6 +389,34 @@ struct SettingsListView: View {
                     .padding(16)
                 }
                 .buttonStyle(.plain)
+
+                // Loading notice toggle
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+                HStack(spacing: 12) {
+                    Image(systemName: "info.circle")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show loading notice")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Banner warning that newsletter parsing may take a moment")
+                            .font(.system(size: 12, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle(
+                        "",
+                        isOn: Binding(
+                            get: { !settings.hideCuratedLoadingBanner },
+                            set: { settings.hideCuratedLoadingBanner = !$0 }
+                        )
+                    )
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
+                }
+                .padding(16)
             }
         }
         .glassCard()
@@ -254,7 +457,7 @@ struct SettingsListView: View {
 
                 // Max auto-expand depth
                 HStack {
-                    Image(systemName: "list.indent")
+                    Image(systemName: "list.bullet.indent")
                         .font(.system(size: 16))
                         .foregroundStyle(AppTheme.accent)
                         .frame(width: 30)
@@ -345,6 +548,419 @@ struct SettingsListView: View {
         .glassCard()
     }
 
+    // MARK: - Reading section
+
+    private var readingSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Reading")
+
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Image(systemName: settings.defaultLinkOpen.systemImage)
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Default open mode")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text(settings.defaultLinkOpen.subtitle)
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
+
+                HStack(spacing: 0) {
+                    ForEach(LinkOpenMode.allCases) { mode in
+                        Button {
+                            settings.defaultLinkOpen = mode
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: mode.systemImage)
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(mode.label)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                settings.defaultLinkOpen == mode
+                                    ? AppTheme.accent.opacity(0.2)
+                                    : Color.clear
+                            )
+                            .foregroundStyle(
+                                settings.defaultLinkOpen == mode
+                                    ? AppTheme.accent
+                                    : Color.secondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if mode != LinkOpenMode.allCases.last {
+                            Divider()
+                                .frame(height: 32)
+                                .overlay(AppTheme.glassBorder)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(AppTheme.glassBorder, lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Reader images default
+                HStack(spacing: 12) {
+                    Image(systemName: "photo")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Show images in Reader")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("Fetch and display images when opening articles in Reader mode")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $settings.readerShowImagesByDefault)
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                }
+                .padding(16)
+            }
+        }
+        .glassCard()
+    }
+
+    // MARK: - Swipe actions section
+
+    private var swipeActionsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Interactions")
+
+            VStack(spacing: 0) {
+                actionPickerRow(
+                    title: "Tap",
+                    subtitle: "What happens when you tap a story card",
+                    systemImage: "hand.tap",
+                    selection: $settings.tapAction,
+                    options: StoryAction.tapOptions
+                )
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                actionPickerRow(
+                    title: "Swipe Left",
+                    subtitle: "Action when swiping a story card left",
+                    systemImage: "arrow.left",
+                    selection: $settings.swipeLeftAction,
+                    options: StoryAction.allCases
+                )
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                actionPickerRow(
+                    title: "Swipe Right",
+                    subtitle: "Action when swiping a story card right",
+                    systemImage: "arrow.right",
+                    selection: $settings.swipeRightAction,
+                    options: StoryAction.allCases
+                )
+            }
+        }
+        .glassCard()
+    }
+
+    @ViewBuilder
+    private func actionPickerRow(
+        title: String,
+        subtitle: String,
+        systemImage: String,
+        selection: Binding<StoryAction>,
+        options: [StoryAction]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 18))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30)
+                Text(title)
+                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white)
+                Spacer()
+                Picker("", selection: selection) {
+                    ForEach(options) { action in
+                        Text(action.label).tag(action)
+                    }
+                }
+                .labelsHidden()
+                .tint(AppTheme.accent)
+                .fixedSize()
+            }
+            Text(subtitle)
+                .font(.system(size: 12))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 42)
+        }
+        .padding(16)
+    }
+
+    // MARK: - Data & Privacy section
+
+    private var dataPrivacySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Data & Privacy")
+
+            VStack(spacing: 0) {
+
+                // Hidden posts
+                Button {
+                    navigateToHiddenPosts = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Hidden Posts")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("\(store.hiddenPosts.count) hidden")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Hidden posts auto-expiry
+                HStack(spacing: 12) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Auto-clear hidden posts")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text("HN posts age quickly — auto-expiry keeps the list lean")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Picker("", selection: $settings.hiddenPostsExpiry) {
+                        ForEach(HiddenPostsExpiry.allCases) { expiry in
+                            Text(expiry.label).tag(expiry)
+                        }
+                    }
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
+                }
+                .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Viewed post behaviour
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        Image(systemName: settings.readBehaviour.systemImage)
+                            .font(.system(size: 16))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("When you view a post")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text(settings.readBehaviour.subtitle)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 10)
+
+                    HStack(spacing: 0) {
+                        ForEach(ReadBehaviour.allCases) { behaviour in
+                            Button {
+                                settings.readBehaviour = behaviour
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: behaviour.systemImage)
+                                        .font(.system(size: 14, weight: .medium))
+                                    Text(behaviour.label)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    settings.readBehaviour == behaviour
+                                        ? AppTheme.accent.opacity(0.2)
+                                        : Color.clear
+                                )
+                                .foregroundStyle(
+                                    settings.readBehaviour == behaviour
+                                        ? AppTheme.accent
+                                        : Color.secondary
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            if behaviour != ReadBehaviour.allCases.last {
+                                Divider()
+                                    .frame(height: 32)
+                                    .overlay(AppTheme.glassBorder)
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(AppTheme.glassBorder, lineWidth: 1)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                }
+
+                // Note: Hide mode never auto-hides favourited or saved posts
+                if settings.readBehaviour == .hide {
+                    Text("Favourited and saved posts are never auto-hidden.")
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                }
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Clear read history
+                Button(role: .destructive) {
+                    showingClearHistoryConfirm = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                            .font(.system(size: 18))
+                            .foregroundStyle(.red.opacity(0.8))
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Clear Read History")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.red.opacity(0.8))
+                            Text("\(store.readHistory.count) entries")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Export
+                Button {
+                    showingExportOptions = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Export Data")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("Share favourites, saved posts, history, or everything")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+                .confirmationDialog(
+                    "Export Data", isPresented: $showingExportOptions, titleVisibility: .visible
+                ) {
+                    Button("All Data — JSON file") {
+                        triggerExport(data: try? store.exportData(), name: "liquidnews-all")
+                    }
+                    Button("Favourites — Copy \(store.favouriteIDs.count) IDs to clipboard") {
+                        UIPasteboard.general.string = store.favouriteIDs.sorted()
+                            .map(String.init).joined(separator: "\n")
+                    }
+                    Button("Favourites — JSON file") {
+                        triggerExport(
+                            data: try? store.exportFavourites(), name: "liquidnews-favourites")
+                    }
+                    Button("Saved — Copy \(store.savedIDs.count) IDs to clipboard") {
+                        UIPasteboard.general.string = store.savedIDs.sorted()
+                            .map(String.init).joined(separator: "\n")
+                    }
+                    Button("Saved — JSON file") {
+                        triggerExport(data: try? store.exportSaved(), name: "liquidnews-saved")
+                    }
+                    Button("Read History — JSON file") {
+                        triggerExport(data: try? store.exportHistory(), name: "liquidnews-history")
+                    }
+                    Button("Hidden Posts — JSON file") {
+                        triggerExport(data: try? store.exportHidden(), name: "liquidnews-hidden")
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("IDs are copied one per line. JSON files can be re-imported later.")
+                }
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Import
+                Button {
+                    showingImporter = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Import Data")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text("Restore from a previous export")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .glassCard()
+    }
+
     // MARK: - About section
 
     private var aboutSection: some View {
@@ -370,6 +986,28 @@ struct SettingsListView: View {
 
             Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
 
+            Button {
+                showLicenses = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    Text("Open Source Licenses")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(16)
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
             HStack(spacing: 12) {
                 Image(systemName: "info.circle")
                     .font(.system(size: 18))
@@ -386,6 +1024,30 @@ struct SettingsListView: View {
             .padding(16)
         }
         .glassCard()
+        .sheet(isPresented: $showLicenses) {
+            LicensesView()
+        }
+    }
+
+    // MARK: - Export helper
+
+    private func triggerExport(data: Data?, name: String) {
+        guard let data else {
+            importError = "Failed to prepare export data."
+            showingImportError = true
+            return
+        }
+        let dateTag = Date().formatted(.iso8601.year().month().day())
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(name)-\(dateTag).json")
+        do {
+            try data.write(to: tmp, options: .atomic)
+            exportURL = tmp
+            showingExportSheet = true
+        } catch {
+            importError = error.localizedDescription
+            showingImportError = true
+        }
     }
 
     // MARK: - Helpers
@@ -426,8 +1088,8 @@ private struct AddCuratedFeedView: View {
     @State private var showFormat = false
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty &&
-        URL(string: urlString.trimmingCharacters(in: .whitespaces)) != nil
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+            && URL(string: urlString.trimmingCharacters(in: .whitespaces)) != nil
     }
 
     var body: some View {
@@ -494,7 +1156,11 @@ private struct AddCuratedFeedView: View {
                                 ForEach(CuratedFeedFormat.fieldDescriptions, id: \.field) { item in
                                     HStack(alignment: .top, spacing: 8) {
                                         Text(item.field)
-                                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                            .font(
+                                                .system(
+                                                    size: 12, weight: .semibold, design: .monospaced
+                                                )
+                                            )
                                             .foregroundStyle(AppTheme.accent)
                                             .frame(width: 44, alignment: .leading)
                                         Text(item.detail)

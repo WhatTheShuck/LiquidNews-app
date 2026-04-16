@@ -59,6 +59,8 @@ final class CuratedStore {
 
         // Step 1: restore from disk immediately (gives instant display).
         restoreFromDisk(settings: settings)
+        // Resolve any metadata that wasn't fetched before the last cache write.
+        Task { await resolveMissingArticleDates() }
 
         // Step 2: refresh anything stale in the background.
         await performRefresh(settings: settings, force: false)
@@ -223,49 +225,56 @@ final class CuratedStore {
         for entry in new {
             if entriesByID[entry.id] != nil {
                 entriesByID[entry.id]!.merge(with: entry)
-                // Source merge doesn't change sort order, so we don't set changed = true.
             } else {
                 entriesByID[entry.id] = entry
                 changed = true
             }
         }
-        guard changed else { return }
-
-        // Newest date first; ties broken by votes (newsletter entries have them, JSON ones don't).
-        entries = entriesByID.values.sorted {
-            $0.date != $1.date ? $0.date > $1.date : ($0.votes ?? 0) > ($1.votes ?? 0)
+        if changed {
+            entries = entriesByID.values.sorted {
+                $0.date != $1.date ? $0.date > $1.date : ($0.votes ?? 0) > ($1.votes ?? 0)
+            }
+            persistEntriesCache()
         }
-        persistEntriesCache()
-
-        // Kick off background date resolution for any entries that still need it.
+        // Always kick off resolution — the function guards against unnecessary work itself.
         Task { await resolveMissingArticleDates() }
     }
 
     // MARK: - Article date resolution
 
-    /// Fetches HN item timestamps for newsletter entries that don't yet have an
-    /// `articleDate`. Runs concurrently in batches, then patches `entriesByID`
-    /// and re-persists the cache. Safe to call multiple times — skips entries
-    /// that already have a date.
+    /// Fetches HN item data for entries that are missing either `articleDate` or
+    /// HN metadata (votes, comment count, source domain). Runs concurrently,
+    /// patches `entriesByID`, and re-persists the cache.
     private func resolveMissingArticleDates() async {
-        let needsDate = entriesByID.values.filter { $0.articleDate == nil && $0.hnItemID != nil }
-        guard !needsDate.isEmpty else { return }
+        let toResolve = entriesByID.values.filter {
+            $0.hnItemID != nil && ($0.articleDate == nil || $0.votes == nil || $0.sourceDomain == nil)
+        }
+        guard !toResolve.isEmpty else { return }
 
-        await withTaskGroup(of: (String, Date)?.self) { group in
-            for entry in needsDate {
+        typealias Resolved = (id: String, date: Date?, votes: Int?, commentCount: Int?, domain: String?)
+
+        await withTaskGroup(of: Resolved?.self) { group in
+            for entry in toResolve {
                 guard let hnID = entry.hnItemID else { continue }
                 let entryID = entry.id
                 group.addTask {
-                    guard let item = try? await HNAPIService.shared.item(id: hnID),
-                          let time = item.time else { return nil }
-                    return (entryID, Date(timeIntervalSince1970: time))
+                    guard let item = try? await HNAPIService.shared.item(id: hnID) else { return nil }
+                    let date = item.time.map { Date(timeIntervalSince1970: $0) }
+                    let domain = item.url
+                        .flatMap { URL(string: $0) }
+                        .flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.host }?
+                        .replacingOccurrences(of: "^www\\.", with: "", options: .regularExpression)
+                    return (entryID, date, item.score, item.descendants, domain)
                 }
             }
 
             var anyResolved = false
             for await result in group {
-                guard let (entryID, date) = result else { continue }
-                entriesByID[entryID]?.articleDate = date
+                guard let r = result else { continue }
+                if let d = r.date        { entriesByID[r.id]?.articleDate   = d }
+                if let v = r.votes       { entriesByID[r.id]?.votes         = v }
+                if let c = r.commentCount { entriesByID[r.id]?.commentCount = c }
+                if let s = r.domain      { entriesByID[r.id]?.sourceDomain  = s }
                 anyResolved = true
             }
 

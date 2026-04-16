@@ -50,9 +50,16 @@ struct CommentView: View {
         depth >= maxDepth
     }
 
-    private var isLoggedIn: Bool { false }
-    private var isMod: Bool { HNItem.moderators.contains(comment.by ?? "") }
-    private var isOP:  Bool { comment.by != nil && comment.by == opUsername }
+    @State private var auth = HNAuthService.shared
+    @State private var showReply = false
+    @State private var actionError: String?
+    @State private var hasUpvoted = false
+    @State private var showActions = false
+
+    private var isLoggedIn:     Bool { auth.isLoggedIn }
+    private var isMod:          Bool { HNItem.moderators.contains(comment.by ?? "") }
+    private var isOP:           Bool { comment.by != nil && comment.by == opUsername }
+    private var isCurrentUser:  Bool { comment.by != nil && comment.by == HNAuthService.shared.username }
 
     var body: some View {
         // ── Comment card ──
@@ -69,8 +76,9 @@ struct CommentView: View {
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(threadColor)
 
-                    if isMod  { CommentBadge(label: "mod", color: .green) }
-                    if isOP   { CommentBadge(label: "OP",  color: Color(red: 0.45, green: 0.65, blue: 1.0)) }
+                    if isMod         { CommentBadge(label: "mod", color: .green) }
+                    if isOP          { CommentBadge(label: "OP",  color: Color(red: 0.45, green: 0.65, blue: 1.0)) }
+                    if isCurrentUser { CommentBadge(label: "you", color: AppTheme.accent) }
 
                     Spacer()
 
@@ -87,11 +95,12 @@ struct CommentView: View {
             .buttonStyle(.plain)
 
             if isExpanded {
-                // Comment body
                 if let text = comment.text, !text.isEmpty {
                     commentBody(for: text)
                 }
+            }
 
+            if isExpanded {
                 if atDepthLimit {
                     // ── "Continue thread →" at depth limit ──
                     continueThreadButtons
@@ -138,7 +147,13 @@ struct CommentView: View {
         }
         .padding(14)
         .glassCard(cornerRadius: 18, tint: threadColor)
-        .contextMenu { commentContextMenu }
+        .onLongPressGesture(minimumDuration: 0.4) {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            showActions = true
+        }
+        .confirmationDialog("", isPresented: $showActions, titleVisibility: .hidden) {
+            commentActions
+        }
         .task {
             await autoLoadIfNeeded()
         }
@@ -148,6 +163,19 @@ struct CommentView: View {
             }
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
+        }
+        .sheet(isPresented: $showReply) {
+            NavigationStack { ComposeReplyView(parentId: comment.id) }
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(.glassCornerRadius)
+        }
+        .alert("Action Failed", isPresented: Binding(
+            get: { actionError != nil },
+            set: { if !$0 { actionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: {
+            Text(actionError ?? "")
         }
     }
 
@@ -245,64 +273,48 @@ struct CommentView: View {
         }
     }
 
-    // MARK: - Context menu
+    // MARK: - Long-press actions (confirmationDialog)
 
     @ViewBuilder
-    private var commentContextMenu: some View {
-        Section {
-            Button(action: {}) {
-                Label("Upvote", systemImage: "arrow.up")
-            }
-            .disabled(!isLoggedIn)
-
-            Button(action: {}) {
-                Label("Downvote", systemImage: "arrow.down")
-            }
-            .disabled(!isLoggedIn)
-        }
-
-        Section {
-            Button(action: {}) {
-                Label("Reply", systemImage: "bubble.left")
-            }
-            .disabled(!isLoggedIn)
-
-            Button {
-                UIPasteboard.general.string = comment.text?.htmlStripped ?? ""
-            } label: {
-                Label("Copy Text", systemImage: "doc.on.doc")
-            }
-
-            let hnURL = URL(string: "https://news.ycombinator.com/item?id=\(comment.id)")!
-            ShareLink(item: hnURL) {
-                Label("Share", systemImage: "square.and.arrow.up")
-            }
-        }
-
-        // ── Rendering mode override ──
-        Section {
-            if effectiveMode != .textOnly {
-                Button {
-                    localRenderMode = .textOnly
-                } label: {
-                    Label("View as Plain Text", systemImage: "text.alignleft")
+    private var commentActions: some View {
+        if isLoggedIn {
+            Button(hasUpvoted ? "Unvote" : "Upvote") {
+                Task {
+                    if hasUpvoted {
+                        try? await HNAuthService.shared.vote(itemId: comment.id, how: "un")
+                        hasUpvoted = false
+                    } else {
+                        try? await HNAuthService.shared.vote(itemId: comment.id, how: "up")
+                        hasUpvoted = true
+                    }
                 }
-            } else {
-                Button {
-                    // Clear the override — falls back to global setting
-                    localRenderMode = nil
-                } label: {
-                    Label("Restore Full Rendering", systemImage: "textformat.alt")
+            }
+            Button("Reply") { showReply = true }
+        }
+
+        Button("Copy Text") {
+            UIPasteboard.general.string = comment.text?.htmlStripped ?? ""
+        }
+
+        let hnURL = URL(string: "https://news.ycombinator.com/item?id=\(comment.id)")!
+        ShareLink(item: hnURL)
+
+        if effectiveMode != .textOnly {
+            Button("View as Plain Text") { localRenderMode = .textOnly }
+        } else {
+            Button("Restore Full Rendering") { localRenderMode = nil }
+        }
+
+        if isLoggedIn {
+            Button("Flag", role: .destructive) {
+                Task {
+                    do { try await HNAuthService.shared.flag(itemId: comment.id) }
+                    catch { actionError = error.localizedDescription }
                 }
             }
         }
 
-        Section {
-            Button(role: nil, action: {}) {
-                Label("Flag", systemImage: "flag")
-            }
-            .disabled(!isLoggedIn)
-        }
+        Button("Cancel", role: .cancel) {}
     }
 
     // MARK: - Auto-load

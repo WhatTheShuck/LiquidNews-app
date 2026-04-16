@@ -20,13 +20,15 @@ import SwiftUI
 // MARK: - Sheet routing
 
 enum DetailSheet: Identifiable {
+    case nativeReader(URL)
     case webReader(URL)
     case share(URL)
 
     var id: String {
         switch self {
-        case .webReader(let url): return "reader-\(url.absoluteString)"
-        case .share(let url):     return "share-\(url.absoluteString)"
+        case .nativeReader(let url): return "native-reader-\(url.absoluteString)"
+        case .webReader(let url):    return "reader-\(url.absoluteString)"
+        case .share(let url):        return "share-\(url.absoluteString)"
         }
     }
 }
@@ -38,6 +40,10 @@ struct StoryDetailView: View {
 
     @State private var viewModel: StoryDetailViewModel
     @State private var activeSheet: DetailSheet?
+    @State private var settings = UserSettings.shared
+    @State private var relatedStories: [HNItem] = []
+    @State private var isLoadingRelated = false
+    @State private var selectedRelatedStory: HNItem?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -47,21 +53,51 @@ struct StoryDetailView: View {
     @State private var scrollHideTask: Task<Void, Never>?
 
     private var saved: SavedPostsStore { .shared }
-    private let isLoggedIn = false
+    @State private var auth = HNAuthService.shared
+    @State private var showReply = false
+    @State private var actionError: String?
+    @State private var hasUpvoted = false
+    @State private var localScore: Int
 
     init(story: HNItem) {
         self.story = story
         _viewModel = State(initialValue: StoryDetailViewModel(story: story))
+        _localScore = State(initialValue: story.score ?? 0)
     }
 
     var body: some View {
         ScrollView(.vertical) {
-            VStack(alignment: .leading, spacing: 14) {
+            // LazyVStack so each CommentView is only created as it scrolls
+            // into view — essential for threads with 500+ top-level comments.
+            LazyVStack(alignment: .leading, spacing: 10) {
                 storyHeaderCard
-                commentsSection
+                    .padding(.top, 6)
+
+                relatedStoriesSection
+
+                commentsHeader
+
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView().tint(.white).padding(.vertical, 32)
+                        Spacer()
+                    }
+                } else if viewModel.comments.isEmpty {
+                    Text("No comments yet.")
+                        .font(AppTheme.bodyFont())
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 24)
+                        .glassCard()
+                } else {
+                    ForEach(viewModel.comments) { comment in
+                        CommentView(comment: comment, depth: 0, opUsername: story.by)
+                    }
+                }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 16)
+            .padding(.top, 10)
             .padding(.bottom, 24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -73,10 +109,12 @@ struct StoryDetailView: View {
             return geo.contentOffset.y / maxOffset
         } action: { _, fraction in
             scrollFraction = max(0, min(1, fraction))
+            // Show instantly (no animation) so position is already correct when it appears.
             showScrollIndicator = true
             scrollHideTask?.cancel()
             scrollHideTask = Task {
                 try? await Task.sleep(for: .seconds(1.2))
+                // Only the fade-out is animated.
                 withAnimation(.easeOut(duration: 0.3)) { showScrollIndicator = false }
             }
         }
@@ -92,7 +130,6 @@ struct StoryDetailView: View {
             .frame(width: 3)
             .padding(.trailing, 4)
             .opacity(showScrollIndicator ? 1 : 0)
-            .animation(.easeOut(duration: 0.3), value: showScrollIndicator)
         }
         // Gradient applied here rather than in a ZStack that fills the
         // entire view including the toolbar area. An opaque layer behind
@@ -116,6 +153,20 @@ struct StoryDetailView: View {
                 }
             }
 
+            // ── Trailing: refresh ──
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    Task {
+                        async let comments: () = viewModel.loadComments()
+                        async let related: () = loadRelatedStories()
+                        _ = await (comments, related)
+                    }
+                } label: {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .disabled(viewModel.isLoading || isLoadingRelated)
+            }
+
             // ── Trailing: overflow menu ──
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
@@ -126,15 +177,52 @@ struct StoryDetailView: View {
             }
         }
         .task {
-            await viewModel.loadComments()
+            let store = SavedPostsStore.shared
+            // Record this story in read history as soon as the detail view opens.
+            store.recordRead(story)
+            // Auto-hide if set, but never touch something the user explicitly saved or favourited.
+            if UserSettings.shared.readBehaviour == .hide,
+               !store.isFavourite(story.id),
+               !store.isSaved(story.id) {
+                store.hide(story)
+            }
+            // Load comments and related discussions in parallel.
+            async let comments: () = viewModel.loadComments()
+            async let related: () = loadRelatedStories()
+            _ = await (comments, related)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .replyPosted)) { _ in
+            Task { await viewModel.loadComments(bustCache: true) }
+        }
+        .sheet(item: $selectedRelatedStory) { relatedStory in
+            NavigationStack { StoryDetailView(story: relatedStory) }
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(.glassCornerRadius)
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
+            case .nativeReader(let url):
+                NavigationStack { ArticleReaderView(url: url) }
+                    .presentationDragIndicator(.visible)
+                    .presentationCornerRadius(.glassCornerRadius)
             case .webReader(let url):
-                NavigationStack { WebReaderView(url: url) }
+                SafariView(url: url)
             case .share(let url):
                 ShareSheet(items: [url])
             }
+        }
+        .sheet(isPresented: $showReply) {
+            NavigationStack { ComposeReplyView(parentId: story.id) }
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(.glassCornerRadius)
+        }
+        .alert("Action Failed", isPresented: Binding(
+            get: { actionError != nil },
+            set: { if !$0 { actionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: {
+            Text(actionError ?? "")
         }
     }
 
@@ -172,46 +260,76 @@ struct StoryDetailView: View {
 
             }
 
-            if story.url != nil {
-                Button { activeSheet = .webReader(URL(string: story.url!)!) } label: {
+            if let urlString = story.url, let url = URL(string: urlString) {
+                Button { openArticle(url) } label: {
                     Label("Read Article", systemImage: "doc.text")
+                }
+                // One-off override sub-menu — lets the user choose a different
+                // mode without changing their default setting.
+                Menu {
+                    Button { activeSheet = .nativeReader(url) } label: {
+                        Label("Open in Reader", systemImage: "textformat")
+                    }
+                    Button { activeSheet = .webReader(url) } label: {
+                        Label("Open in Browser", systemImage: "globe")
+                    }
+                    Button { openURL(url) } label: {
+                        Label("Open in Safari", systemImage: "safari")
+                    }
+                } label: {
+                    Label("Open Article As…", systemImage: "arrow.up.right.square")
                 }
             }
         }
 
         // ── Engagement (auth-gated) ──
         Section {
-            Button(action: {}) {
-                Label("Upvote", systemImage: "arrow.up")
+            Button {
+                Task {
+                    if hasUpvoted {
+                        try? await HNAuthService.shared.vote(itemId: story.id, how: "un")
+                        localScore -= 1
+                        hasUpvoted = false
+                    } else {
+                        try? await HNAuthService.shared.vote(itemId: story.id, how: "up")
+                        localScore += 1
+                        hasUpvoted = true
+                    }
+                }
+            } label: {
+                Label(hasUpvoted ? "Unvote" : "Upvote",
+                      systemImage: hasUpvoted ? "arrow.up.circle.fill" : "arrow.up")
             }
-            .disabled(!isLoggedIn)
+            .disabled(!auth.isLoggedIn)
 
-            Button(action: {}) {
-                Label("Downvote", systemImage: "arrow.down")
-            }
-            .disabled(!isLoggedIn)
-
-            Button(action: {}) {
+            Button {
+                showReply = true
+            } label: {
                 Label("Reply", systemImage: "bubble.left")
             }
-            .disabled(!isLoggedIn)
+            .disabled(!auth.isLoggedIn)
         }
 
         // ── Organisation ──
         Section {
             Button {
-                saved.togglePin(story.id)
+                saved.toggleSaved(story.id)
             } label: {
                 Label(
-                    saved.isPinned(story.id) ? "Unpin" : "Pin",
-                    systemImage: saved.isPinned(story.id) ? "pin.slash.fill" : "pin.fill"
+                    saved.isSaved(story.id) ? "Remove from Saved" : "Save for Later",
+                    systemImage: saved.isSaved(story.id) ? "bookmark.fill" : "bookmark"
                 )
             }
 
-            Button(role: nil, action: {}) {
+            Button {
+                Task {
+                    do { try await HNAuthService.shared.flag(itemId: story.id) }
+                    catch { actionError = error.localizedDescription }
+                }
+            } label: {
                 Label("Flag", systemImage: "flag")
             }
-            .disabled(!isLoggedIn)
+            .disabled(!auth.isLoggedIn)
         }
 
         // ── External ──
@@ -226,6 +344,15 @@ struct StoryDetailView: View {
     }
 
     // MARK: - Helpers
+
+    /// Opens an article URL using the user's default link open mode.
+    private func openArticle(_ url: URL) {
+        switch settings.defaultLinkOpen {
+        case .reader:  activeSheet = .nativeReader(url)
+        case .browser: activeSheet = .webReader(url)
+        case .safari:  openURL(url)
+        }
+    }
 
     private var hnURL: URL {
         URL(string: "https://news.ycombinator.com/item?id=\(story.id)")!
@@ -250,11 +377,12 @@ struct StoryDetailView: View {
                 .foregroundStyle(.white)
 
             HStack(spacing: 16) {
-                Label("\(story.score ?? 0) points", systemImage: "arrow.up")
+                Label("\(localScore) points", systemImage: hasUpvoted ? "arrow.up.circle.fill" : "arrow.up")
+                    .foregroundStyle(hasUpvoted ? AppTheme.accent : .secondary)
                 Label("\(story.descendants ?? 0) comments", systemImage: "bubble.left")
+                    .foregroundStyle(.secondary)
             }
             .font(.system(size: 13, weight: .medium))
-            .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 if let by = story.by {
@@ -268,11 +396,12 @@ struct StoryDetailView: View {
                     .foregroundStyle(.tertiary)
             }
 
-            // Read Article CTA
+            // Read Article CTA — uses the user's default link open mode.
+            // Long-press for a one-off override without changing the setting.
             if let urlString = story.url, let url = URL(string: urlString) {
-                Button { activeSheet = .webReader(url) } label: {
+                Button { openArticle(url) } label: {
                     HStack {
-                        Image(systemName: "doc.text.fill")
+                        Image(systemName: settings.defaultLinkOpen.systemImage)
                         Text("Read Article")
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -286,6 +415,17 @@ struct StoryDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 2)
+                .contextMenu {
+                    Button { activeSheet = .nativeReader(url) } label: {
+                        Label("Open in Reader", systemImage: "textformat")
+                    }
+                    Button { activeSheet = .webReader(url) } label: {
+                        Label("Open in Browser", systemImage: "globe")
+                    }
+                    Button { openURL(url) } label: {
+                        Label("Open in Safari", systemImage: "safari")
+                    }
+                }
             }
 
             // Self-post body
@@ -301,34 +441,100 @@ struct StoryDetailView: View {
         .glassCard()
     }
 
-    // MARK: - Comments section
+    // MARK: - Related stories
 
-    private var commentsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Comments")
-                .font(.system(size: 17, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 2)
+    private func loadRelatedStories() async {
+        guard story.url != nil else { return }
+        isLoadingRelated = true
+        do {
+            relatedStories = try await HNAPIService.shared.relatedStories(for: story)
+        } catch {
+            // Supplementary feature — silently fail
+        }
+        isLoadingRelated = false
+    }
 
-            if viewModel.isLoading {
-                HStack {
+    @ViewBuilder
+    private var relatedStoriesSection: some View {
+        // Only show for link posts and only when there's something to display
+        if story.url != nil && (isLoadingRelated || !relatedStories.isEmpty) {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // ── Section header ──
+                HStack(spacing: 6) {
+                    Image(systemName: "bubble.left.and.bubble.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                    Text(isLoadingRelated ? "Also Discussed on HN" : "Also Discussed on HN (\(relatedStories.count))")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.85))
+
                     Spacer()
-                    ProgressView().tint(.white).padding(.vertical, 32)
-                    Spacer()
+
+                    if isLoadingRelated {
+                        ProgressView().scaleEffect(0.6).tint(AppTheme.accent)
+                    }
                 }
-            } else if viewModel.comments.isEmpty {
-                Text("No comments yet.")
-                    .font(AppTheme.bodyFont())
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 24)
-                    .glassCard()
-            } else {
-                ForEach(viewModel.comments) { comment in
-                    CommentView(comment: comment, depth: 0, opUsername: story.by)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
+
+                if !relatedStories.isEmpty {
+                    Divider().overlay(AppTheme.glassBorder)
+
+                    ForEach(Array(relatedStories.enumerated()), id: \.element.id) { index, related in
+                        Button {
+                            selectedRelatedStory = related
+                        } label: {
+                            relatedStoryRow(related)
+                        }
+                        .buttonStyle(.plain)
+
+                        if index < relatedStories.count - 1 {
+                            Divider()
+                                .overlay(AppTheme.glassBorder)
+                                .padding(.horizontal, 14)
+                        }
+                    }
                 }
             }
+            .padding(.bottom, relatedStories.isEmpty ? 0 : 10)
+            .glassCard()
         }
+    }
+
+    private func relatedStoryRow(_ related: HNItem) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(related.title ?? "")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white.opacity(0.9))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 12) {
+                MetaBadge(icon: "arrow.up",    value: "\(related.score ?? 0)")
+                MetaBadge(icon: "bubble.left", value: "\(related.descendants ?? 0)")
+                if let by = related.by {
+                    MetaBadge(icon: "person", value: by)
+                }
+                Spacer()
+                Text(related.timeAgo)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    // MARK: - Comments header
+
+    private var commentsHeader: some View {
+        Text("Comments")
+            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 2)
+            .padding(.top, 4)
     }
 }
 

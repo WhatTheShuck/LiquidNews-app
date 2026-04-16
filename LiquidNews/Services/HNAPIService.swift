@@ -82,6 +82,9 @@ final class HNAPIService {
 
     // MARK: - Items
 
+    /// Removes a single item from the cache so the next fetch gets fresh data.
+    func evict(id: Int) { itemCache.removeValue(forKey: id) }
+
     /// Fetch a single item, returning from cache if available.
     func item(id: Int) async throws -> HNItem {
         if let cached = itemCache[id] { return cached }
@@ -118,6 +121,8 @@ final class HNAPIService {
 
     private struct AlgoliaResponse: Decodable {
         let hits: [AlgoliaHit]
+        let nbPages: Int?
+        let page: Int?
     }
 
     private struct AlgoliaHit: Decodable {
@@ -149,6 +154,39 @@ final class HNAPIService {
                 deleted: nil, dead: nil
             )
         }
+    }
+
+    /// Fetches HN stories within a specific date range, sorted by points or by date.
+    /// Returns the mapped story items and the total number of available pages.
+    func topStoriesInRange(
+        from: Date,
+        to: Date,
+        sortByDate: Bool,
+        page: Int
+    ) async throws -> (stories: [HNItem], totalPages: Int) {
+        let endpoint = sortByDate
+            ? "https://hn.algolia.com/api/v1/search_by_date"
+            : "https://hn.algolia.com/api/v1/search"
+        var components = URLComponents(string: endpoint)!
+        components.queryItems = [
+            URLQueryItem(name: "tags", value: "story"),
+            URLQueryItem(name: "numericFilters",
+                         value: "created_at_i>\(Int(from.timeIntervalSince1970)),created_at_i<\(Int(to.timeIntervalSince1970))"),
+            URLQueryItem(name: "hitsPerPage", value: "20"),
+            URLQueryItem(name: "page", value: "\(page)"),
+        ]
+        let (data, _) = try await URLSession.shared.data(from: components.url!)
+        let response = try decoder.decode(AlgoliaResponse.self, from: data)
+        let stories = response.hits.compactMap { hit -> HNItem? in
+            guard let id = Int(hit.objectID) else { return nil }
+            return HNItem(
+                id: id, type: .story, by: hit.author, time: hit.created_at_i,
+                title: hit.title, url: hit.url, score: hit.points,
+                descendants: hit.num_comments, text: nil, kids: nil,
+                deleted: nil, dead: nil
+            )
+        }
+        return (stories, response.nbPages ?? 0)
     }
 
     /// Finds other HN discussions of the same URL via Algolia's URL-restricted search.

@@ -1,18 +1,31 @@
 // CuratedEntryRowView.swift
 // A single row in the Curated feed.
-// Layout mirrors StoryRowView: domain chip at top, title, metadata row.
-// The extra element is a source/section tag strip at the bottom that shows
-// where the story came from (newsletter section or JSON feed name).
+// Header: source tag (right-aligned). Below: title, section/note, metadata row.
+// Domain sits in the metadata row alongside votes and comments.
 
 import SwiftUI
 
 struct CuratedEntryRowView: View {
     let entry: CuratedEntry
 
+    /// The text shown beneath the title: curator note for JSON entries,
+    /// newsletter section name for newsletter entries.
+    private var subNote: String? {
+        if let note = entry.note { return note }
+        for source in entry.sources {
+            if case .newsletter(_, let sectionRaw) = source,
+               let section = NewsletterSection(rawValue: sectionRaw),
+               section != .unknown {
+                return section.displayName
+            }
+        }
+        return nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
 
-            // ── Domain chip (mirrors StoryRowView) ───────────────────────────
+            // ── Domain chip ───────────────────────────────────────────────────
             if let domain = entry.sourceDomain {
                 Label(domain, systemImage: "link")
                     .font(.system(size: 11, weight: .semibold))
@@ -22,49 +35,36 @@ struct CuratedEntryRowView: View {
                     .background(AppTheme.accentMuted, in: Capsule())
             }
 
-            // ── Title ────────────────────────────────────────────────────────
-            Text(entry.title)
-                .font(AppTheme.titleFont(15))
-                .foregroundStyle(.white)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
+            // ── Title + section/note ──────────────────────────────────────────
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.title)
+                    .font(AppTheme.titleFont(15))
+                    .foregroundStyle(.white)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            // ── Curator note (JSON feeds only) ───────────────────────────────
-            if let note = entry.note {
-                Text("— \(note)")
-                    .font(.system(size: 13, weight: .regular, design: .serif))
-                    .foregroundStyle(AppTheme.secondaryText)
-                    .lineLimit(2)
+                if let note = subNote {
+                    Text("— \(note)")
+                        .font(.system(size: 13, weight: .regular, design: .serif))
+                        .foregroundStyle(AppTheme.secondaryText)
+                        .lineLimit(2)
+                }
             }
 
-            // ── Main metadata row (mirrors StoryRowView) ─────────────────────
+            // ── Metadata row ──────────────────────────────────────────────────
             HStack(spacing: 14) {
-                if let votes = entry.votes {
-                    MetaBadge(icon: "arrow.up", value: "\(votes)")
-                }
+                MetaBadge(icon: "arrow.up", value: "\(entry.votes ?? 0)")
                 if let comments = entry.commentCount {
                     MetaBadge(icon: "bubble.left", value: "\(comments)")
+                }
+                ForEach(entry.sources, id: \.self) { source in
+                    sourceTag(for: source)
                 }
                 Spacer()
                 if let d = entry.displayDate {
                     Text(d.curatedRelative)
                         .font(AppTheme.captionFont(11))
                         .foregroundStyle(.tertiary)
-                }
-            }
-
-            // ── Source / section tags ─────────────────────────────────────────
-            // One badge per source. Newsletter badges include the section name
-            // so the user knows which part of the newsletter it came from.
-            // Colour coding is retained for now to distinguish source types.
-            if !entry.sources.isEmpty {
-                Divider()
-                    .overlay(AppTheme.glassBorder)
-
-                HStack(spacing: 6) {
-                    ForEach(entry.sources, id: \.self) { source in
-                        sourceTag(for: source)
-                    }
                 }
             }
         }
@@ -78,42 +78,22 @@ struct CuratedEntryRowView: View {
     @ViewBuilder
     private func sourceTag(for source: CuratedEntrySource) -> some View {
         switch source {
-        case .newsletter(let issueNumber, let sectionRaw):
-            let label = newsletterLabel(issueNumber: issueNumber, section: sectionRaw)
-            Text(label)
-                .tagStyle(color: AppTheme.accent)
+        case .newsletter(let issueNumber, _):
+            let label = issueNumber > 0 ? "HN Newsletter #\(issueNumber)" : "HN Newsletter"
+            MetaBadge(icon: "newspaper", value: label)
 
         case .json(let feedID):
-            Text(feedName(for: feedID))
-                .tagStyle(color: .cyan)
+            let info = feedInfo(for: feedID)
+            MetaBadge(icon: info.icon, value: info.name)
         }
     }
 
-    /// Builds the label for a newsletter source badge.
-    /// Always includes issue number: "Hacker Newsletter #787 · Favorites".
-    private func newsletterLabel(issueNumber: Int, section sectionRaw: String) -> String {
-        let base = issueNumber > 0 ? "Hacker Newsletter #\(issueNumber)" : "Hacker Newsletter"
-        if let s = NewsletterSection(rawValue: sectionRaw), s != .unknown {
-            return "\(base) · \(s.displayName)"
+    private func feedInfo(for feedID: String) -> (name: String, icon: String) {
+        switch BuiltInCuratedSource(rawValue: feedID) {
+        case .personal:         return ("LiquidNews Picks", "hand.thumbsup")
+        case .hackerNewsletter: return ("Hacker Newsletter", "newspaper")
+        case .none:             return ("Custom Feed", "person.crop.circle")
         }
-        return base
-    }
-
-    private func feedName(for feedID: String) -> String {
-        BuiltInCuratedSource(rawValue: feedID)?.name ?? "Custom Feed"
-    }
-}
-
-// MARK: - Tag style
-
-private extension Text {
-    func tagStyle(color: Color) -> some View {
-        self
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
-            .foregroundStyle(color.opacity(0.9))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.12), in: Capsule())
     }
 }
 
@@ -142,7 +122,7 @@ extension Date {
         ScrollView {
             VStack(spacing: 12) {
 
-                // Newsletter entry
+                // Newsletter entry — section shown as sub-note
                 CuratedEntryRowView(entry: CuratedEntry(
                     id: "1", title: "Personal Encyclopedias",
                     url: URL(string: "https://whoami.wiki/blog/personal-encyclopedias")!,
@@ -152,13 +132,13 @@ extension Date {
                     note: nil, sourceDomain: "whoami.wiki"
                 ))
 
-                // JSON feed entry with note
+                // JSON feed entry with curator note
                 CuratedEntryRowView(entry: CuratedEntry(
-                    id: "2", title: "Some Things Just Take Time",
-                    url: URL(string: "https://lucumr.pocoo.org/2026/3/20/")!,
+                    id: "hn:39876543", title: "Some Things Just Take Time",
+                    url: URL(string: "https://news.ycombinator.com/item?id=39876543")!,
                     date: Date.now.addingTimeInterval(-2 * 86400),
                     sources: [.json(feedID: "personal")],
-                    votes: nil, commentCount: nil, hnItemID: nil,
+                    votes: 612, commentCount: 94, hnItemID: 39876543,
                     note: "Slow progress is still progress. A good reminder.",
                     sourceDomain: "lucumr.pocoo.org"
                 ))

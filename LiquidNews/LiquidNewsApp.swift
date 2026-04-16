@@ -26,6 +26,12 @@ struct LiquidNewsApp: App {
                 .onOpenURL { url in
                     deepLink.pendingItemID = itemID(from: url)
                 }
+                .task {
+                    // Apply hidden posts auto-expiry on each launch.
+                    SavedPostsStore.shared.applyHiddenPostsExpiry(
+                        UserSettings.shared.hiddenPostsExpiry
+                    )
+                }
         }
     }
 

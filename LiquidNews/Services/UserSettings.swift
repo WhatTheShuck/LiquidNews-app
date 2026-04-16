@@ -42,29 +42,129 @@ enum LinkOpenMode: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - Swipe action options
+// MARK: - Viewed post behaviour
 
-enum SwipeAction: String, CaseIterable, Identifiable {
-    case favourite = "favourite"
-    case saveLater = "saveLater"
-    case none      = "none"
+enum ReadBehaviour: String, CaseIterable, Identifiable {
+    case hide    = "hide"
+    case dim     = "dim"
+    case nothing = "nothing"
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .favourite: "Favourite"
-        case .saveLater: "Save for Later"
-        case .none:      "None"
+        case .hide:    "Hide"
+        case .dim:     "Grey out"
+        case .nothing: "Nothing"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .favourite: "heart"
-        case .saveLater: "bookmark"
-        case .none:      "minus"
+        case .hide:    "eye.slash"
+        case .dim:     "circle.lefthalf.filled"
+        case .nothing: "minus"
         }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .hide:    "Viewed posts disappear from feeds"
+        case .dim:     "Viewed posts are shown faded"
+        case .nothing: "No change to viewed posts"
+        }
+    }
+}
+
+// MARK: - Hidden posts auto-expiry
+
+enum HiddenPostsExpiry: String, CaseIterable, Identifiable {
+    case never  = "never"
+    case days7  = "7days"
+    case days30 = "30days"
+    case days90 = "90days"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .never:  "Never"
+        case .days7:  "After 7 days"
+        case .days30: "After 30 days"
+        case .days90: "After 90 days"
+        }
+    }
+
+    /// Returns the cutoff `Date` before which hidden entries should be removed,
+    /// or `nil` if expiry is disabled.
+    var cutoffDate: Date? {
+        switch self {
+        case .never:  nil
+        case .days7:  Calendar.current.date(byAdding: .day, value: -7,  to: .now)
+        case .days30: Calendar.current.date(byAdding: .day, value: -30, to: .now)
+        case .days90: Calendar.current.date(byAdding: .day, value: -90, to: .now)
+        }
+    }
+}
+
+// MARK: - Story action (tap + swipe)
+
+/// All the actions that can be assigned to a swipe gesture or the default tap.
+enum StoryAction: String, CaseIterable, Identifiable {
+    case openComments = "openComments"
+    case openBrowser  = "openBrowser"
+    case openReader   = "openReader"
+    case openSafari   = "openSafari"
+    case favourite    = "favourite"
+    case saveLater    = "saveLater"
+    case hide         = "hide"
+    case none         = "none"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .openComments: "Open Comments"
+        case .openBrowser:  "Open in Browser"
+        case .openReader:   "Open in Reader"
+        case .openSafari:   "Open in Safari"
+        case .favourite:    "Favourite"
+        case .saveLater:    "Save for Later"
+        case .hide:         "Hide Post"
+        case .none:         "None"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .openComments: "bubble.left"
+        case .openBrowser:  "globe"
+        case .openReader:   "textformat"
+        case .openSafari:   "safari"
+        case .favourite:    "heart"
+        case .saveLater:    "bookmark"
+        case .hide:         "eye.slash"
+        case .none:         "minus"
+        }
+    }
+
+    /// Tint colour used when this action appears as a swipe button.
+    var swipeTint: Color {
+        switch self {
+        case .openComments: .purple
+        case .openBrowser:  .teal
+        case .openReader:   .green
+        case .openSafari:   .blue
+        case .favourite:    .orange
+        case .saveLater:    .indigo
+        case .hide:         .red
+        case .none:         .gray
+        }
+    }
+
+    /// Cases valid for the default-tap setting (exclude none/hide which make no sense as a tap).
+    static var tapOptions: [StoryAction] {
+        [.openComments, .openBrowser, .openReader, .openSafari]
     }
 }
 
@@ -141,16 +241,41 @@ final class UserSettings {
         didSet { UserDefaults.standard.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) }
     }
 
-    // MARK: - Swipe actions
+    // MARK: - Tap + swipe actions
+
+    /// What happens when the user taps a story card.
+    var tapAction: StoryAction {
+        didSet { UserDefaults.standard.set(tapAction.rawValue, forKey: Keys.tapAction) }
+    }
 
     /// Action triggered when swiping a story card left (trailing edge).
-    var swipeLeftAction: SwipeAction {
+    var swipeLeftAction: StoryAction {
         didSet { UserDefaults.standard.set(swipeLeftAction.rawValue, forKey: Keys.swipeLeftAction) }
     }
 
     /// Action triggered when swiping a story card right (leading edge).
-    var swipeRightAction: SwipeAction {
+    var swipeRightAction: StoryAction {
         didSet { UserDefaults.standard.set(swipeRightAction.rawValue, forKey: Keys.swipeRightAction) }
+    }
+
+    // MARK: - Hidden posts expiry
+
+    /// How long to retain hidden post entries before auto-clearing them.
+    var hiddenPostsExpiry: HiddenPostsExpiry {
+        didSet { UserDefaults.standard.set(hiddenPostsExpiry.rawValue, forKey: Keys.hiddenPostsExpiry) }
+    }
+
+    /// What happens to a story in feeds after the user opens it.
+    var readBehaviour: ReadBehaviour {
+        didSet { UserDefaults.standard.set(readBehaviour.rawValue, forKey: Keys.readBehaviour) }
+    }
+
+    // MARK: - Reader
+
+    /// When true, images are fetched and shown in Reader mode by default.
+    /// Can still be toggled per-article from the reader's ellipsis menu.
+    var readerShowImagesByDefault: Bool {
+        didSet { UserDefaults.standard.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) }
     }
 
     // MARK: - Curated sources
@@ -189,9 +314,13 @@ final class UserSettings {
         static let customCuratedFeeds           = "LN_customCuratedFeeds"
         static let feedCategoryOrder            = "LN_feedCategoryOrder"
         static let enabledFeedCategories        = "LN_enabledFeedCategories"
+        static let tapAction                    = "LN_tapAction"
         static let swipeLeftAction              = "LN_swipeLeftAction"
         static let swipeRightAction             = "LN_swipeRightAction"
         static let defaultLinkOpen              = "LN_defaultLinkOpen"
+        static let hiddenPostsExpiry            = "LN_hiddenPostsExpiry"
+        static let readBehaviour                = "LN_readBehaviour"
+        static let readerShowImagesByDefault    = "LN_readerShowImagesByDefault"
     }
 
     private init() {
@@ -207,9 +336,13 @@ final class UserSettings {
             Keys.enabledBuiltInCuratedSources: BuiltInCuratedSource.allCases.map(\.rawValue),
             Keys.feedCategoryOrder:            StoryCategory.allCases.map(\.rawValue),
             Keys.enabledFeedCategories:        StoryCategory.defaults.map(\.rawValue),
-            Keys.swipeLeftAction:              SwipeAction.favourite.rawValue,
-            Keys.swipeRightAction:             SwipeAction.saveLater.rawValue,
+            Keys.tapAction:                    StoryAction.openComments.rawValue,
+            Keys.swipeLeftAction:              StoryAction.favourite.rawValue,
+            Keys.swipeRightAction:             StoryAction.saveLater.rawValue,
             Keys.defaultLinkOpen:              LinkOpenMode.browser.rawValue,
+            Keys.hiddenPostsExpiry:            HiddenPostsExpiry.days30.rawValue,
+            Keys.readBehaviour:                ReadBehaviour.dim.rawValue,
+            Keys.readerShowImagesByDefault:    false,
         ])
 
         autoLoadReplyCount = defaults.integer(forKey: Keys.autoLoadReplyCount)
@@ -251,13 +384,24 @@ final class UserSettings {
             ?? StoryCategory.defaults.map(\.rawValue)
         enabledFeedCategories = Set(rawEnabled.compactMap(StoryCategory.init(rawValue:)))
 
-        let rawSwipeLeft = defaults.string(forKey: Keys.swipeLeftAction) ?? SwipeAction.favourite.rawValue
-        swipeLeftAction = SwipeAction(rawValue: rawSwipeLeft) ?? .favourite
+        let rawTap = defaults.string(forKey: Keys.tapAction) ?? StoryAction.openComments.rawValue
+        tapAction = StoryAction(rawValue: rawTap) ?? .openComments
 
-        let rawSwipeRight = defaults.string(forKey: Keys.swipeRightAction) ?? SwipeAction.saveLater.rawValue
-        swipeRightAction = SwipeAction(rawValue: rawSwipeRight) ?? .saveLater
+        let rawSwipeLeft = defaults.string(forKey: Keys.swipeLeftAction) ?? StoryAction.favourite.rawValue
+        swipeLeftAction = StoryAction(rawValue: rawSwipeLeft) ?? .favourite
+
+        let rawSwipeRight = defaults.string(forKey: Keys.swipeRightAction) ?? StoryAction.saveLater.rawValue
+        swipeRightAction = StoryAction(rawValue: rawSwipeRight) ?? .saveLater
 
         let rawLinkOpen = defaults.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.browser.rawValue
         defaultLinkOpen = LinkOpenMode(rawValue: rawLinkOpen) ?? .browser
+
+        let rawExpiry = defaults.string(forKey: Keys.hiddenPostsExpiry) ?? HiddenPostsExpiry.days30.rawValue
+        hiddenPostsExpiry = HiddenPostsExpiry(rawValue: rawExpiry) ?? .days30
+
+        let rawReadBehaviour = defaults.string(forKey: Keys.readBehaviour) ?? ReadBehaviour.dim.rawValue
+        readBehaviour = ReadBehaviour(rawValue: rawReadBehaviour) ?? .dim
+
+        readerShowImagesByDefault = defaults.bool(forKey: Keys.readerShowImagesByDefault)
     }
 }

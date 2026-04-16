@@ -20,21 +20,33 @@ final class StoryDetailViewModel {
     }
 
     /// Fetch the first 20 top-level comments for the story.
-    func loadComments() async {
+    /// Pass `bustCache: true` after posting a reply so the fresh kids list is fetched.
+    func loadComments(bustCache: Bool = false) async {
         isLoading = true
         defer { isLoading = false }
         errorMessage = nil
 
+        if bustCache { HNAPIService.shared.evict(id: story.id) }
+
         do {
             // Stories from search (Algolia) don't include the kids list —
             // fetch the full item from the HN API first to get it.
-            let source = story.kids != nil ? story : try await HNAPIService.shared.item(id: story.id)
+            let source = try await HNAPIService.shared.item(id: story.id)
             guard let kids = source.kids, !kids.isEmpty else { return }
             let topLevel = Array(kids.prefix(20))
             var fetched = try await HNAPIService.shared.items(ids: topLevel)
-            // Pin mod comments to the top (dang/tomhow responses are usually
-            // the most important; HN itself often places them first anyway).
-            fetched.sort { a, b in HNItem.moderators.contains(a.by ?? "") && !HNItem.moderators.contains(b.by ?? "") }
+
+            // Sort order: mods first, then current user, then everyone else.
+            let currentUser = HNAuthService.shared.username
+            fetched.sort { a, b in
+                let aMod = HNItem.moderators.contains(a.by ?? "")
+                let bMod = HNItem.moderators.contains(b.by ?? "")
+                let aMe = currentUser != nil && a.by == currentUser
+                let bMe = currentUser != nil && b.by == currentUser
+                if aMod != bMod { return aMod }
+                if aMe != bMe { return aMe }
+                return false
+            }
             comments = fetched
         } catch {
             errorMessage = error.localizedDescription

@@ -8,6 +8,15 @@
 //   insets and cause jitter). The category picker lives in a .safeAreaInset so it
 //   occupies a fixed layout slot; .offset() slides it visually without reflowing
 //   the scroll content, giving a smooth hide/show on scroll.
+//
+// Overflow chip design:
+//   Up to 5 category chips are shown at once (the limit where all fit without
+//   scrolling). When the user enables more than 5 categories, the 5th slot
+//   becomes an "overflow" chip. It participates in the convergence animation
+//   identically to the others — the GlassEffectContainer doesn't distinguish it.
+//   Touching it triggers a confirmationDialog with the remaining categories.
+//   When an overflow category is active, the overflow chip renders as "selected"
+//   (accent border, morphed glass), preserving the full glassEffectID mechanic.
 
 import SwiftUI
 
@@ -20,13 +29,31 @@ private struct ChipCenterKey: PreferenceKey {
     }
 }
 
+// The overflow slot in the chip row.
+private enum PickerChip: Identifiable {
+    case category(StoryCategory)
+    case overflow
+
+    var id: String {
+        switch self {
+        case .category(let c): c.id
+        case .overflow:        "__overflow__"
+        }
+    }
+}
+
 struct StoriesListView: View {
 
     @State private var viewModel: StoriesViewModel
+    @State private var settings = UserSettings.shared
     @State private var selectedStory: HNItem?
+    @State private var webReaderURL: IdentifiableURL?
+    @State private var webReaderInitialReaderMode = false
+    @State private var safariURL: IdentifiableURL?
     @State private var showingSearch = false
     @State private var showingSettings = false
     @State private var showingAccount = false
+    @Environment(\.openURL) private var openURL
     // 0 = picker fully visible, 1 = picker fully hidden.
     // Driven directly from scroll offset so the animation tracks finger speed.
     // Snapped to 0 or 1 with a spring once scrolling stops.
@@ -39,8 +66,36 @@ struct StoriesListView: View {
     // glass capsule between chips when the selection changes.
     @Namespace private var chipNamespace
 
+    // Maximum chips visible simultaneously. At 5 all labels fit comfortably on
+    // an iPhone without the row needing to scroll — the constraint the merge
+    // animation depends on.
+    private let maxVisibleChips = 5
+
     init(viewModel: StoriesViewModel = StoriesViewModel()) {
         _viewModel = State(initialValue: viewModel)
+    }
+
+    // MARK: - Chip layout helpers
+
+    /// All enabled categories in the user's preferred order.
+    private var enabledCategories: [StoryCategory] { settings.orderedEnabledCategories }
+
+    /// True when more categories are enabled than the row can show at once.
+    private var hasOverflow: Bool { enabledCategories.count > maxVisibleChips }
+
+    /// The "primary" chips (all if ≤ max, otherwise the first N-1 to leave room for overflow).
+    private var mainCategories: [StoryCategory] {
+        hasOverflow ? Array(enabledCategories.prefix(maxVisibleChips - 1)) : enabledCategories
+    }
+
+    /// Categories that live behind the overflow chip.
+    private var overflowCategories: [StoryCategory] {
+        hasOverflow ? Array(enabledCategories.dropFirst(maxVisibleChips - 1)) : []
+    }
+
+    /// All chips rendered in the row — main categories plus an overflow slot if needed.
+    private var displayedChips: [PickerChip] {
+        mainCategories.map(PickerChip.category) + (hasOverflow ? [.overflow] : [])
     }
 
     var body: some View {
@@ -74,7 +129,7 @@ struct StoriesListView: View {
                         .scaleEffect(1 - pickerProgress * 0.25)
 
                     Menu {
-                        ForEach(StoryCategory.allCases) { category in
+                        ForEach(enabledCategories) { category in
                             Button {
                                 Task { await viewModel.load(category: category) }
                             } label: {
@@ -132,6 +187,16 @@ struct StoriesListView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
         }
+        .sheet(item: $webReaderURL) { item in
+            NavigationStack {
+                WebReaderView(url: item.url, initialReaderMode: webReaderInitialReaderMode)
+            }
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(.glassCornerRadius)
+        }
+        .sheet(item: $safariURL) { item in
+            SafariView(url: item.url)
+        }
         .sheet(isPresented: $showingSearch) {
             SearchView()
         }
@@ -142,107 +207,123 @@ struct StoriesListView: View {
             NavigationStack { AccountView() }
         }
         .task {
-            await viewModel.load(category: .top)
+            await viewModel.load(category: enabledCategories.first ?? .top)
+        }
+        // If the selected category gets disabled in settings, switch to the first enabled one.
+        .onChange(of: enabledCategories) { _, categories in
+            if !categories.contains(viewModel.selectedCategory), let first = categories.first {
+                Task { await viewModel.load(category: first) }
+            }
         }
     }
 
     // MARK: - Category picker row (slides away on scroll)
 
-    // Chips fill the full screen width equally (no ScrollView needed with 5 chips).
-    // All chips live inside a GlassEffectContainer so:
-    //   1. Each chip's glass capsule morphs to the adjacent chip when selection changes
-    //      (via glassEffectID — the same mechanism Apple's tab bar uses).
-    //   2. All capsules merge together liquidly as they converge on scroll.
-    // The selected chip also floats upward as it converges, making it appear to
-    // travel into the toolbar's category menu button.
-    // Chips fill the full screen width equally. All chips live inside a
-    // GlassEffectContainer so their glass capsules morph between positions
-    // when selection changes (glassEffectID mechanism), and merge together
-    // liquidly when the picker scrolls away.
+    // All chips live in a single flat HStack inside a GlassEffectContainer, so
+    // SwiftUI distributes equal width to every slot — including the overflow Menu.
+    // The overflow chip is a Menu inline in the ForEach; because it sits at the
+    // same level as the CategoryChips, `.frame(maxWidth: .infinity)` is applied
+    // uniformly and every chip is identical in size.
     //
-    // Interaction is handled by a single DragGesture(minimumDistance:0) on the
-    // HStack — this covers both taps (zero travel) and slides (finger moves
-    // between chips), exactly like Apple's own tab bar. Individual per-chip
-    // Buttons are intentionally absent: Button + .glassEffect(.interactive())
-    // compete for the same touch and produce unreliable firing.
+    // Gesture strategy: DragGesture(minimumDistance:0) on the HStack covers taps
+    // and slides for main chips. For the overflow slot, selectNearest() returns
+    // early — the Menu's own gesture handles that area with higher priority (child
+    // gestures beat parent gestures in SwiftUI's recogniser tree).
     private var categoryPickerRow: some View {
         GlassEffectContainer {
             HStack(spacing: 8) {
-                ForEach(Array(StoryCategory.allCases.enumerated()), id: \.element.id) {
-                    index, category in
-                    CategoryChip(
-                        category: category,
-                        isSelected: viewModel.selectedCategory == category,
-                        namespace: chipNamespace,
-                        mergeProgress: pickerProgress
-                    )
-                    .frame(maxWidth: .infinity)
-                    // Measure each chip's natural centre X before any offset is applied.
-                    .background {
-                        GeometryReader { geo in
-                            Color.clear.preference(
-                                key: ChipCenterKey.self,
-                                value: [index: geo.frame(in: .named("pickerRow")).midX]
-                            )
+                ForEach(Array(displayedChips.enumerated()), id: \.element.id) { index, chip in
+                    chipView(for: chip)
+                        .frame(maxWidth: .infinity)
+                        .background {
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: ChipCenterKey.self,
+                                    value: [index: geo.frame(in: .named("pickerRow")).midX]
+                                )
+                            }
                         }
-                    }
-                    // Animate glass morph and highlight when selection changes.
-                    .animation(.bouncy(duration: 0.4), value: viewModel.selectedCategory)
-                    // Slide chips toward screen centre on scroll.
-                    .offset(x: chipConvergenceOffset(for: index))
-                    // Centre chip stays on top; outer chips slide underneath.
-                    .zIndex(Double(StoryCategory.allCases.count - abs(index - 2)) * pickerProgress)
+                        .animation(.bouncy(duration: 0.4), value: viewModel.selectedCategory)
+                        .offset(x: chipConvergenceOffset(for: index))
+                        .zIndex(zIndex(for: index))
                 }
             }
             .padding(.horizontal, 12)
             .coordinateSpace(.named("pickerRow"))
             .contentShape(Rectangle())
-            // Single gesture covers both taps (minimumDistance:0 fires on lift)
-            // and slides (onChanged fires as finger crosses chip boundaries).
             .gesture(
                 DragGesture(minimumDistance: 0, coordinateSpace: .named("pickerRow"))
-                    .onChanged { value in
-                        selectNearest(to: value.location.x)
-                    }
-                    .onEnded { value in
-                        selectNearest(to: value.location.x)
-                    }
+                    .onChanged { value in selectNearest(to: value.location.x) }
+                    .onEnded   { value in selectNearest(to: value.location.x) }
             )
         }
-        // Capture visible row width for convergence target calculation.
-        .onGeometryChange(for: CGFloat.self) {
-            $0.size.width
-        } action: {
-            pickerRowWidth = $0
-        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pickerRowWidth = $0 }
         .onPreferenceChange(ChipCenterKey.self) { chipCenters = $0 }
         .padding(.vertical, 10)
     }
 
-    /// Selects the chip whose measured centre is nearest to x (pickerRow space).
-    /// Setting selectedCategory synchronously here guarantees the @Observable
-    /// change fires in the current render pass, so .animation picks it up.
+    @ViewBuilder
+    private func chipView(for chip: PickerChip) -> some View {
+        switch chip {
+        case .category(let category):
+            CategoryChip(
+                category: category,
+                isSelected: viewModel.selectedCategory == category,
+                namespace: chipNamespace,
+                mergeProgress: pickerProgress
+            )
+        case .overflow:
+            Menu {
+                ForEach(overflowCategories) { category in
+                    Button {
+                        guard category != viewModel.selectedCategory else { return }
+                        viewModel.selectedCategory = category
+                        Task { await viewModel.load(category: category) }
+                    } label: {
+                        if viewModel.selectedCategory == category {
+                            Label(category.rawValue, systemImage: "checkmark")
+                        } else {
+                            Text(category.rawValue)
+                        }
+                    }
+                }
+            } label: {
+                OverflowChip(
+                    overflowCategories: overflowCategories,
+                    selectedCategory: viewModel.selectedCategory,
+                    namespace: chipNamespace,
+                    mergeProgress: pickerProgress
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// zIndex: centre chips float on top, outer chips slide underneath during convergence.
+    private func zIndex(for index: Int) -> Double {
+        let n = displayedChips.count
+        return Double(n - abs(index - n / 2)) * pickerProgress
+    }
+
+    /// Selects the category chip nearest to x. Returns early if x is over the overflow
+    /// slot — the Menu's own gesture has higher priority and handles it directly.
     private func selectNearest(to x: CGFloat) {
         guard !chipCenters.isEmpty,
-              let nearest = chipCenters.min(by: { abs($0.value - x) < abs($1.value - x) }),
-              nearest.key < StoryCategory.allCases.count else { return }
-        let category = StoryCategory.allCases[nearest.key]
+              let nearest = chipCenters.min(by: { abs($0.value - x) < abs($1.value - x) }) else { return }
+        // Overflow slot — let the Menu handle it, don't interfere
+        guard nearest.key < mainCategories.count else { return }
+        let category = mainCategories[nearest.key]
         guard category != viewModel.selectedCategory else { return }
         viewModel.selectedCategory = category
         Task { await viewModel.load(category: category) }
     }
 
-    /// Returns the x offset that moves chip at `index` toward the true horizontal
-    /// centre of the row (= screen centre). Falls back to an index-based estimate
-    /// until the first geometry pass completes.
+    /// X offset that slides chip `index` toward the row's horizontal centre.
     private func chipConvergenceOffset(for index: Int) -> CGFloat {
         guard let center = chipCenters[index], pickerRowWidth > 0 else {
-            let fallbackCentre = StoryCategory.allCases.count / 2
-            return CGFloat(fallbackCentre - index) * 90 * CGFloat(pickerProgress)
+            return CGFloat(displayedChips.count / 2 - index) * 90 * CGFloat(pickerProgress)
         }
-        // target is the midpoint of the visible row (= centre of the screen)
-        let target = pickerRowWidth / 2
-        return (target - center) * CGFloat(pickerProgress)
+        return (pickerRowWidth / 2 - center) * CGFloat(pickerProgress)
     }
 
     // MARK: - Settings menu content
@@ -265,34 +346,132 @@ struct StoriesListView: View {
 
     // MARK: - Stories list
 
+    private let store = SavedPostsStore.shared
+
+    private func performAction(_ action: StoryAction, story: HNItem) {
+        switch action {
+        case .openComments:
+            selectedStory = story
+        case .openBrowser:
+            guard let urlString = story.url, let url = URL(string: urlString) else { selectedStory = story; return }
+            safariURL = IdentifiableURL(url)
+        case .openReader:
+            guard let urlString = story.url, let url = URL(string: urlString) else { selectedStory = story; return }
+            webReaderInitialReaderMode = true
+            webReaderURL = IdentifiableURL(url)
+        case .openSafari:
+            if let urlString = story.url, let url = URL(string: urlString) { openURL(url) } else { selectedStory = story }
+        case .favourite:
+            store.toggleFavourite(story.id)
+        case .saveLater:
+            store.toggleSaved(story.id)
+        case .hide:
+            store.hide(story)
+        case .none:
+            break
+        }
+    }
+
+    @ViewBuilder
+    private func swipeActionButton(_ action: StoryAction, story: HNItem) -> some View {
+        if action != .none {
+            Button {
+                performAction(action, story: story)
+            } label: {
+                swipeLabel(for: action, story: story)
+            }
+            .tint(swipeTint(for: action, story: story))
+        }
+    }
+
+    private func swipeLabel(for action: StoryAction, story: HNItem) -> Label<Text, Image> {
+        switch action {
+        case .favourite:
+            return Label(store.isFavourite(story.id) ? "Unfavourite" : "Favourite",
+                         systemImage: store.isFavourite(story.id) ? "heart.slash" : "heart")
+        case .saveLater:
+            return Label(store.isSaved(story.id) ? "Unsave" : "Save",
+                         systemImage: store.isSaved(story.id) ? "bookmark.slash" : "bookmark")
+        default:
+            return Label(action.label, systemImage: action.systemImage)
+        }
+    }
+
+    private func swipeTint(for action: StoryAction, story: HNItem) -> Color {
+        switch action {
+        case .favourite: return store.isFavourite(story.id) ? .gray : .orange
+        case .saveLater: return store.isSaved(story.id) ? .gray : .indigo
+        default:         return action.swipeTint
+        }
+    }
+
+    /// Stories with hidden posts filtered out — reactive because SavedPostsStore is @Observable.
+    private var visibleStories: [HNItem] {
+        viewModel.stories.filter { !store.isHidden($0.id) }
+    }
+
     private var storiesList: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 12) {
-                ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
-                    Button {
-                        selectedStory = story
+        List {
+            ForEach(Array(visibleStories.enumerated()), id: \.element.id) { index, story in
+                Button {
+                    performAction(settings.tapAction, story: story)
+                } label: {
+                    StoryRowView(story: story, rank: index + 1)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    swipeActionButton(settings.swipeLeftAction, story: story)
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    swipeActionButton(settings.swipeRightAction, story: story)
+                }
+                .contextMenu {
+                    Button(role: .destructive) {
+                        store.hide(story)
                     } label: {
-                        StoryRowView(story: story, rank: index + 1)
+                        Label("Hide Post", systemImage: "eye.slash")
                     }
-                    .buttonStyle(.plain)
-                    // Trigger next page when we're 5 items from the bottom
-                    .onAppear {
-                        if index >= viewModel.stories.count - 5 {
-                            Task { await viewModel.loadNextPage() }
-                        }
+                    Divider()
+                    Button {
+                        store.toggleFavourite(story.id)
+                    } label: {
+                        Label(
+                            store.isFavourite(story.id) ? "Unfavourite" : "Favourite",
+                            systemImage: store.isFavourite(story.id) ? "heart.slash" : "heart"
+                        )
+                    }
+                    Button {
+                        store.toggleSaved(story.id)
+                    } label: {
+                        Label(
+                            store.isSaved(story.id) ? "Remove from Saved" : "Save for Later",
+                            systemImage: store.isSaved(story.id) ? "bookmark.slash" : "bookmark"
+                        )
                     }
                 }
-
-                if viewModel.isPaginating {
-                    ProgressView()
-                        .tint(.white)
-                        .padding(.vertical, 16)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                // Trigger next page when we're 5 items from the bottom
+                .onAppear {
+                    if index >= visibleStories.count - 5 {
+                        Task { await viewModel.loadNextPage() }
+                    }
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
+
+            if viewModel.isPaginating {
+                ProgressView()
+                    .tint(.white)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .scrollBounceBehavior(.basedOnSize)
         .refreshable {
             await viewModel.refresh()
@@ -300,10 +479,13 @@ struct StoriesListView: View {
         // Drive pickerProgress directly from scroll offset — no withAnimation
         // wrapper so the transition speed exactly matches the user's finger.
         // Range: 0–64 pt maps to progress 0–1.
-        .onScrollGeometryChange(for: CGFloat.self) {
-            $0.contentOffset.y
+        // Clamping lives in the *transform* so SwiftUI's own deduplication
+        // fires the action only when the rounded value actually changes —
+        // once offset > 64, all further positions map to 1.0 and are skipped.
+        .onScrollGeometryChange(for: Double.self) {
+            Double(min(max($0.contentOffset.y / 64, 0), 1))
         } action: { _, new in
-            pickerProgress = Double(min(max(new / 64, 0), 1))
+            pickerProgress = new
         }
         // Once the user's finger is fully off and inertia has settled, snap
         // to whichever end state is closest using a springy finish.
@@ -399,6 +581,54 @@ struct CategoryChip: View {
             }
             .glassEffect(in: Capsule())
             .glassEffectID(isSelected ? "activeChip" : category.rawValue, in: namespace)
+    }
+}
+
+// MARK: - Overflow chip
+
+/// Occupies the last chip slot when more categories are enabled than fit on screen.
+/// Visually identical to a CategoryChip, participating fully in the convergence
+/// animation and glass merge. When an overflow category is active it renders as
+/// "selected" so the glassEffectID morph still works correctly.
+struct OverflowChip: View {
+    let overflowCategories: [StoryCategory]
+    let selectedCategory: StoryCategory
+    let namespace: Namespace.ID
+    var mergeProgress: Double = 0
+
+    private var isActive: Bool { overflowCategories.contains(selectedCategory) }
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(isActive ? selectedCategory.rawValue : "More")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(isActive ? AppTheme.accent : Color.white)
+            // Chevron is always visible — when active it signals the chip is
+            // still tappable to switch between overflow categories.
+            Image(systemName: "chevron.down")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(
+                    isActive
+                        ? AppTheme.accent.opacity(0.55)
+                        : Color.white.opacity(0.55)
+                )
+        }
+        .opacity(max(0, 1 - mergeProgress * 2))
+        .lineLimit(1)
+        .minimumScaleFactor(0.85)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity)
+        .overlay {
+            if isActive {
+                Capsule()
+                    .strokeBorder(AppTheme.accent.opacity(0.8 * (1 - mergeProgress)), lineWidth: 1.5)
+            }
+        }
+        .glassEffect(in: Capsule())
+        // Uses "activeChip" when selected so the glass morphs here just like any
+        // other chip — the animation is unaware this is the overflow slot.
+        .glassEffectID(isActive ? "activeChip" : "overflowChip", in: namespace)
     }
 }
 

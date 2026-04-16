@@ -247,6 +247,7 @@
 				CODE_SIGN_ENTITLEMENTS = LiquidNewsShareExtension/LiquidNewsShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3GXN9TG2N7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LiquidNewsShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiquidNewsShareExtension;
@@ -276,6 +277,7 @@
 				CODE_SIGN_ENTITLEMENTS = LiquidNewsShareExtension/LiquidNewsShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 3GXN9TG2N7;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = LiquidNewsShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = LiquidNewsShareExtension;

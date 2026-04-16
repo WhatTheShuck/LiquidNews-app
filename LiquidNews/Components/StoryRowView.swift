@@ -7,6 +7,13 @@ struct StoryRowView: View {
     let story: HNItem
     let rank: Int
 
+    private let store = SavedPostsStore.shared
+    private let settings = UserSettings.shared
+
+    private var shouldDim: Bool {
+        settings.readBehaviour == .dim && store.isRead(story.id)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
 
@@ -18,18 +25,22 @@ struct StoryRowView: View {
 
                     // Domain badge — only shown for link posts
                     if let domain = story.displayURL {
-                        Label(domain, systemImage: "link")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(AppTheme.accent)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(AppTheme.accentMuted, in: Capsule())
+                        HStack(spacing: 4) {
+                            Image(systemName: "link")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(domain)
+                                .font(.system(size: 11, weight: .semibold))
+                        }
+                        .foregroundStyle(AppTheme.accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(AppTheme.accentMuted, in: Capsule())
                     }
 
-                    // Story title
+                    // Story title — optionally dimmed once the user has opened it
                     Text(story.title ?? "Untitled")
                         .font(AppTheme.titleFont(15))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.white.opacity(shouldDim ? 0.4 : 1.0))
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }

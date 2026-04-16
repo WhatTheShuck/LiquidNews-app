@@ -7,7 +7,11 @@ struct FavouritesView: View {
 
     @State private var viewModel = FavouritesViewModel()
     @State private var selectedStory: HNItem?
+    @State private var webReaderURL: IdentifiableURL?
+    @State private var webReaderInitialReaderMode = false
+    @State private var safariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
+    @Environment(\.openURL) private var openURL
 
     private let store = SavedPostsStore.shared
 
@@ -44,35 +48,74 @@ struct FavouritesView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
         }
+        .sheet(item: $webReaderURL) { item in
+            NavigationStack {
+                WebReaderView(url: item.url, initialReaderMode: webReaderInitialReaderMode)
+            }
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(.glassCornerRadius)
+        }
+        .sheet(item: $safariURL) { item in
+            SafariView(url: item.url)
+        }
     }
 
-    // MARK: - Swipe actions
+    // MARK: - Actions
+
+    private func performAction(_ action: StoryAction, story: HNItem) {
+        switch action {
+        case .openComments:
+            selectedStory = story
+        case .openBrowser:
+            guard let urlString = story.url, let url = URL(string: urlString) else { selectedStory = story; return }
+            safariURL = IdentifiableURL(url)
+        case .openReader:
+            guard let urlString = story.url, let url = URL(string: urlString) else { selectedStory = story; return }
+            webReaderInitialReaderMode = true
+            webReaderURL = IdentifiableURL(url)
+        case .openSafari:
+            if let urlString = story.url, let url = URL(string: urlString) { openURL(url) } else { selectedStory = story }
+        case .favourite:
+            store.toggleFavourite(story.id)
+        case .saveLater:
+            store.toggleSaved(story.id)
+        case .hide:
+            store.hide(story)
+        case .none:
+            break
+        }
+    }
 
     @ViewBuilder
-    private func swipeActionButton(_ action: SwipeAction, story: HNItem) -> some View {
+    private func swipeActionButton(_ action: StoryAction, story: HNItem) -> some View {
+        if action != .none {
+            Button {
+                performAction(action, story: story)
+            } label: {
+                swipeLabel(for: action, story: story)
+            }
+            .tint(swipeTint(for: action, story: story))
+        }
+    }
+
+    private func swipeLabel(for action: StoryAction, story: HNItem) -> Label<Text, Image> {
         switch action {
-        case .none:
-            EmptyView()
         case .favourite:
-            Button {
-                store.toggleFavourite(story.id)
-            } label: {
-                Label(
-                    store.isFavourite(story.id) ? "Unfavourite" : "Favourite",
-                    systemImage: store.isFavourite(story.id) ? "heart.slash" : "heart"
-                )
-            }
-            .tint(store.isFavourite(story.id) ? .gray : .orange)
+            return Label(store.isFavourite(story.id) ? "Unfavourite" : "Favourite",
+                         systemImage: store.isFavourite(story.id) ? "heart.slash" : "heart")
         case .saveLater:
-            Button {
-                store.toggleSaved(story.id)
-            } label: {
-                Label(
-                    store.isSaved(story.id) ? "Unsave" : "Save",
-                    systemImage: store.isSaved(story.id) ? "bookmark.slash" : "bookmark"
-                )
-            }
-            .tint(store.isSaved(story.id) ? .gray : .blue)
+            return Label(store.isSaved(story.id) ? "Unsave" : "Save",
+                         systemImage: store.isSaved(story.id) ? "bookmark.slash" : "bookmark")
+        default:
+            return Label(action.label, systemImage: action.systemImage)
+        }
+    }
+
+    private func swipeTint(for action: StoryAction, story: HNItem) -> Color {
+        switch action {
+        case .favourite: return store.isFavourite(story.id) ? .gray : .orange
+        case .saveLater: return store.isSaved(story.id) ? .gray : .indigo
+        default:         return action.swipeTint
         }
     }
 
@@ -82,7 +125,7 @@ struct FavouritesView: View {
         List {
             ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
                 Button {
-                    selectedStory = story
+                    performAction(settings.tapAction, story: story)
                 } label: {
                     StoryRowView(story: story, rank: index + 1)
                         .contentShape(Rectangle())
