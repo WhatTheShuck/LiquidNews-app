@@ -2,7 +2,6 @@
 // App settings presented as a sheet from the main toolbar.
 
 import SwiftUI
-import UIKit
 import UniformTypeIdentifiers
 
 struct SettingsListView: View {

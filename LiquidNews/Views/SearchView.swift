@@ -189,6 +189,7 @@ struct SearchView: View {
                     ForEach(Array(viewModel.results.enumerated()), id: \.element.id) { index, story in
                         Button { selectedStory = story } label: {
                             StoryRowView(story: story, rank: index + 1)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                     }
