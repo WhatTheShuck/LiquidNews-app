@@ -92,17 +92,11 @@ struct SavedView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: AppTab.saved.systemImage)
-                .font(.system(size: 52))
-                .foregroundStyle(AppTheme.accent)
-            Text("Nothing saved yet")
-                .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
-            Text("Bookmark a story to read it later.")
-                .font(AppTheme.bodyFont(13))
-                .foregroundStyle(.secondary)
-        }
+        EmptyStateView(
+            icon: AppTab.saved.systemImage,
+            title: "Nothing saved yet",
+            message: "Open a story and use the bookmark action to save it for later."
+        )
     }
 }
 

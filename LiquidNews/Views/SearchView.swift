@@ -12,6 +12,10 @@ import SwiftUI
 private let kLastFilterKey = "hn_search_date_filter"
 
 struct SearchView: View {
+    @ScaledMetric(relativeTo: .body)    private var searchFontSize: CGFloat = 16
+    @ScaledMetric(relativeTo: .footnote) private var chipSize:     CGFloat = 13
+    @ScaledMetric(relativeTo: .subheadline) private var labelSize: CGFloat = 14
+
     @State private var viewModel = SearchViewModel()
     @State private var selectedStory: HNItem?
     @FocusState private var fieldFocused: Bool
@@ -81,7 +85,7 @@ struct SearchView: View {
                     .foregroundStyle(.secondary)
 
                 TextField("Search Hacker News…", text: $viewModel.query)
-                    .font(.system(size: 16))
+                    .font(.system(size: searchFontSize))
                     .foregroundStyle(.white)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
@@ -98,6 +102,7 @@ struct SearchView: View {
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
                 }
             }
             .padding(.horizontal, 12)
@@ -130,7 +135,7 @@ struct SearchView: View {
         let isSelected = viewModel.dateFilter == filter
         return Button { viewModel.dateFilter = filter } label: {
             Text(filter.rawValue)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: chipSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(isSelected ? AppTheme.accent : .white)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -144,6 +149,8 @@ struct SearchView: View {
         }
         .buttonStyle(.plain)
         .animation(.spring(duration: 0.22), value: isSelected)
+        .accessibilityLabel(filter.rawValue)
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Custom date picker
@@ -151,7 +158,7 @@ struct SearchView: View {
     private var customDatePicker: some View {
         HStack {
             Text("Since")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: labelSize, weight: .medium))
                 .foregroundStyle(.secondary)
             Spacer()
             DatePicker(

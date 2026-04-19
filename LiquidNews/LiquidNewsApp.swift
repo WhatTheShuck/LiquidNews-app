@@ -2,8 +2,6 @@
 //  LiquidNewsApp.swift
 //  LiquidNews
 //
-//  Created by Fred on 24/3/2026.
-//
 
 import SwiftUI
 
@@ -18,6 +16,7 @@ class DeepLinkState {
 struct LiquidNewsApp: App {
 
     @State private var deepLink = DeepLinkState()
+    @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some Scene {
         WindowGroup {
@@ -27,10 +26,18 @@ struct LiquidNewsApp: App {
                     deepLink.pendingItemID = itemID(from: url)
                 }
                 .task {
-                    // Apply hidden posts auto-expiry on each launch.
                     SavedPostsStore.shared.applyHiddenPostsExpiry(
                         UserSettings.shared.hiddenPostsExpiry
                     )
+                }
+                .sheet(isPresented: .init(
+                    get: { !hasSeenOnboarding },
+                    set: { _ in hasSeenOnboarding = true }
+                )) {
+                    OnboardingView {
+                        hasSeenOnboarding = true
+                    }
+                    .presentationCornerRadius(.glassCornerRadius)
                 }
         }
     }

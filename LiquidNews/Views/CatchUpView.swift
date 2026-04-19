@@ -13,6 +13,11 @@ import SwiftUI
 
 struct CatchUpView: View {
 
+    @ScaledMetric(relativeTo: .headline)    private var titleSize:       CGFloat = 17
+    @ScaledMetric(relativeTo: .subheadline) private var compactTitleSize: CGFloat = 14
+    @ScaledMetric(relativeTo: .footnote)    private var chipSize:        CGFloat = 13
+    @ScaledMetric(relativeTo: .subheadline) private var labelSize:       CGFloat = 14
+
     @State private var viewModel = CatchUpViewModel()
     @State private var selectedStory: HNItem?
     @State private var webReaderURL: IdentifiableURL?
@@ -47,13 +52,13 @@ struct CatchUpView: View {
             ToolbarItem(placement: .principal) {
                 ZStack {
                     Text(AppTab.catchUp.label)
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .font(.system(size: titleSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                         .opacity(max(0, 1 - controlsProgress * 2))
                         .scaleEffect(1 - controlsProgress * 0.25)
 
                     Text(viewModel.compactTitle)
-                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .font(.system(size: compactTitleSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
@@ -133,7 +138,7 @@ struct CatchUpView: View {
             if preset != .custom { Task { await viewModel.load() } }
         } label: {
             Text(preset.rawValue)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+                .font(.system(size: chipSize, weight: .semibold, design: .rounded))
                 .foregroundStyle(isSelected ? AppTheme.accent : .white)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
@@ -172,7 +177,7 @@ struct CatchUpView: View {
                 Image(systemName: mode.icon)
                     .font(.system(size: 11, weight: .semibold))
                 Text(mode.rawValue)
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .font(.system(size: chipSize, weight: .semibold, design: .rounded))
             }
             .foregroundStyle(isSelected ? AppTheme.accent : .white)
             .padding(.horizontal, 12)
@@ -195,7 +200,7 @@ struct CatchUpView: View {
         VStack(spacing: 0) {
             HStack {
                 Text("From")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: labelSize, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer()
                 DatePicker(
@@ -218,7 +223,7 @@ struct CatchUpView: View {
 
             HStack {
                 Text("To")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.system(size: labelSize, weight: .medium))
                     .foregroundStyle(.secondary)
                 Spacer()
                 DatePicker(

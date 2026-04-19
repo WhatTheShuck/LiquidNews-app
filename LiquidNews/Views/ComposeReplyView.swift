@@ -10,6 +10,8 @@ extension Notification.Name {
 struct ComposeReplyView: View {
     let parentId: Int
 
+    @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 15
+
     @State private var text = ""
     @State private var isPosting = false
     @State private var error: String?
@@ -22,11 +24,12 @@ struct ComposeReplyView: View {
                 TextEditor(text: $text)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
-                    .font(.system(size: 15))
+                    .font(.system(size: bodySize))
                     .foregroundStyle(.white)
                     .frame(minHeight: 140)
                     .padding(14)
                     .glassCard()
+                    .accessibilityLabel("Reply text")
 
                 if let error {
                     Text(error)

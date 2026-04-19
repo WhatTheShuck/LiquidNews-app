@@ -7,6 +7,10 @@ import UniformTypeIdentifiers
 struct SettingsListView: View {
 
     @Environment(\.dismiss) private var dismiss
+
+    @ScaledMetric(relativeTo: .body)    private var rowFontSize:      CGFloat = 15
+    @ScaledMetric(relativeTo: .caption) private var subtitleFontSize: CGFloat = 12
+
     @State private var settings = UserSettings.shared
     @State private var auth = HNAuthService.shared
     @State private var navigateToAccount = false
@@ -140,13 +144,13 @@ struct SettingsListView: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(auth.isLoggedIn ? (auth.username ?? "Account") : "Sign In")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Text(
                             auth.isLoggedIn
                                 ? "Tap to manage your account" : "Log in with your HN account"
                         )
-                        .font(.system(size: 12))
+                        .font(.system(size: subtitleFontSize))
                         .foregroundStyle(.secondary)
                     }
 
@@ -178,7 +182,7 @@ struct SettingsListView: View {
                             .foregroundStyle(AppTheme.accent)
                             .frame(width: 30)
                         Text(tab.label)
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Spacer()
                         Toggle(
@@ -229,7 +233,7 @@ struct SettingsListView: View {
                             .foregroundStyle(AppTheme.accent)
                             .frame(width: 30)
                         Text(category.rawValue)
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Spacer()
                         Toggle(
@@ -266,7 +270,7 @@ struct SettingsListView: View {
             Text(
                 "The first 5 enabled categories appear as chips. Additional enabled categories are available via the last chip."
             )
-            .font(.system(size: 12))
+            .font(.system(size: subtitleFontSize))
             .foregroundStyle(.secondary)
             .padding(.horizontal, 16)
             .padding(.bottom, 14)
@@ -311,7 +315,7 @@ struct SettingsListView: View {
                             .foregroundStyle(AppTheme.accent)
                             .frame(width: 30)
                         Text(source.name)
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Spacer()
                         Toggle(
@@ -347,7 +351,7 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(feed.name)
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                             Text(feed.urlString)
                                 .font(.system(size: 11))
@@ -381,7 +385,7 @@ struct SettingsListView: View {
                             .foregroundStyle(AppTheme.accent)
                             .frame(width: 30)
                         Text("Add Custom Feed")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(AppTheme.accent)
                         Spacer()
                     }
@@ -398,10 +402,10 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Show loading notice")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Text("Banner warning that newsletter parsing may take a moment")
-                            .font(.system(size: 12, design: .rounded))
+                            .font(.system(size: subtitleFontSize, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -440,11 +444,11 @@ struct SettingsListView: View {
                         .foregroundStyle(AppTheme.accent)
                         .frame(width: 30)
                     Text("Auto-load replies")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                         .foregroundStyle(.white)
                     Spacer()
                     Text("\(settings.autoLoadReplyCount)")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: rowFontSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(AppTheme.accent)
                         .frame(minWidth: 28, alignment: .trailing)
                     Stepper("", value: $settings.autoLoadReplyCount, in: 0...10)
@@ -462,15 +466,15 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Max auto-expand depth")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Text("Replies deeper than this require a tap")
-                            .font(.system(size: 12))
+                            .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Text("\(settings.maxAutoExpandDepth)")
-                        .font(.system(size: 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: rowFontSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(AppTheme.accent)
                         .frame(minWidth: 28, alignment: .trailing)
                     Stepper("", value: $settings.maxAutoExpandDepth, in: 0...5)
@@ -489,10 +493,10 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Comment rendering")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                             Text(settings.commentRenderingStyle.subtitle)
-                                .font(.system(size: 12))
+                                .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -561,10 +565,10 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Default open mode")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Text(settings.defaultLinkOpen.subtitle)
-                            .font(.system(size: 12))
+                            .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -624,10 +628,10 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Show images in Reader")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Text("Fetch and display images when opening articles in Reader mode")
-                            .font(.system(size: 12))
+                            .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -695,7 +699,7 @@ struct SettingsListView: View {
                     .foregroundStyle(AppTheme.accent)
                     .frame(width: 30)
                 Text(title)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
                 Picker("", selection: selection) {
@@ -708,7 +712,7 @@ struct SettingsListView: View {
                 .fixedSize()
             }
             Text(subtitle)
-                .font(.system(size: 12))
+                .font(.system(size: subtitleFontSize))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 42)
         }
@@ -734,10 +738,10 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Hidden Posts")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                             Text("\(store.hiddenPosts.count) hidden")
-                                .font(.system(size: 12))
+                                .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -759,10 +763,10 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Auto-clear hidden posts")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.white)
                         Text("HN posts age quickly — auto-expiry keeps the list lean")
-                            .font(.system(size: 12))
+                            .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
@@ -787,10 +791,10 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("When you view a post")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                             Text(settings.readBehaviour.subtitle)
-                                .font(.system(size: 12))
+                                .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -844,7 +848,7 @@ struct SettingsListView: View {
                 // Note: Hide mode never auto-hides favourited or saved posts
                 if settings.readBehaviour == .hide {
                     Text("Favourited and saved posts are never auto-hidden.")
-                        .font(.system(size: 12))
+                        .font(.system(size: subtitleFontSize))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 16)
                         .padding(.bottom, 12)
@@ -863,10 +867,10 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Clear Read History")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.red.opacity(0.8))
                             Text("\(store.readHistory.count) entries")
-                                .font(.system(size: 12))
+                                .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -888,10 +892,10 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Export Data")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                             Text("Share favourites, saved posts, history, or everything")
-                                .font(.system(size: 12))
+                                .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -944,10 +948,10 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Import Data")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
                             Text("Restore from a previous export")
-                                .font(.system(size: 12))
+                                .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -973,7 +977,7 @@ struct SettingsListView: View {
                         .foregroundStyle(AppTheme.accent)
                         .frame(width: 30)
                     Text("Open Hacker News")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                         .foregroundStyle(.white)
                     Spacer()
                     Image(systemName: "arrow.up.right")
@@ -994,7 +998,7 @@ struct SettingsListView: View {
                         .foregroundStyle(AppTheme.accent)
                         .frame(width: 30)
                     Text("Open Source Licenses")
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                         .foregroundStyle(.white)
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -1013,7 +1017,7 @@ struct SettingsListView: View {
                     .foregroundStyle(AppTheme.accent)
                     .frame(width: 30)
                 Text("LiquidNews")
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
+                    .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                     .foregroundStyle(.white)
                 Spacer()
                 Text(appVersion)

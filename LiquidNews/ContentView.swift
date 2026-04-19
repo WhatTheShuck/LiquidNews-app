@@ -27,6 +27,7 @@ struct ContentView: View {
 
     @State private var settings = UserSettings.shared
     @State private var deepLinkedStory: HNItem?
+    @State private var deepLinkError = false
     @Environment(DeepLinkState.self) private var deepLink
 
     @State private var selection: TabSelection = .tab(.feed)
@@ -215,9 +216,12 @@ struct ContentView: View {
     // MARK: - Deep linking
 
     private func openStory(id: Int?) async {
-        guard let id,
-              let story = try? await HNAPIService.shared.item(id: id) else { return }
-        deepLinkedStory = story
+        guard let id else { return }
+        do {
+            deepLinkedStory = try await HNAPIService.shared.item(id: id)
+        } catch {
+            deepLinkError = true
+        }
     }
 }
 

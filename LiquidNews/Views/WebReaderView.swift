@@ -20,6 +20,7 @@ final class WebViewState {
     var canGoBack: Bool = false
     var canGoForward: Bool = false
     var pageTitle: String = ""
+    var loadError: Error? = nil
 
     // Weak reference — WKWebView is owned by UIKit, not by us
     weak var webView: WKWebView?
@@ -124,6 +125,25 @@ struct WebViewRepresentable: UIViewRepresentable {
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             DispatchQueue.main.async { [weak self] in
                 self?.state.navigationEpoch += 1
+                self?.state.loadError = nil
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            // -999 is "cancelled" — happens during redirect chains or when the user
+            // taps stop; it's not a real failure the user needs to know about.
+            let nsError = error as NSError
+            guard nsError.code != NSURLErrorCancelled else { return }
+            DispatchQueue.main.async { [weak self] in
+                self?.state.loadError = error
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            let nsError = error as NSError
+            guard nsError.code != NSURLErrorCancelled else { return }
+            DispatchQueue.main.async { [weak self] in
+                self?.state.loadError = error
             }
         }
 
@@ -182,6 +202,37 @@ struct WebReaderView: View {
             // Thin progress bar that grows left-to-right while loading
             if state.isLoading {
                 ProgressBar(progress: state.progress)
+            }
+
+            // Error overlay — shown when the page fails to load
+            if let error = state.loadError {
+                VStack(spacing: 16) {
+                    Image(systemName: "wifi.exclamationmark")
+                        .font(.system(size: 48))
+                        .foregroundStyle(.secondary)
+                    Text("Page Failed to Load")
+                        .font(.system(size: 17, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text(error.localizedDescription)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+                    Button {
+                        state.loadError = nil
+                        state.reloadOrStop()
+                    } label: {
+                        Label("Try Again", systemImage: "arrow.clockwise")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 12)
+                            .glassEffect(in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(AppTheme.backgroundGradient.ignoresSafeArea())
             }
         }
         .navigationBarTitleDisplayMode(.inline)

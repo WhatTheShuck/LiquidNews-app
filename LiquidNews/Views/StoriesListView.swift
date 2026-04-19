@@ -581,6 +581,8 @@ struct CategoryChip: View {
             }
             .glassEffect(in: Capsule())
             .glassEffectID(isSelected ? "activeChip" : category.rawValue, in: namespace)
+            .accessibilityLabel(category.rawValue)
+            .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
 

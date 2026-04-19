@@ -108,17 +108,11 @@ struct HistoryView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: AppTab.history.systemImage)
-                .font(.system(size: 52))
-                .foregroundStyle(AppTheme.accent)
-            Text("No history yet")
-                .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
-            Text("Stories you open will appear here.")
-                .font(AppTheme.bodyFont(13))
-                .foregroundStyle(.secondary)
-        }
+        EmptyStateView(
+            icon: AppTab.history.systemImage,
+            title: "No history yet",
+            message: "Stories you open will appear here."
+        )
     }
 }
 

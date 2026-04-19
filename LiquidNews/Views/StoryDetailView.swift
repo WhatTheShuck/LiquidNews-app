@@ -38,6 +38,13 @@ enum DetailSheet: Identifiable {
 struct StoryDetailView: View {
     let story: HNItem
 
+    @ScaledMetric(relativeTo: .title2)   private var titleSize:         CGFloat = 20
+    @ScaledMetric(relativeTo: .headline) private var sectionHeaderSize: CGFloat = 17
+    @ScaledMetric(relativeTo: .subheadline) private var buttonSize:     CGFloat = 15
+    @ScaledMetric(relativeTo: .footnote) private var metaSize:          CGFloat = 13
+    @ScaledMetric(relativeTo: .caption2) private var smallSize:         CGFloat = 11
+    @ScaledMetric(relativeTo: .caption2) private var domainBadgeSize:   CGFloat = 12
+
     @State private var viewModel: StoryDetailViewModel
     @State private var activeSheet: DetailSheet?
     @State private var settings = UserSettings.shared
@@ -365,7 +372,7 @@ struct StoryDetailView: View {
 
             if let domain = story.displayURL {
                 Label(domain, systemImage: "link")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: domainBadgeSize, weight: .semibold))
                     .foregroundStyle(AppTheme.accent)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -373,7 +380,7 @@ struct StoryDetailView: View {
             }
 
             Text(story.title ?? "")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .font(.system(size: titleSize, weight: .bold, design: .rounded))
                 .foregroundStyle(.white)
 
             HStack(spacing: 16) {
@@ -382,17 +389,17 @@ struct StoryDetailView: View {
                 Label("\(story.descendants ?? 0) comments", systemImage: "bubble.left")
                     .foregroundStyle(.secondary)
             }
-            .font(.system(size: 13, weight: .medium))
+            .font(.system(size: metaSize, weight: .medium))
 
             HStack(spacing: 8) {
                 if let by = story.by {
                     Label(by, systemImage: "person.fill")
-                        .font(.system(size: 13))
+                        .font(.system(size: metaSize))
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(story.timeAgo)
-                    .font(.system(size: 13))
+                    .font(.system(size: metaSize))
                     .foregroundStyle(.tertiary)
             }
 
@@ -405,9 +412,9 @@ struct StoryDetailView: View {
                         Text("Read Article")
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12))
+                            .font(.system(size: domainBadgeSize))
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.system(size: buttonSize, weight: .semibold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
@@ -463,10 +470,10 @@ struct StoryDetailView: View {
                 // ── Section header ──
                 HStack(spacing: 6) {
                     Image(systemName: "bubble.left.and.bubble.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: domainBadgeSize, weight: .semibold))
                         .foregroundStyle(AppTheme.accent)
                     Text(isLoadingRelated ? "Also Discussed on HN" : "Also Discussed on HN (\(relatedStories.count))")
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .font(.system(size: metaSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.85))
 
                     Spacer()
@@ -506,7 +513,7 @@ struct StoryDetailView: View {
     private func relatedStoryRow(_ related: HNItem) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(related.title ?? "")
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: metaSize, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -519,7 +526,7 @@ struct StoryDetailView: View {
                 }
                 Spacer()
                 Text(related.timeAgo)
-                    .font(.system(size: 11))
+                    .font(.system(size: smallSize))
                     .foregroundStyle(.tertiary)
             }
         }
@@ -531,7 +538,7 @@ struct StoryDetailView: View {
 
     private var commentsHeader: some View {
         Text("Comments")
-            .font(.system(size: 17, weight: .bold, design: .rounded))
+            .font(.system(size: sectionHeaderSize, weight: .bold, design: .rounded))
             .foregroundStyle(.white)
             .padding(.horizontal, 2)
             .padding(.top, 4)

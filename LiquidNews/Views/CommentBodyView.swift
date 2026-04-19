@@ -12,6 +12,8 @@ import SwiftUI
 struct CommentBodyView: View {
     let html: String
 
+    @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 14
+
     // Parsed representation of one chunk of comment content.
     private struct Segment: Identifiable {
         let id: Int
@@ -33,7 +35,7 @@ struct CommentBodyView: View {
                         switch seg.content {
                         case .prose(let text):
                             Text(text)
-                                .font(.system(size: 14))
+                                .font(.system(size: bodySize))
                                 .fixedSize(horizontal: false, vertical: true)
                                 .tint(AppTheme.accent)
                         case .code(let code):
@@ -44,7 +46,7 @@ struct CommentBodyView: View {
             } else {
                 // Shown for a frame while the NSAttributedString parse runs.
                 Text(html.htmlStripped)
-                    .font(.system(size: 14))
+                    .font(.system(size: bodySize))
                     .foregroundStyle(.white.opacity(0.88))
                     .fixedSize(horizontal: false, vertical: true)
             }

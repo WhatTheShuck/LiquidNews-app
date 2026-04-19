@@ -330,18 +330,11 @@ struct CuratedView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: AppTab.curated.systemImage)
-                .font(.system(size: 52))
-                .foregroundStyle(AppTheme.accent)
-            Text("Nothing curated yet")
-                .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
-            Text("Enable sources in Settings\nto see curated content here.")
-                .font(AppTheme.bodyFont(13))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
+        EmptyStateView(
+            icon: AppTab.curated.systemImage,
+            title: "Nothing curated yet",
+            message: "Enable sources in Settings to see curated content here."
+        )
     }
 
     // MARK: - Open entry

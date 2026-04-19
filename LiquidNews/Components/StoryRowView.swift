@@ -7,6 +7,10 @@ struct StoryRowView: View {
     let story: HNItem
     let rank: Int
 
+    @ScaledMetric(relativeTo: .body)     private var titleSize:  CGFloat = 15
+    @ScaledMetric(relativeTo: .caption2) private var domainSize: CGFloat = 11
+    @ScaledMetric(relativeTo: .caption2) private var metaSize:   CGFloat = 11
+
     private let store = SavedPostsStore.shared
     private let settings = UserSettings.shared
 
@@ -27,9 +31,9 @@ struct StoryRowView: View {
                     if let domain = story.displayURL {
                         HStack(spacing: 4) {
                             Image(systemName: "link")
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.system(size: domainSize * 0.91, weight: .semibold))
                             Text(domain)
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.system(size: domainSize, weight: .semibold))
                         }
                         .foregroundStyle(AppTheme.accent)
                         .padding(.horizontal, 8)
@@ -39,7 +43,7 @@ struct StoryRowView: View {
 
                     // Story title — optionally dimmed once the user has opened it
                     Text(story.title ?? "Untitled")
-                        .font(AppTheme.titleFont(15))
+                        .font(.system(size: titleSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(shouldDim ? 0.4 : 1.0))
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -63,13 +67,24 @@ struct StoryRowView: View {
                 Spacer()
 
                 Text(story.timeAgo)
-                    .font(AppTheme.captionFont(11))
+                    .font(.system(size: metaSize, weight: .medium, design: .rounded))
                     .foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 20)
         .glassCard()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityDescription)
+    }
+
+    private var accessibilityDescription: String {
+        var parts: [String] = []
+        if let title = story.title { parts.append(title) }
+        if let by = story.by { parts.append("by \(by)") }
+        if let score = story.score { parts.append("\(score) points") }
+        if let count = story.descendants { parts.append("\(count) comments") }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -78,12 +93,14 @@ struct MetaBadge: View {
     let icon: String
     let value: String
 
+    @ScaledMetric(relativeTo: .caption2) private var size: CGFloat = 11
+
     var body: some View {
         HStack(spacing: 4) {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: size * 0.91, weight: .semibold))
             Text(value)
-                .font(AppTheme.captionFont(11))
+                .font(.system(size: size, weight: .medium, design: .rounded))
         }
         .foregroundStyle(AppTheme.secondaryText)
     }

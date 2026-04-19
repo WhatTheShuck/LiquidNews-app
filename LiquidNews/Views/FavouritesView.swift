@@ -153,17 +153,11 @@ struct FavouritesView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: AppTab.favourites.systemImage)
-                .font(.system(size: 52))
-                .foregroundStyle(AppTheme.accent)
-            Text("No favourites yet")
-                .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
-            Text("Heart a story to save it here.")
-                .font(AppTheme.bodyFont(13))
-                .foregroundStyle(.secondary)
-        }
+        EmptyStateView(
+            icon: AppTab.favourites.systemImage,
+            title: "No favourites yet",
+            message: "Open a story and use the heart action to favourite it."
+        )
     }
 }
 

@@ -35,13 +35,17 @@ final class HNAuthService {
     private let cookieStorage = HTTPCookieStorage.shared
 
     private enum Keys {
-        static let username = "LN_username"
+        static let username = "LN_hn_username"
+        static let legacyUsername = "LN_username"
     }
 
     private init() {
-        // Restore persisted username from a previous session.
-        // We trust the cookie is still valid until a request proves otherwise.
-        username = UserDefaults.standard.string(forKey: Keys.username)
+        // Migrate from UserDefaults to Keychain on first launch after update.
+        if let legacy = UserDefaults.standard.string(forKey: Keys.legacyUsername) {
+            KeychainHelper.save(legacy, forKey: Keys.username)
+            UserDefaults.standard.removeObject(forKey: Keys.legacyUsername)
+        }
+        username = KeychainHelper.load(forKey: Keys.username)
     }
 
     // MARK: - Login
@@ -68,7 +72,7 @@ final class HNAuthService {
             }
 
             self.username = username
-            UserDefaults.standard.set(username, forKey: Keys.username)
+            KeychainHelper.save(username, forKey: Keys.username)
         } catch let err as HNAuthError {
             throw err
         } catch {
@@ -150,7 +154,7 @@ final class HNAuthService {
             for cookie in cookies { cookieStorage.deleteCookie(cookie) }
         }
         username = nil
-        UserDefaults.standard.removeObject(forKey: Keys.username)
+        KeychainHelper.delete(forKey: Keys.username)
     }
 
     // MARK: - Private helpers

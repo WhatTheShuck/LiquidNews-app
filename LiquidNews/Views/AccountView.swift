@@ -5,14 +5,22 @@ import SwiftUI
 
 struct AccountView: View {
 
+    @ScaledMetric(relativeTo: .title3)    private var usernameFontSize: CGFloat = 18
+    @ScaledMetric(relativeTo: .title2)    private var headerFontSize:   CGFloat = 20
+    @ScaledMetric(relativeTo: .body)      private var buttonFontSize:   CGFloat = 16
+    @ScaledMetric(relativeTo: .footnote)  private var linkFontSize:     CGFloat = 13
+
     @Environment(\.dismiss) private var dismiss
     @State private var auth = HNAuthService.shared
+    @FocusState private var focusedField: LoginField?
 
     // Login form state
     @State private var usernameField = ""
     @State private var passwordField = ""
     @State private var isLoggingIn = false
     @State private var loginError: String?
+
+    private enum LoginField { case username, password }
 
     var body: some View {
         ScrollView(.vertical) {
@@ -51,11 +59,11 @@ struct AccountView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(auth.username ?? "")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .font(.system(size: usernameFontSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
                     Link("View profile on HN",
                          destination: URL(string: "https://news.ycombinator.com/user?id=\(auth.username ?? "")")!)
-                        .font(.system(size: 13))
+                        .font(.system(size: linkFontSize))
                         .foregroundStyle(AppTheme.accent)
                 }
                 Spacer()
@@ -89,10 +97,10 @@ struct AccountView: View {
                     .font(.system(size: 48))
                     .foregroundStyle(AppTheme.accent)
                 Text("Sign in to Hacker News")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .font(.system(size: headerFontSize, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                 Text("Use your existing HN username and password.")
-                    .font(.system(size: 13))
+                    .font(.system(size: linkFontSize))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
             }
@@ -104,6 +112,9 @@ struct AccountView: View {
                     .textContentType(.username)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
+                    .submitLabel(.next)
+                    .focused($focusedField, equals: .username)
+                    .onSubmit { focusedField = .password }
                     .padding(16)
                     .foregroundStyle(.white)
 
@@ -111,6 +122,9 @@ struct AccountView: View {
 
                 SecureField("Password", text: $passwordField)
                     .textContentType(.password)
+                    .submitLabel(.go)
+                    .focused($focusedField, equals: .password)
+                    .onSubmit { Task { await attemptLogin() } }
                     .padding(16)
                     .foregroundStyle(.white)
             }
@@ -122,7 +136,7 @@ struct AccountView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundStyle(.red)
                     Text(error)
-                        .font(.system(size: 13))
+                        .font(.system(size: linkFontSize))
                         .foregroundStyle(.white)
                     Spacer()
                 }
@@ -140,7 +154,7 @@ struct AccountView: View {
                         ProgressView().tint(.white)
                     } else {
                         Text("Sign In")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
+                            .font(.system(size: buttonFontSize, weight: .semibold, design: .rounded))
                             .foregroundStyle(.white)
                     }
                     Spacer()
@@ -158,7 +172,7 @@ struct AccountView: View {
 
             Link("Create an account on HN",
                  destination: URL(string: "https://news.ycombinator.com/login?goto=news")!)
-                .font(.system(size: 13))
+                .font(.system(size: linkFontSize))
                 .foregroundStyle(AppTheme.accent)
         }
     }
