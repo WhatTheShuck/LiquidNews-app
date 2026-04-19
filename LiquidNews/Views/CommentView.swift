@@ -147,10 +147,16 @@ struct CommentView: View {
         }
         .padding(14)
         .glassCard(cornerRadius: 18, tint: threadColor)
-        .onLongPressGesture(minimumDuration: 0.4) {
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-            showActions = true
-        }
+        // simultaneousGesture instead of onLongPressGesture so the recogniser
+        // doesn't signal a "pressed" state to the glass card, which was causing
+        // the glow/unglow artefact during scrolling.
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.4)
+                .onEnded { _ in
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    showActions = true
+                }
+        )
         .confirmationDialog("", isPresented: $showActions, titleVisibility: .hidden) {
             commentActions
         }

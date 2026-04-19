@@ -24,8 +24,20 @@ struct CommentBodyView: View {
         let content: Content
     }
 
+    // Shared parse cache — HN comments are immutable so this never needs invalidation.
+    // When LazyVStack recreates a view on scroll-in, the cache gives an instant hit
+    // and segments is pre-populated, so the first render is already rich — no flicker.
+    private static var cache: [String: [Segment]] = [:]
+
     /// nil while the first parse hasn't completed yet.
-    @State private var segments: [Segment]? = nil
+    @State private var segments: [Segment]?
+
+    init(html: String) {
+        self.html = html
+        // Pre-populate from cache if this HTML has been parsed before so the first
+        // render is already rich (no flash on scroll-in / view recreation).
+        _segments = State(initialValue: CommentBodyView.cache[html])
+    }
 
     var body: some View {
         Group {
@@ -44,16 +56,19 @@ struct CommentBodyView: View {
                     }
                 }
             } else {
-                // Shown for a frame while the NSAttributedString parse runs.
+                // Fallback shown while parsing or if NSAttributedString parse fails.
                 Text(html.htmlStripped)
                     .font(.system(size: bodySize))
                     .foregroundStyle(.white.opacity(0.88))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // Re-parse if the html ever changes (comments are immutable in practice).
+        // Skip the parse entirely on a cache hit; only run on first encounter.
         .task(id: html) {
-            segments = buildSegments(from: html)
+            guard segments == nil else { return }
+            let parsed = buildSegments(from: html)
+            CommentBodyView.cache[html] = parsed
+            segments = parsed
         }
     }
 

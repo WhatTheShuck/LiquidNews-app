@@ -18,7 +18,10 @@ struct GlassCardModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .glassEffect(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            // .regular is explicitly non-interactive — suppresses the touch-highlight
+            // that the default context-aware glass shows when interactive children
+            // (Buttons, gesture recognisers) are detected inside the card.
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             // Subtle colour wash on top of the glass when a tint is specified
             .overlay {
                 if let tint {
