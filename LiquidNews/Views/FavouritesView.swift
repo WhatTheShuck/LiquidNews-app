@@ -18,7 +18,7 @@ struct FavouritesView: View {
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.stories.isEmpty {
-                LoadingView()
+                StoriesSkeletonView()
             } else if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
                 ErrorView(message: msg) {
                     Task { await viewModel.load(ids: store.favouriteIDs) }

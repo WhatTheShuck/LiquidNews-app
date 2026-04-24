@@ -101,7 +101,7 @@ struct StoriesListView: View {
     var body: some View {
         Group {
             if viewModel.isLoading && viewModel.stories.isEmpty {
-                LoadingView()
+                StoriesSkeletonView()
             } else if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
                 ErrorView(message: msg) {
                     Task { await viewModel.refresh() }
@@ -635,20 +635,6 @@ struct OverflowChip: View {
 }
 
 // MARK: - Supporting views
-
-struct LoadingView: View {
-    var body: some View {
-        VStack(spacing: 14) {
-            ProgressView()
-                .scaleEffect(1.4)
-                .tint(.white)
-            Text("Loading…")
-                .font(AppTheme.captionFont())
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
 
 struct ErrorView: View {
     let message: String

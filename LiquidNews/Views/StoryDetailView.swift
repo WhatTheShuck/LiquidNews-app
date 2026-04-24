@@ -80,11 +80,7 @@ struct StoryDetailView: View {
                 commentsHeader
 
                 if viewModel.isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView().tint(.white).padding(.vertical, 32)
-                        Spacer()
-                    }
+                    CommentsSkeletonView()
                 } else if viewModel.comments.isEmpty {
                     Text("No comments yet.")
                         .font(AppTheme.bodyFont())

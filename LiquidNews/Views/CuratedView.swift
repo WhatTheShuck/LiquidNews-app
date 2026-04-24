@@ -48,7 +48,7 @@ struct CuratedView: View {
     var body: some View {
         Group {
             if viewModel.isLoadingInitial && viewModel.entries.isEmpty {
-                curatedLoadingView
+                CuratedSkeletonView()
             } else if let error = viewModel.error, viewModel.entries.isEmpty {
                 ErrorView(message: error) {
                     Task { await viewModel.refresh() }
@@ -308,23 +308,6 @@ struct CuratedView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
         .glassCard()
-    }
-
-    // MARK: - Loading state
-
-    private var curatedLoadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .tint(.white)
-                .scaleEffect(1.2)
-            Text("Loading curated stories…")
-                .font(AppTheme.bodyFont(15))
-                .foregroundStyle(.white)
-            Text("Parsing the newsletter may take\na moment on first load.")
-                .font(AppTheme.captionFont(12))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
     }
 
     // MARK: - Empty state
