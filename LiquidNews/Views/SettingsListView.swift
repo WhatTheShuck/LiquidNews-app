@@ -29,6 +29,7 @@ struct SettingsListView: View {
     @State private var pendingImportData: Data?
     @State private var showingClearHistoryConfirm = false
     @State private var navigateToHiddenPosts = false
+    @State private var selectedIconName: String? = UIApplication.shared.alternateIconName
 
     var body: some View {
         NavigationStack {
@@ -42,6 +43,7 @@ struct SettingsListView: View {
                     readingSection
                     swipeActionsSection
                     dataPrivacySection
+                    appearanceSection
                     aboutSection
                 }
                 .padding(.horizontal, 16)
@@ -1030,6 +1032,87 @@ struct SettingsListView: View {
         .sheet(isPresented: $showLicenses) {
             LicensesView()
         }
+    }
+
+    // MARK: - Appearance section
+
+    private var appearanceSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader("Appearance")
+
+            HStack(spacing: 12) {
+                Image(systemName: "app.badge")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30)
+                Text("App Icon")
+                    .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white)
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 14)
+
+            HStack(spacing: 24) {
+                iconChoice(label: "Droplet", iconName: nil) {
+                    Image(systemName: "drop.fill")
+                        .font(.system(size: 28, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+                iconChoice(label: "Letter", iconName: "AppIcon-L") {
+                    Text("L")
+                        .font(.system(size: 36, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+        }
+        .glassCard()
+    }
+
+    @ViewBuilder
+    private func iconChoice<Symbol: View>(
+        label: String,
+        iconName: String?,
+        @ViewBuilder symbol: () -> Symbol
+    ) -> some View {
+        let isSelected = selectedIconName == iconName
+        Button {
+            UIApplication.shared.setAlternateIconName(iconName) { _ in
+                selectedIconName = UIApplication.shared.alternateIconName
+            }
+        } label: {
+            VStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(LinearGradient(
+                            colors: [
+                                Color(red: 1.0, green: 0.55, blue: 0.19),
+                                Color(red: 0.91, green: 0.33, blue: 0.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                    symbol()
+                }
+                .frame(width: 64, height: 64)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(
+                            isSelected ? AppTheme.accent : Color.white.opacity(0.12),
+                            lineWidth: isSelected ? 3 : 1
+                        )
+                )
+
+                Text(label)
+                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                    .foregroundStyle(isSelected ? AppTheme.accent : .secondary)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Export helper

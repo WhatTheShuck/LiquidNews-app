@@ -8,6 +8,7 @@
 //   • Manual "Load N more" for replies beyond the auto-loaded batch
 
 import SwiftUI
+import UIKit
 
 struct CommentView: View {
     let comment: HNItem
@@ -56,107 +57,120 @@ struct CommentView: View {
     @State private var hasUpvoted = false
     @State private var showActions = false
 
-    private var isLoggedIn:     Bool { auth.isLoggedIn }
-    private var isMod:          Bool { HNItem.moderators.contains(comment.by ?? "") }
-    private var isOP:           Bool { comment.by != nil && comment.by == opUsername }
-    private var isCurrentUser:  Bool { comment.by != nil && comment.by == HNAuthService.shared.username }
+    private var isLoggedIn: Bool { auth.isLoggedIn }
+    private var isMod: Bool { HNItem.moderators.contains(comment.by ?? "") }
+    private var isOP: Bool { comment.by != nil && comment.by == opUsername }
+    private var isCurrentUser: Bool {
+        comment.by != nil && comment.by == HNAuthService.shared.username
+    }
 
     var body: some View {
         // ── Comment card ──
         VStack(alignment: .leading, spacing: 8) {
 
-            // Header — tap anywhere on this row to collapse/expand
-            Button {
-                withAnimation(.spring(duration: 0.25)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                HStack(alignment: .center) {
-                    Text(comment.by ?? "[deleted]")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundStyle(threadColor)
+            // ── Own content: header + body ──
+            // LongPressHost is overlaid only on this area so it doesn't intercept
+            // touches meant for nested child CommentViews below.
+            VStack(alignment: .leading, spacing: 8) {
 
-                    if isMod         { CommentBadge(label: "mod", color: .green) }
-                    if isOP          { CommentBadge(label: "OP",  color: Color(red: 0.45, green: 0.65, blue: 1.0)) }
-                    if isCurrentUser { CommentBadge(label: "you", color: AppTheme.accent) }
-
-                    Spacer()
-
-                    Text(comment.timeAgo)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if isExpanded {
-                if let text = comment.text, !text.isEmpty {
-                    commentBody(for: text)
-                }
-            }
-
-            if isExpanded {
-                if atDepthLimit {
-                    // ── "Continue thread →" at depth limit ──
-                    continueThreadButtons
-                } else {
-                    // ── Inline replies (recursive) ──
-                    if !replies.isEmpty {
-                        VStack(spacing: 8) {
-                            ForEach(replies) { reply in
-                                CommentView(comment: reply, depth: depth + 1, maxDepth: maxDepth, opUsername: opUsername)
-                            }
-                        }
-                        .padding(.top, 4)
+                // Header — tap anywhere on this row to collapse/expand
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
                     }
-
-                    // Loading indicator
-                    if isLoadingReplies {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                            .tint(threadColor)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    // "Load more" — centered rounded capsule
-                    if remainingCount > 0 && !isLoadingReplies {
-                        Button {
-                            Task { await loadMoreReplies() }
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "plus.bubble")
-                                    .font(.system(size: 11, weight: .semibold))
-                                Text("\(remainingCount) more repl\(remainingCount == 1 ? "y" : "ies")")
-                                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                            }
+                } label: {
+                    HStack(alignment: .center) {
+                        Text(comment.by ?? "[deleted]")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundStyle(threadColor)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .glassCard(cornerRadius: 20, tint: threadColor)
+
+                        if isMod { CommentBadge(label: "mod", color: .green) }
+                        if isOP {
+                            CommentBadge(label: "OP", color: Color(red: 0.45, green: 0.65, blue: 1.0))
                         }
-                        .buttonStyle(.plain)
-                        .frame(maxWidth: .infinity)
+                        if isCurrentUser { CommentBadge(label: "you", color: AppTheme.accent) }
+
+                        Spacer()
+
+                        Text(comment.timeAgo)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if isExpanded {
+                    if let text = comment.text, !text.isEmpty {
+                        commentBody(for: text)
+                            .transition(.opacity)
                     }
                 }
+            }
+            .onLongPressGesture(minimumDuration: 0.5, maximumDistance: 10) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                DispatchQueue.main.async { showActions = true }
+            }
+
+            // ── Replies — no LongPressHost here; each child has its own ──
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    if atDepthLimit {
+                        // ── "Continue thread →" at depth limit ──
+                        continueThreadButtons
+                    } else {
+                        // ── Inline replies (recursive) ──
+                        if !replies.isEmpty {
+                            VStack(spacing: 8) {
+                                ForEach(replies) { reply in
+                                    CommentView(
+                                        comment: reply, depth: depth + 1, maxDepth: maxDepth,
+                                        opUsername: opUsername)
+                                }
+                            }
+                            .padding(.top, 4)
+                        }
+
+                        // Loading indicator
+                        if isLoadingReplies {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .tint(threadColor)
+                                .frame(maxWidth: .infinity)
+                        }
+
+                        // "Load more" — centered rounded capsule
+                        if remainingCount > 0 && !isLoadingReplies {
+                            Button {
+                                Task { await loadMoreReplies() }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "plus.bubble")
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Text(
+                                        "\(remainingCount) more repl\(remainingCount == 1 ? "y" : "ies")"
+                                    )
+                                    .font(.system(size: 12, weight: .medium, design: .rounded))
+                                }
+                                .foregroundStyle(threadColor)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .glassCard(cornerRadius: 20, tint: threadColor)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+                .transition(.opacity)
             }
         }
         .padding(14)
         .glassCard(cornerRadius: 18, tint: threadColor)
-        // simultaneousGesture instead of onLongPressGesture so the recogniser
-        // doesn't signal a "pressed" state to the glass card, which was causing
-        // the glow/unglow artefact during scrolling.
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.4)
-                .onEnded { _ in
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    showActions = true
-                }
-        )
         .confirmationDialog("", isPresented: $showActions, titleVisibility: .hidden) {
             commentActions
         }
@@ -175,10 +189,13 @@ struct CommentView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
         }
-        .alert("Action Failed", isPresented: Binding(
-            get: { actionError != nil },
-            set: { if !$0 { actionError = nil } }
-        )) {
+        .alert(
+            "Action Failed",
+            isPresented: Binding(
+                get: { actionError != nil },
+                set: { if !$0 { actionError = nil } }
+            )
+        ) {
             Button("OK", role: .cancel) { actionError = nil }
         } message: {
             Text(actionError ?? "")
@@ -230,7 +247,9 @@ struct CommentView: View {
                                     CommentBadge(label: "mod", color: .green)
                                 }
                                 if firstReply.by != nil && firstReply.by == opUsername {
-                                    CommentBadge(label: "OP", color: Color(red: 0.45, green: 0.65, blue: 1.0))
+                                    CommentBadge(
+                                        label: "OP", color: Color(red: 0.45, green: 0.65, blue: 1.0)
+                                    )
                                 }
                             }
 
@@ -265,9 +284,11 @@ struct CommentView: View {
                     showThread = comment
                 } label: {
                     HStack(spacing: 6) {
-                        Text("Continue thread (\(childCount) repl\(childCount == 1 ? "y" : "ies")) →")
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .foregroundStyle(threadColor.opacity(0.85))
+                        Text(
+                            "Continue thread (\(childCount) repl\(childCount == 1 ? "y" : "ies")) →"
+                        )
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
+                        .foregroundStyle(threadColor.opacity(0.85))
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 10, weight: .semibold))
@@ -279,12 +300,12 @@ struct CommentView: View {
         }
     }
 
-    // MARK: - Long-press actions (confirmationDialog)
+    // MARK: - Context menu actions
 
     @ViewBuilder
     private var commentActions: some View {
         if isLoggedIn {
-            Button(hasUpvoted ? "Unvote" : "Upvote") {
+            Button {
                 Task {
                     if hasUpvoted {
                         try? await HNAuthService.shared.vote(itemId: comment.id, how: "un")
@@ -294,29 +315,50 @@ struct CommentView: View {
                         hasUpvoted = true
                     }
                 }
+            } label: {
+                Label(
+                    hasUpvoted ? "Unvote" : "Upvote",
+                    systemImage: hasUpvoted ? "arrow.up.circle.fill" : "arrow.up")
             }
-            Button("Reply") { showReply = true }
+            Button {
+                showReply = true
+            } label: {
+                Label("Reply", systemImage: "bubble.left")
+            }
         }
 
-        Button("Copy Text") {
+        Button {
             UIPasteboard.general.string = comment.text?.htmlStripped ?? ""
+        } label: {
+            Label("Copy Text", systemImage: "doc.on.doc")
         }
 
         let hnURL = URL(string: "https://news.ycombinator.com/item?id=\(comment.id)")!
         ShareLink(item: hnURL)
 
         if effectiveMode != .textOnly {
-            Button("View as Plain Text") { localRenderMode = .textOnly }
+            Button {
+                localRenderMode = .textOnly
+            } label: {
+                Label("View as Plain Text", systemImage: "text.alignleft")
+            }
         } else {
-            Button("Restore Full Rendering") { localRenderMode = nil }
+            Button {
+                localRenderMode = nil
+            } label: {
+                Label("Restore Full Rendering", systemImage: "richtext.page")
+            }
         }
 
         if isLoggedIn {
-            Button("Flag", role: .destructive) {
+            Button(role: .destructive) {
                 Task {
-                    do { try await HNAuthService.shared.flag(itemId: comment.id) }
-                    catch { actionError = error.localizedDescription }
+                    do { try await HNAuthService.shared.flag(itemId: comment.id) } catch {
+                        actionError = error.localizedDescription
+                    }
                 }
+            } label: {
+                Label("Flag", systemImage: "flag")
             }
         }
 
@@ -330,7 +372,7 @@ struct CommentView: View {
         hasAutoLoaded = true
 
         guard settings.autoLoadReplyCount > 0,
-              let kids = comment.kids, !kids.isEmpty
+            let kids = comment.kids, !kids.isEmpty
         else { return }
 
         // At depth limit, load just 1 reply for the preview snippet
