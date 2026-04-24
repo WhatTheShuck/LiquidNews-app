@@ -416,11 +416,17 @@ struct StoryDetailView: View {
         guard story.url != nil else { return }
         isLoadingRelated = true
         do {
-            relatedStories = try await HNAPIService.shared.relatedStories(for: story)
+            let results = try await HNAPIService.shared.relatedStories(for: story)
+            withAnimation(.easeInOut(duration: 0.25)) {
+                relatedStories = results
+                isLoadingRelated = false
+            }
         } catch {
-            // Supplementary feature — silently fail
+            // Supplementary feature — fade out silently
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isLoadingRelated = false
+            }
         }
-        isLoadingRelated = false
     }
 
     @ViewBuilder
@@ -437,20 +443,22 @@ struct StoryDetailView: View {
                     Text(isLoadingRelated ? "Also Discussed on HN" : "Also Discussed on HN (\(relatedStories.count))")
                         .font(.system(size: metaSize, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white.opacity(0.85))
-
                     Spacer()
-
-                    if isLoadingRelated {
-                        ProgressView().scaleEffect(0.6).tint(AppTheme.accent)
-                    }
                 }
                 .padding(.horizontal, 14)
                 .padding(.top, 14)
                 .padding(.bottom, 10)
 
-                if !relatedStories.isEmpty {
-                    Divider().overlay(AppTheme.glassBorder)
+                Divider().overlay(AppTheme.glassBorder)
 
+                if isLoadingRelated {
+                    // Skeleton rows while fetching
+                    RelatedRowSkeletonView(twoLineTitle: true)
+                    Divider().overlay(AppTheme.glassBorder).padding(.horizontal, 14)
+                    RelatedRowSkeletonView()
+                    Divider().overlay(AppTheme.glassBorder).padding(.horizontal, 14)
+                    RelatedRowSkeletonView(twoLineTitle: true)
+                } else {
                     ForEach(Array(relatedStories.enumerated()), id: \.element.id) { index, related in
                         Button {
                             selectedRelatedStory = related
@@ -467,8 +475,9 @@ struct StoryDetailView: View {
                     }
                 }
             }
-            .padding(.bottom, relatedStories.isEmpty ? 0 : 10)
+            .padding(.bottom, 10)
             .glassCard()
+            .transition(.opacity)
         }
     }
 
