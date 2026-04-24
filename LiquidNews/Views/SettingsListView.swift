@@ -344,7 +344,7 @@ struct SettingsListView: View {
                 }
 
                 // User-added custom feeds
-                ForEach($settings.customCuratedFeeds) { $feed in
+                ForEach(settings.customCuratedFeeds) { feed in
                     Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
                     HStack(spacing: 12) {
                         Image(systemName: "list.bullet")
@@ -361,9 +361,16 @@ struct SettingsListView: View {
                                 .lineLimit(1)
                         }
                         Spacer()
-                        Toggle("", isOn: $feed.isEnabled)
-                            .labelsHidden()
-                            .tint(AppTheme.accent)
+                        Toggle("", isOn: Binding(
+                            get: { feed.isEnabled },
+                            set: { enabled in
+                                if let idx = settings.customCuratedFeeds.firstIndex(where: { $0.id == feed.id }) {
+                                    settings.customCuratedFeeds[idx].isEnabled = enabled
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
                         Button {
                             settings.customCuratedFeeds.removeAll { $0.id == feed.id }
                         } label: {
