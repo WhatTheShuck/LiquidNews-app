@@ -129,7 +129,7 @@ enum StoryAction: String, CaseIterable, Identifiable {
         case .openReader:   "Open in Reader"
         case .openSafari:   "Open in Safari"
         case .favourite:    "Favourite"
-        case .saveLater:    "Save for Later"
+        case .saveLater:    "Read Later"
         case .hide:         "Hide Post"
         case .none:         "None"
         }
@@ -278,6 +278,13 @@ final class UserSettings {
         didSet { UserDefaults.standard.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) }
     }
 
+    // MARK: - Read Later
+
+    /// When true, a count badge appears on the Read Later tab.
+    var showReadLaterBadge: Bool {
+        didSet { UserDefaults.standard.set(showReadLaterBadge, forKey: Keys.showReadLaterBadge) }
+    }
+
     // MARK: - Curated sources
 
     /// When true, the "loading may take a moment" banner is permanently hidden.
@@ -321,6 +328,7 @@ final class UserSettings {
         static let hiddenPostsExpiry            = "LN_hiddenPostsExpiry"
         static let readBehaviour                = "LN_readBehaviour"
         static let readerShowImagesByDefault    = "LN_readerShowImagesByDefault"
+        static let showReadLaterBadge           = "LN_showReadLaterBadge"
     }
 
     private init() {
@@ -343,6 +351,7 @@ final class UserSettings {
             Keys.hiddenPostsExpiry:            HiddenPostsExpiry.days30.rawValue,
             Keys.readBehaviour:                ReadBehaviour.dim.rawValue,
             Keys.readerShowImagesByDefault:    false,
+            Keys.showReadLaterBadge:           true,
         ])
 
         autoLoadReplyCount = defaults.integer(forKey: Keys.autoLoadReplyCount)
@@ -403,5 +412,7 @@ final class UserSettings {
         readBehaviour = ReadBehaviour(rawValue: rawReadBehaviour) ?? .dim
 
         readerShowImagesByDefault = defaults.bool(forKey: Keys.readerShowImagesByDefault)
+
+        showReadLaterBadge = defaults.bool(forKey: Keys.showReadLaterBadge)
     }
 }

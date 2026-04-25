@@ -1,11 +1,11 @@
-// SavedView.swift
+// ReadLaterView.swift
 // Stories the user has bookmarked to read later.
 
 import SwiftUI
 
-struct SavedView: View {
+struct ReadLaterView: View {
 
-    @State private var viewModel = SavedViewModel()
+    @State private var viewModel = ReadLaterViewModel()
     @State private var selectedStory: HNItem?
     @State private var settings = UserSettings.shared
 
@@ -17,23 +17,28 @@ struct SavedView: View {
                 StoriesSkeletonView()
             } else if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
                 ErrorView(message: msg) {
-                    Task { await viewModel.load(ids: store.savedIDs) }
+                    Task { await viewModel.load(ids: store.readLaterIDs) }
                 }
-            } else if store.savedIDs.isEmpty {
+            } else if store.readLaterIDs.isEmpty {
                 emptyState
             } else {
-                savedList
+                readLaterList
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.backgroundGradient.ignoresSafeArea())
-        .navigationTitle(AppTab.saved.label)
+        .navigationTitle(AppTab.readLater.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .task {
-            await viewModel.load(ids: store.savedIDs)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                sortMenu
+            }
         }
-        .onChange(of: store.savedIDs) { _, newIDs in
+        .task {
+            await viewModel.load(ids: store.readLaterIDs)
+        }
+        .onChange(of: store.readLaterIDs) { _, newIDs in
             Task { await viewModel.load(ids: newIDs) }
         }
         .sheet(item: $selectedStory) { story in
@@ -45,9 +50,30 @@ struct SavedView: View {
         }
     }
 
+    // MARK: - Sort menu
+
+    private var sortMenu: some View {
+        Menu {
+            ForEach(ReadLaterSort.allCases, id: \.self) { option in
+                Button {
+                    viewModel.sort = option
+                    viewModel.applySort()
+                } label: {
+                    if viewModel.sort == option {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+        }
+    }
+
     // MARK: - List
 
-    private var savedList: some View {
+    private var readLaterList: some View {
         List {
             ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
                 Button {
@@ -85,7 +111,7 @@ struct SavedView: View {
         .scrollContentBackground(.hidden)
         .scrollBounceBehavior(.basedOnSize)
         .refreshable {
-            await viewModel.load(ids: store.savedIDs)
+            await viewModel.load(ids: store.readLaterIDs)
         }
     }
 
@@ -93,14 +119,14 @@ struct SavedView: View {
 
     private var emptyState: some View {
         EmptyStateView(
-            icon: AppTab.saved.systemImage,
-            title: "Nothing saved yet",
-            message: "Open a story and use the bookmark action to save it for later."
+            icon: AppTab.readLater.systemImage,
+            title: "You're all caught up",
+            message: "Bookmark a story to save it for later."
         )
     }
 }
 
 #Preview {
-    NavigationStack { SavedView() }
+    NavigationStack { ReadLaterView() }
         .preferredColorScheme(.dark)
 }

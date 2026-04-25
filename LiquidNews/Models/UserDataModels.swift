@@ -37,7 +37,18 @@ struct UserDataExport: Codable {
     let version: Int
     let exportedAt: Date
     let favouriteIDs: [Int]
-    let savedIDs: [Int]
+    let readLaterIDs: [Int]
+    /// ISO 8601 dates the user added each story, keyed by story ID string. nil when importing old exports.
+    let readLaterDates: [String: Date]?
     let hiddenPosts: [HiddenPostEntry]
     let readHistory: [ReadHistoryEntry]
+
+    // Map readLaterIDs to the legacy "savedIDs" JSON key so old export files
+    // still decode correctly.
+    enum CodingKeys: String, CodingKey {
+        case version, exportedAt, favouriteIDs
+        case readLaterIDs = "savedIDs"
+        case readLaterDates
+        case hiddenPosts, readHistory
+    }
 }

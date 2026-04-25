@@ -152,7 +152,7 @@ struct StoryDetailView: View {
             // Auto-hide if set, but never touch something the user explicitly saved or favourited.
             if UserSettings.shared.readBehaviour == .hide,
                !store.isFavourite(story.id),
-               !store.isSaved(story.id) {
+               !store.isReadLater(story.id) {
                 store.hide(story)
             }
             // Load comments and related discussions in parallel.
@@ -282,11 +282,11 @@ struct StoryDetailView: View {
         // ── Organisation ──
         Section {
             Button {
-                saved.toggleSaved(story.id)
+                saved.toggleReadLater(story.id)
             } label: {
                 Label(
-                    saved.isSaved(story.id) ? "Remove from Saved" : "Save for Later",
-                    systemImage: saved.isSaved(story.id) ? "bookmark.fill" : "bookmark"
+                    saved.isReadLater(story.id) ? "Remove from Read Later" : "Read Later",
+                    systemImage: saved.isReadLater(story.id) ? "bookmark.fill" : "bookmark"
                 )
             }
 

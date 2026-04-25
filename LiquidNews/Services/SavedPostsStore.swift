@@ -1,9 +1,9 @@
 // SavedPostsStore.swift
 // Central store for all user-generated local data:
-//   • favourites  — hearted stories (IDs in UserDefaults)
-//   • saved       — read-later bookmarks (IDs in UserDefaults)
-//   • hiddenPosts — posts dismissed from feeds (JSON snapshots on disk)
-//   • readHistory — timestamped read events (JSON snapshots on disk)
+//   • favourites    — hearted stories (IDs in UserDefaults)
+//   • readLater     — read-later bookmarks (IDs + timestamps in UserDefaults)
+//   • hiddenPosts   — posts dismissed from feeds (JSON snapshots on disk)
+//   • readHistory   — timestamped read events (JSON snapshots on disk)
 //
 // Export / import: UserDataExport wraps everything into one Codable struct.
 
@@ -18,7 +18,9 @@ final class SavedPostsStore {
     // MARK: - Stored state
 
     private(set) var favouriteIDs: Set<Int> = []
-    private(set) var savedIDs: Set<Int> = []
+    private(set) var readLaterIDs: Set<Int> = []
+    /// Maps story ID → date the user added it to Read Later.
+    private(set) var readLaterDates: [Int: Date] = [:]
 
     /// Ordered list of hidden posts — newest first.
     private(set) var hiddenPosts: [HiddenPostEntry] = []
@@ -36,10 +38,11 @@ final class SavedPostsStore {
 
     private let maxHistoryCount = 1_000
 
-    // MARK: - UserDefaults keys (simple ID arrays)
+    // MARK: - UserDefaults keys
 
-    private let favouritesKey = "LN_favourites"
-    private let savedKey      = "LN_saved"
+    private let favouritesKey     = "LN_favourites"
+    private let readLaterKey      = "LN_saved"        // key kept for backward compat
+    private let readLaterDatesKey = "LN_readLaterDates"
 
     // MARK: - File URLs
 
@@ -55,8 +58,9 @@ final class SavedPostsStore {
 
     private init() {
         let ud = UserDefaults.standard
-        favouriteIDs = Set(ud.array(forKey: favouritesKey) as? [Int] ?? [])
-        savedIDs     = Set(ud.array(forKey: savedKey)      as? [Int] ?? [])
+        favouriteIDs   = Set(ud.array(forKey: favouritesKey) as? [Int] ?? [])
+        readLaterIDs   = Set(ud.array(forKey: readLaterKey)  as? [Int] ?? [])
+        readLaterDates = loadReadLaterDates().filter { readLaterIDs.contains($0.key) }
         loadHiddenPosts()
         loadHistory()
     }
@@ -70,14 +74,21 @@ final class SavedPostsStore {
 
     func isFavourite(_ id: Int) -> Bool { favouriteIDs.contains(id) }
 
-    // MARK: - Saved (read later)
+    // MARK: - Read Later
 
-    func toggleSaved(_ id: Int) {
-        if savedIDs.contains(id) { savedIDs.remove(id) } else { savedIDs.insert(id) }
-        UserDefaults.standard.set(Array(savedIDs), forKey: savedKey)
+    func toggleReadLater(_ id: Int) {
+        if readLaterIDs.contains(id) {
+            readLaterIDs.remove(id)
+            readLaterDates.removeValue(forKey: id)
+        } else {
+            readLaterIDs.insert(id)
+            readLaterDates[id] = Date()
+        }
+        UserDefaults.standard.set(Array(readLaterIDs), forKey: readLaterKey)
+        saveReadLaterDates()
     }
 
-    func isSaved(_ id: Int) -> Bool { savedIDs.contains(id) }
+    func isReadLater(_ id: Int) -> Bool { readLaterIDs.contains(id) }
 
     // MARK: - Hidden posts
 
@@ -104,21 +115,18 @@ final class SavedPostsStore {
 
     func isHidden(_ id: Int) -> Bool { hiddenIDs.contains(id) }
 
-    /// Removes all hidden post entries.
     func clearHidden() {
         hiddenPosts = []
         hiddenIDs = []
         saveHiddenPosts()
     }
 
-    /// Removes hidden entries older than the given date.
     func clearHidden(before date: Date) {
         hiddenPosts.removeAll { $0.hiddenAt < date }
         hiddenIDs = Set(hiddenPosts.map(\.id))
         saveHiddenPosts()
     }
 
-    /// Applies the user's chosen auto-expiry setting to hidden posts.
     func applyHiddenPostsExpiry(_ expiry: HiddenPostsExpiry) {
         guard let cutoff = expiry.cutoffDate else { return }
         clearHidden(before: cutoff)
@@ -169,53 +177,54 @@ final class SavedPostsStore {
 
     // MARK: - Export / Import
 
-    /// Exports all user data.
     func exportData() throws -> Data {
-        try encode(UserDataExport(
-            version:      1,
-            exportedAt:   Date(),
-            favouriteIDs: Array(favouriteIDs),
-            savedIDs:     Array(savedIDs),
-            hiddenPosts:  hiddenPosts,
-            readHistory:  readHistory
+        let datesStringKeyed = Dictionary(uniqueKeysWithValues:
+            readLaterDates.map { (String($0.key), $0.value) }
+        )
+        return try encode(UserDataExport(
+            version:        1,
+            exportedAt:     Date(),
+            favouriteIDs:   Array(favouriteIDs),
+            readLaterIDs:   Array(readLaterIDs),
+            readLaterDates: datesStringKeyed,
+            hiddenPosts:    hiddenPosts,
+            readHistory:    readHistory
         ))
     }
 
-    /// Exports favourites as a plain sorted JSON array of HN story IDs.
     func exportFavourites() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         return try encoder.encode(favouriteIDs.sorted())
     }
 
-    /// Exports saved posts as a plain sorted JSON array of HN story IDs.
-    func exportSaved() throws -> Data {
+    func exportReadLater() throws -> Data {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
-        return try encoder.encode(savedIDs.sorted())
+        return try encoder.encode(readLaterIDs.sorted())
     }
 
-    /// Exports read history only.
     func exportHistory() throws -> Data {
         try encode(UserDataExport(
-            version:      1,
-            exportedAt:   Date(),
-            favouriteIDs: [],
-            savedIDs:     [],
-            hiddenPosts:  [],
-            readHistory:  readHistory
+            version:        1,
+            exportedAt:     Date(),
+            favouriteIDs:   [],
+            readLaterIDs:   [],
+            readLaterDates: nil,
+            hiddenPosts:    [],
+            readHistory:    readHistory
         ))
     }
 
-    /// Exports hidden posts only.
     func exportHidden() throws -> Data {
         try encode(UserDataExport(
-            version:      1,
-            exportedAt:   Date(),
-            favouriteIDs: [],
-            savedIDs:     [],
-            hiddenPosts:  hiddenPosts,
-            readHistory:  []
+            version:        1,
+            exportedAt:     Date(),
+            favouriteIDs:   [],
+            readLaterIDs:   [],
+            readLaterDates: nil,
+            hiddenPosts:    hiddenPosts,
+            readHistory:    []
         ))
     }
 
@@ -226,24 +235,23 @@ final class SavedPostsStore {
         return try encoder.encode(export)
     }
 
-    /// Merges or replaces the store with data from a previously exported JSON blob.
     func importData(_ data: Data, replacing: Bool = false) throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let export = try decoder.decode(UserDataExport.self, from: data)
 
         if replacing {
-            favouriteIDs = Set(export.favouriteIDs)
-            savedIDs     = Set(export.savedIDs)
-            hiddenPosts  = export.hiddenPosts
-            hiddenIDs    = Set(export.hiddenPosts.map(\.id))
-            readHistory  = export.readHistory
-            readIDs      = Set(export.readHistory.map(\.id))
+            favouriteIDs   = Set(export.favouriteIDs)
+            readLaterIDs   = Set(export.readLaterIDs)
+            readLaterDates = [:]   // cleared here; filled below if export includes dates
+            hiddenPosts    = export.hiddenPosts
+            hiddenIDs      = Set(export.hiddenPosts.map(\.id))
+            readHistory    = export.readHistory
+            readIDs        = Set(export.readHistory.map(\.id))
         } else {
             favouriteIDs.formUnion(export.favouriteIDs)
-            savedIDs.formUnion(export.savedIDs)
+            readLaterIDs.formUnion(export.readLaterIDs)
 
-            // Merge hidden: keep newest hiddenAt per id
             var mergedHidden = Dictionary(grouping: hiddenPosts + export.hiddenPosts, by: \.id)
                 .values
                 .compactMap { entries in entries.max(by: { $0.hiddenAt < $1.hiddenAt }) }
@@ -251,7 +259,6 @@ final class SavedPostsStore {
             hiddenPosts = mergedHidden
             hiddenIDs   = Set(hiddenPosts.map(\.id))
 
-            // Merge history: keep newest readAt per id
             var mergedHistory = Dictionary(grouping: readHistory + export.readHistory, by: \.id)
                 .values
                 .compactMap { entries in entries.max(by: { $0.readAt < $1.readAt }) }
@@ -260,8 +267,26 @@ final class SavedPostsStore {
             readIDs     = Set(readHistory.map(\.id))
         }
 
+        // Restore dates from export; existing dates take precedence on merge.
+        if let datesDict = export.readLaterDates {
+            let imported = Dictionary(uniqueKeysWithValues:
+                datesDict.compactMap { k, v -> (Int, Date)? in
+                    guard let id = Int(k) else { return nil }
+                    return (id, v)
+                }
+            )
+            if replacing {
+                readLaterDates = imported
+            } else {
+                for (id, date) in imported where readLaterDates[id] == nil {
+                    readLaterDates[id] = date
+                }
+            }
+        }
+
         UserDefaults.standard.set(Array(favouriteIDs), forKey: favouritesKey)
-        UserDefaults.standard.set(Array(savedIDs),     forKey: savedKey)
+        UserDefaults.standard.set(Array(readLaterIDs), forKey: readLaterKey)
+        saveReadLaterDates()
         saveHiddenPosts()
         saveHistory()
     }
@@ -279,6 +304,23 @@ final class SavedPostsStore {
     func isPinned(_ id: Int) -> Bool { pinnedIDs.contains(id) }
 
     // MARK: - Private persistence
+
+    private func loadReadLaterDates() -> [Int: Date] {
+        guard let raw = UserDefaults.standard.dictionary(forKey: readLaterDatesKey) as? [String: Double] else {
+            return [:]
+        }
+        return Dictionary(uniqueKeysWithValues: raw.compactMap { k, v -> (Int, Date)? in
+            guard let id = Int(k) else { return nil }
+            return (id, Date(timeIntervalSince1970: v))
+        })
+    }
+
+    private func saveReadLaterDates() {
+        let raw = Dictionary(uniqueKeysWithValues:
+            readLaterDates.map { (String($0.key), $0.value.timeIntervalSince1970) }
+        )
+        UserDefaults.standard.set(raw, forKey: readLaterDatesKey)
+    }
 
     private func loadHiddenPosts() {
         guard let data = try? Data(contentsOf: Self.hiddenFileURL) else { return }

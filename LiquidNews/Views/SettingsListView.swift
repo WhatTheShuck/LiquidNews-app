@@ -109,7 +109,7 @@ struct SettingsListView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text(
-                "Merge keeps your existing favourites, saved posts, and history. Replace will overwrite everything with the imported data."
+                "Merge keeps your existing favourites, read later posts, and history. Replace will overwrite everything with the imported data."
             )
         }
         .alert("Import Failed", isPresented: $showingImportError) {
@@ -217,6 +217,28 @@ struct SettingsListView: View {
             .environment(\.editMode, .constant(.active))
             // Fixed height: 5 tabs × ~54 pt per row
             .frame(height: CGFloat(settings.tabOrder.count) * 54)
+
+            Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+            HStack(spacing: 12) {
+                Image(systemName: "bookmark")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.accent)
+                    .frame(width: 30)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Read Later Badge")
+                        .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Show a count badge on the Read Later tab")
+                        .font(.system(size: subtitleFontSize))
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Toggle("", isOn: $settings.showReadLaterBadge)
+                    .labelsHidden()
+                    .tint(AppTheme.accent)
+            }
+            .padding(16)
         }
         .glassCard()
     }
@@ -854,9 +876,9 @@ struct SettingsListView: View {
                     .padding(.bottom, 16)
                 }
 
-                // Note: Hide mode never auto-hides favourited or saved posts
+                // Note: Hide mode never auto-hides favourited or read later posts
                 if settings.readBehaviour == .hide {
-                    Text("Favourited and saved posts are never auto-hidden.")
+                    Text("Favourited and read later posts are never auto-hidden.")
                         .font(.system(size: subtitleFontSize))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 16)
@@ -903,7 +925,7 @@ struct SettingsListView: View {
                             Text("Export Data")
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white)
-                            Text("Share favourites, saved posts, history, or everything")
+                            Text("Share favourites, read later, history, or everything")
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
@@ -926,12 +948,12 @@ struct SettingsListView: View {
                         triggerExport(
                             data: try? store.exportFavourites(), name: "liquidnews-favourites")
                     }
-                    Button("Saved — Copy \(store.savedIDs.count) IDs to clipboard") {
-                        UIPasteboard.general.string = store.savedIDs.sorted()
+                    Button("Read Later — Copy \(store.readLaterIDs.count) IDs to clipboard") {
+                        UIPasteboard.general.string = store.readLaterIDs.sorted()
                             .map(String.init).joined(separator: "\n")
                     }
-                    Button("Saved — JSON file") {
-                        triggerExport(data: try? store.exportSaved(), name: "liquidnews-saved")
+                    Button("Read Later — JSON file") {
+                        triggerExport(data: try? store.exportReadLater(), name: "liquidnews-read-later")
                     }
                     Button("Read History — JSON file") {
                         triggerExport(data: try? store.exportHistory(), name: "liquidnews-history")

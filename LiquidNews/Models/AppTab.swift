@@ -7,7 +7,7 @@ import Foundation
 enum AppTab: String, CaseIterable, Identifiable {
     case feed
     case catchUp
-    case saved
+    case readLater
     case history
     case favourites
     case curated
@@ -18,7 +18,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         switch self {
         case .feed:       return "Feed"
         case .catchUp:    return "Catch-up"
-        case .saved:      return "Saved"
+        case .readLater:  return "Read Later"
         case .history:    return "History"
         case .favourites: return "Favourites"
         case .curated:    return "Curated"
@@ -29,7 +29,7 @@ enum AppTab: String, CaseIterable, Identifiable {
         switch self {
         case .feed:       return "newspaper"
         case .catchUp:    return "sparkles"
-        case .saved:      return "bookmark"
+        case .readLater:  return "bookmark"
         case .history:    return "clock"
         case .favourites: return "heart"
         case .curated:    return "list.star"
@@ -39,6 +39,6 @@ enum AppTab: String, CaseIterable, Identifiable {
     /// Feed is always shown and cannot be toggled off.
     var isRequired: Bool { self == .feed }
 
-    /// The four tabs the user can add or remove.
+    /// The five tabs the user can add or remove.
     static var optional: [AppTab] { allCases.filter { !$0.isRequired } }
 }

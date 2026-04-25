@@ -31,8 +31,8 @@ struct EmptyStateView: View {
         AppTheme.backgroundGradient.ignoresSafeArea()
         EmptyStateView(
             icon: "bookmark",
-            title: "Nothing saved yet",
-            message: "Open a story and use the bookmark action to save it for later."
+            title: "You're all caught up",
+            message: "Bookmark a story to save it for later."
         )
     }
     .preferredColorScheme(.dark)

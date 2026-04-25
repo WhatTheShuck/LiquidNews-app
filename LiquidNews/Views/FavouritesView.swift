@@ -78,7 +78,7 @@ struct FavouritesView: View {
         case .favourite:
             store.toggleFavourite(story.id)
         case .saveLater:
-            store.toggleSaved(story.id)
+            store.toggleReadLater(story.id)
         case .hide:
             store.hide(story)
         case .none:
@@ -104,8 +104,8 @@ struct FavouritesView: View {
             return Label(store.isFavourite(story.id) ? "Unfavourite" : "Favourite",
                          systemImage: store.isFavourite(story.id) ? "heart.slash" : "heart")
         case .saveLater:
-            return Label(store.isSaved(story.id) ? "Unsave" : "Save",
-                         systemImage: store.isSaved(story.id) ? "bookmark.slash" : "bookmark")
+            return Label(store.isReadLater(story.id) ? "Remove" : "Read Later",
+                         systemImage: store.isReadLater(story.id) ? "bookmark.slash" : "bookmark")
         default:
             return Label(action.label, systemImage: action.systemImage)
         }
@@ -114,7 +114,7 @@ struct FavouritesView: View {
     private func swipeTint(for action: StoryAction, story: HNItem) -> Color {
         switch action {
         case .favourite: return store.isFavourite(story.id) ? .gray : .orange
-        case .saveLater: return store.isSaved(story.id) ? .gray : .indigo
+        case .saveLater: return store.isReadLater(story.id) ? .gray : .indigo
         default:         return action.swipeTint
         }
     }
