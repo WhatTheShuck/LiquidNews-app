@@ -1,9 +1,13 @@
 // SavedPostsStore.swift
 // Central store for all user-generated local data:
-//   • favourites    — hearted stories (IDs in UserDefaults)
-//   • readLater     — read-later bookmarks (IDs + timestamps in UserDefaults)
+//   • favourites    — hearted stories (IDs in NSUbiquitousKeyValueStore + UserDefaults)
+//   • readLater     — read-later bookmarks (IDs + timestamps in NSUbiquitousKeyValueStore + UserDefaults)
 //   • hiddenPosts   — posts dismissed from feeds (JSON snapshots on disk)
 //   • readHistory   — timestamped read events (JSON snapshots on disk)
+//
+// Sync strategy:
+//   favouriteIDs, readLaterIDs, readLaterDates → NSUbiquitousKeyValueStore (real-time, like UserSettings)
+//   hiddenPosts, readHistory                   → iCloud ubiquitous container file (launch + foreground)
 //
 // Export / import: UserDataExport wraps everything into one Codable struct.
 
@@ -38,7 +42,14 @@ final class SavedPostsStore {
 
     private let maxHistoryCount = 1_000
 
-    // MARK: - UserDefaults keys
+    // MARK: - KV store (iCloud real-time sync for IDs)
+
+    private let kvStore = NSUbiquitousKeyValueStore.default
+
+    // MARK: - UserDefaults / KV store keys
+    // The same key strings are used in both UserDefaults (local backup) and
+    // NSUbiquitousKeyValueStore (sync). UserDefaults is the offline fallback;
+    // KV store is the authoritative cross-device source.
 
     private let favouritesKey     = "LN_favourites"
     private let readLaterKey      = "LN_saved"        // key kept for backward compat
@@ -58,18 +69,93 @@ final class SavedPostsStore {
 
     private init() {
         let ud = UserDefaults.standard
-        favouriteIDs   = Set(ud.array(forKey: favouritesKey) as? [Int] ?? [])
-        readLaterIDs   = Set(ud.array(forKey: readLaterKey)  as? [Int] ?? [])
-        readLaterDates = loadReadLaterDates().filter { readLaterIDs.contains($0.key) }
+
+        // 1. Load local values from UserDefaults as baseline.
+        let localFavs      = Set(ud.array(forKey: favouritesKey) as? [Int] ?? [])
+        let localReadLater = Set(ud.array(forKey: readLaterKey)  as? [Int] ?? [])
+
+        // 2. Refresh the KV store in-memory cache before reading.
+        kvStore.synchronize()
+
+        // 3. KV store is the authoritative cross-device source.
+        //    If it has a value, use it; otherwise migrate local data into it.
+        if let kvFavs = kvStore.array(forKey: favouritesKey) as? [Int] {
+            favouriteIDs = Set(kvFavs)
+        } else {
+            favouriteIDs = localFavs
+            kvStore.set(Array(localFavs), forKey: favouritesKey)
+        }
+
+        if let kvReadLater = kvStore.array(forKey: readLaterKey) as? [Int] {
+            readLaterIDs = Set(kvReadLater)
+        } else {
+            readLaterIDs = localReadLater
+            kvStore.set(Array(localReadLater), forKey: readLaterKey)
+        }
+
+        readLaterDates = loadReadLaterDates(preferKV: true)
+            .filter { readLaterIDs.contains($0.key) }
+
         loadHiddenPosts()
         loadHistory()
+
+        // 4. Listen for changes pushed from other devices.
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: kvStore,
+            queue: .main
+        ) { [weak self] notification in self?.applyExternalIDChanges(notification) }
+
+        // 5. Merge the iCloud file for hiddenPosts / readHistory.
+        Task { await mergeFromiCloud() }
+    }
+
+    // MARK: - KV store external change handler
+
+    private func applyExternalIDChanges(_ notification: Notification) {
+        guard let changedKeys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String]
+        else { return }
+
+        for key in changedKeys {
+            switch key {
+            case favouritesKey:
+                favouriteIDs = Set(kvStore.array(forKey: key) as? [Int] ?? [])
+                UserDefaults.standard.set(Array(favouriteIDs), forKey: key)
+
+            case readLaterKey:
+                readLaterIDs = Set(kvStore.array(forKey: key) as? [Int] ?? [])
+                readLaterDates = readLaterDates.filter { readLaterIDs.contains($0.key) }
+                UserDefaults.standard.set(Array(readLaterIDs), forKey: key)
+
+            case readLaterDatesKey:
+                if let raw = kvStore.dictionary(forKey: key) as? [String: Double] {
+                    readLaterDates = Dictionary(uniqueKeysWithValues:
+                        raw.compactMap { k, v -> (Int, Date)? in
+                            guard let id = Int(k), readLaterIDs.contains(id) else { return nil }
+                            return (id, Date(timeIntervalSince1970: v))
+                        }
+                    )
+                    // Persist locally so it survives offline sessions.
+                    let persisted = Dictionary(uniqueKeysWithValues:
+                        readLaterDates.map { (String($0.key), $0.value.timeIntervalSince1970) }
+                    )
+                    UserDefaults.standard.set(persisted, forKey: readLaterDatesKey)
+                }
+
+            default:
+                break
+            }
+        }
     }
 
     // MARK: - Favourites
 
     func toggleFavourite(_ id: Int) {
         if favouriteIDs.contains(id) { favouriteIDs.remove(id) } else { favouriteIDs.insert(id) }
-        UserDefaults.standard.set(Array(favouriteIDs), forKey: favouritesKey)
+        let arr = Array(favouriteIDs)
+        UserDefaults.standard.set(arr, forKey: favouritesKey)
+        kvStore.set(arr, forKey: favouritesKey)
+        syncToiCloud()
     }
 
     func isFavourite(_ id: Int) -> Bool { favouriteIDs.contains(id) }
@@ -84,7 +170,9 @@ final class SavedPostsStore {
             readLaterIDs.insert(id)
             readLaterDates[id] = Date()
         }
-        UserDefaults.standard.set(Array(readLaterIDs), forKey: readLaterKey)
+        let arr = Array(readLaterIDs)
+        UserDefaults.standard.set(arr, forKey: readLaterKey)
+        kvStore.set(arr, forKey: readLaterKey)
         saveReadLaterDates()
     }
 
@@ -235,7 +323,7 @@ final class SavedPostsStore {
         return try encoder.encode(export)
     }
 
-    func importData(_ data: Data, replacing: Bool = false) throws {
+    func importData(_ data: Data, replacing: Bool = false, syncCloud: Bool = true) throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let export = try decoder.decode(UserDataExport.self, from: data)
@@ -286,9 +374,10 @@ final class SavedPostsStore {
 
         UserDefaults.standard.set(Array(favouriteIDs), forKey: favouritesKey)
         UserDefaults.standard.set(Array(readLaterIDs), forKey: readLaterKey)
-        saveReadLaterDates()
-        saveHiddenPosts()
-        saveHistory()
+        saveReadLaterDates(syncCloud: false)
+        saveHiddenPosts(syncCloud: false)
+        saveHistory(syncCloud: false)
+        if syncCloud { syncToiCloud() }
     }
 
     // MARK: - Legacy / pins
@@ -296,30 +385,96 @@ final class SavedPostsStore {
     private let pinsKey = "LN_pins"
     private(set) var pinnedIDs: Set<Int> = []
 
+    // NOTE: pinnedIDs are intentionally not included in UserDataExport and will not
+    // sync to iCloud. Pins are a local-only legacy feature.
     func togglePin(_ id: Int) {
         if pinnedIDs.contains(id) { pinnedIDs.remove(id) } else { pinnedIDs.insert(id) }
         UserDefaults.standard.set(Array(pinnedIDs), forKey: pinsKey)
+        syncToiCloud()
     }
 
     func isPinned(_ id: Int) -> Bool { pinnedIDs.contains(id) }
 
+    // MARK: - iCloud sync
+
+    /// URL of the sync file in the iCloud ubiquitous container.
+    /// Returns nil when iCloud is unavailable (not signed in, capability missing, etc.).
+    private var iCloudDataURL: URL? {
+        FileManager.default
+            .url(forUbiquityContainerIdentifier: nil)?
+            .appendingPathComponent("Documents/userdata.json")
+    }
+
+    /// Called on launch and every time the app returns to the foreground.
+    /// Reads the iCloud file on a background thread (the container URL call can block),
+    /// then merges with local state on the main thread.
+    func mergeFromiCloud() async {
+        let data = await Task.detached(priority: .background) { [self] () -> Data? in
+            guard let url = iCloudDataURL else {
+                print("[LiquidNews] mergeFromiCloud: iCloud container unavailable")
+                return nil
+            }
+            // Tell iOS we want this file — no-op if already local, starts async
+            // download if it's cloud-only. The read below will succeed if the file
+            // is already present; if not, the next foreground refresh will catch it.
+            try? FileManager.default.startDownloadingUbiquitousItem(at: url)
+            return try? Data(contentsOf: url)
+        }.value
+        guard let data else { return }
+        // importData mutates @Observable state — run on main thread.
+        await MainActor.run {
+            do {
+                try importData(data, replacing: false, syncCloud: false)
+            } catch {
+                print("[LiquidNews] mergeFromiCloud: importData failed: \(error)")
+            }
+            syncToiCloud()
+        }
+    }
+
+    /// Writes the current full state to the iCloud container file in the background.
+    /// Called after every local save so other devices receive the latest data.
+    private func syncToiCloud() {
+        guard let data = try? exportData() else {
+            print("[LiquidNews] syncToiCloud: exportData() failed")
+            return
+        }
+        guard let url = iCloudDataURL else { return }
+        Task.detached(priority: .background) {
+            try? FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? data.write(to: url, options: .atomic)
+        }
+    }
+
     // MARK: - Private persistence
 
-    private func loadReadLaterDates() -> [Int: Date] {
-        guard let raw = UserDefaults.standard.dictionary(forKey: readLaterDatesKey) as? [String: Double] else {
-            return [:]
+    /// Loads readLaterDates from persistent storage.
+    /// When `preferKV` is true, the KV store is checked first (it's more current on
+    /// first launch after another device made changes). Falls back to UserDefaults.
+    private func loadReadLaterDates(preferKV: Bool = false) -> [Int: Date] {
+        var raw: [String: Double]?
+        if preferKV, let kvRaw = kvStore.dictionary(forKey: readLaterDatesKey) as? [String: Double] {
+            raw = kvRaw
+        } else {
+            raw = UserDefaults.standard.dictionary(forKey: readLaterDatesKey) as? [String: Double]
         }
+        guard let raw else { return [:] }
         return Dictionary(uniqueKeysWithValues: raw.compactMap { k, v -> (Int, Date)? in
             guard let id = Int(k) else { return nil }
             return (id, Date(timeIntervalSince1970: v))
         })
     }
 
-    private func saveReadLaterDates() {
+    private func saveReadLaterDates(syncCloud: Bool = true) {
         let raw = Dictionary(uniqueKeysWithValues:
             readLaterDates.map { (String($0.key), $0.value.timeIntervalSince1970) }
         )
         UserDefaults.standard.set(raw, forKey: readLaterDatesKey)
+        kvStore.set(raw, forKey: readLaterDatesKey)
+        if syncCloud { syncToiCloud() }
     }
 
     private func loadHiddenPosts() {
@@ -332,8 +487,9 @@ final class SavedPostsStore {
         }
     }
 
-    private func saveHiddenPosts() {
+    private func saveHiddenPosts(syncCloud: Bool = true) {
         writeJSON(hiddenPosts, to: Self.hiddenFileURL)
+        if syncCloud { syncToiCloud() }
     }
 
     private func loadHistory() {
@@ -346,8 +502,9 @@ final class SavedPostsStore {
         }
     }
 
-    private func saveHistory() {
+    private func saveHistory(syncCloud: Bool = true) {
         writeJSON(readHistory, to: Self.historyFileURL)
+        if syncCloud { syncToiCloud() }
     }
 
     private func writeJSON<T: Encodable>(_ value: T, to url: URL) {

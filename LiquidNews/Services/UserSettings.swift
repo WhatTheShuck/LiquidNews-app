@@ -1,5 +1,5 @@
 // UserSettings.swift
-// User-configurable preferences, backed by UserDefaults.
+// User-configurable preferences, backed by NSUbiquitousKeyValueStore (iCloud KV sync).
 //
 // @Observable so SwiftUI views re-render when settings change.
 // Accessed globally via UserSettings.shared.
@@ -173,13 +173,16 @@ final class UserSettings {
 
     static let shared = UserSettings()
 
+    private let kvStore = NSUbiquitousKeyValueStore.default
+    private static let migrationKey = "LN_kv_migrated"
+
     // MARK: - Comment expansion
 
     /// How many replies to auto-load per comment (0 = never, loads on tap only).
     /// HN's own website shows all replies inline, but that's impractical on mobile.
     /// Default of 3 balances context vs. scroll fatigue.
     var autoLoadReplyCount: Int {
-        didSet { UserDefaults.standard.set(autoLoadReplyCount, forKey: Keys.autoLoadReplyCount) }
+        didSet { kvStore.set(autoLoadReplyCount, forKey: Keys.autoLoadReplyCount) }
     }
 
     /// Maximum nesting depth at which replies auto-load.
@@ -187,7 +190,7 @@ final class UserSettings {
     /// Beyond this depth, replies require a manual tap to load.
     /// Default of 2 keeps threads readable without infinite nesting.
     var maxAutoExpandDepth: Int {
-        didSet { UserDefaults.standard.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) }
+        didSet { kvStore.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) }
     }
 
     // MARK: - Comment rendering
@@ -195,38 +198,33 @@ final class UserSettings {
     /// Global default for how comment text is rendered.
     /// Can be overridden per-comment from the long-press context menu.
     var commentRenderingStyle: CommentRenderMode {
-        didSet { UserDefaults.standard.set(commentRenderingStyle.rawValue, forKey: Keys.commentRenderingStyle) }
+        didSet { kvStore.set(commentRenderingStyle.rawValue, forKey: Keys.commentRenderingStyle) }
     }
 
     // MARK: - Tab bar
 
     /// Which optional tabs appear in the bottom pill. Feed is always shown and not stored here.
     var enabledOptionalTabs: Set<AppTab> {
-        didSet {
-            UserDefaults.standard.set(
-                enabledOptionalTabs.map(\.rawValue),
-                forKey: Keys.enabledOptionalTabs
-            )
-        }
+        didSet { kvStore.set(enabledOptionalTabs.map(\.rawValue), forKey: Keys.enabledOptionalTabs) }
     }
 
     /// Display order of all optional tabs. All five are always present here;
     /// whether each is visible is controlled by `enabledOptionalTabs`.
     var tabOrder: [AppTab] {
-        didSet { UserDefaults.standard.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
+        didSet { kvStore.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
     }
 
     // MARK: - Feed categories
 
     /// Display order of all known feed categories (enabled and disabled).
     var feedCategoryOrder: [StoryCategory] {
-        didSet { UserDefaults.standard.set(feedCategoryOrder.map(\.rawValue), forKey: Keys.feedCategoryOrder) }
+        didSet { kvStore.set(feedCategoryOrder.map(\.rawValue), forKey: Keys.feedCategoryOrder) }
     }
 
     /// Which feed categories the user has switched on.
     /// At least one is always kept enabled.
     var enabledFeedCategories: Set<StoryCategory> {
-        didSet { UserDefaults.standard.set(Array(enabledFeedCategories.map(\.rawValue)), forKey: Keys.enabledFeedCategories) }
+        didSet { kvStore.set(Array(enabledFeedCategories.map(\.rawValue)), forKey: Keys.enabledFeedCategories) }
     }
 
     /// Enabled categories in user-defined display order (used by the chip picker).
@@ -238,36 +236,36 @@ final class UserSettings {
 
     /// How article links open by default. Users can one-off override via long-press.
     var defaultLinkOpen: LinkOpenMode {
-        didSet { UserDefaults.standard.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) }
+        didSet { kvStore.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) }
     }
 
     // MARK: - Tap + swipe actions
 
     /// What happens when the user taps a story card.
     var tapAction: StoryAction {
-        didSet { UserDefaults.standard.set(tapAction.rawValue, forKey: Keys.tapAction) }
+        didSet { kvStore.set(tapAction.rawValue, forKey: Keys.tapAction) }
     }
 
     /// Action triggered when swiping a story card left (trailing edge).
     var swipeLeftAction: StoryAction {
-        didSet { UserDefaults.standard.set(swipeLeftAction.rawValue, forKey: Keys.swipeLeftAction) }
+        didSet { kvStore.set(swipeLeftAction.rawValue, forKey: Keys.swipeLeftAction) }
     }
 
     /// Action triggered when swiping a story card right (leading edge).
     var swipeRightAction: StoryAction {
-        didSet { UserDefaults.standard.set(swipeRightAction.rawValue, forKey: Keys.swipeRightAction) }
+        didSet { kvStore.set(swipeRightAction.rawValue, forKey: Keys.swipeRightAction) }
     }
 
     // MARK: - Hidden posts expiry
 
     /// How long to retain hidden post entries before auto-clearing them.
     var hiddenPostsExpiry: HiddenPostsExpiry {
-        didSet { UserDefaults.standard.set(hiddenPostsExpiry.rawValue, forKey: Keys.hiddenPostsExpiry) }
+        didSet { kvStore.set(hiddenPostsExpiry.rawValue, forKey: Keys.hiddenPostsExpiry) }
     }
 
     /// What happens to a story in feeds after the user opens it.
     var readBehaviour: ReadBehaviour {
-        didSet { UserDefaults.standard.set(readBehaviour.rawValue, forKey: Keys.readBehaviour) }
+        didSet { kvStore.set(readBehaviour.rawValue, forKey: Keys.readBehaviour) }
     }
 
     // MARK: - Reader
@@ -275,27 +273,27 @@ final class UserSettings {
     /// When true, images are fetched and shown in Reader mode by default.
     /// Can still be toggled per-article from the reader's ellipsis menu.
     var readerShowImagesByDefault: Bool {
-        didSet { UserDefaults.standard.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) }
+        didSet { kvStore.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) }
     }
 
     // MARK: - Read Later
 
     /// When true, a count badge appears on the Read Later tab.
     var showReadLaterBadge: Bool {
-        didSet { UserDefaults.standard.set(showReadLaterBadge, forKey: Keys.showReadLaterBadge) }
+        didSet { kvStore.set(showReadLaterBadge, forKey: Keys.showReadLaterBadge) }
     }
 
     // MARK: - Curated sources
 
     /// When true, the "loading may take a moment" banner is permanently hidden.
     var hideCuratedLoadingBanner: Bool {
-        didSet { UserDefaults.standard.set(hideCuratedLoadingBanner, forKey: Keys.hideCuratedLoadingBanner) }
+        didSet { kvStore.set(hideCuratedLoadingBanner, forKey: Keys.hideCuratedLoadingBanner) }
     }
 
     /// Which built-in curated sources are enabled (stored by rawValue).
     var enabledBuiltInCuratedSources: Set<String> {
         didSet {
-            UserDefaults.standard.set(Array(enabledBuiltInCuratedSources), forKey: Keys.enabledBuiltInCuratedSources)
+            kvStore.set(Array(enabledBuiltInCuratedSources), forKey: Keys.enabledBuiltInCuratedSources)
         }
     }
 
@@ -303,7 +301,7 @@ final class UserSettings {
     var customCuratedFeeds: [CustomCuratedFeed] {
         didSet {
             if let data = try? JSONEncoder().encode(customCuratedFeeds) {
-                UserDefaults.standard.set(data, forKey: Keys.customCuratedFeeds)
+                kvStore.set(data, forKey: Keys.customCuratedFeeds)
             }
         }
     }
@@ -331,88 +329,167 @@ final class UserSettings {
         static let showReadLaterBadge           = "LN_showReadLaterBadge"
     }
 
+    /// Runs once on upgrade: copies existing UserDefaults values into the KV store
+    /// so existing users don't lose their settings.
+    /// Static so it can be called before all stored properties are initialized.
+    private static func migrateFromUserDefaultsIfNeeded(kvStore: NSUbiquitousKeyValueStore, migrationKey: String) {
+        let ud = UserDefaults.standard
+        // The migration flag lives in UserDefaults (not the KV store) so that
+        // device-local migration state is never subject to iCloud sync. If it were
+        // in the KV store, one device completing migration could suppress migration
+        // on another device that hasn't run yet.
+        guard !ud.bool(forKey: migrationKey) else { return }
+        let allKeys: [String] = [
+            Keys.autoLoadReplyCount, Keys.maxAutoExpandDepth,
+            Keys.enabledOptionalTabs, Keys.tabOrder,
+            Keys.commentRenderingStyle, Keys.hideCuratedLoadingBanner,
+            Keys.enabledBuiltInCuratedSources, Keys.customCuratedFeeds,
+            Keys.feedCategoryOrder, Keys.enabledFeedCategories,
+            Keys.tapAction, Keys.swipeLeftAction, Keys.swipeRightAction,
+            Keys.defaultLinkOpen, Keys.hiddenPostsExpiry, Keys.readBehaviour,
+            Keys.readerShowImagesByDefault, Keys.showReadLaterBadge,
+        ]
+        for key in allKeys {
+            if kvStore.object(forKey: key) == nil, let value = ud.object(forKey: key) {
+                kvStore.set(value, forKey: key)
+            }
+        }
+        kvStore.synchronize()
+        ud.set(true, forKey: migrationKey)
+    }
+
+    private func applyExternalChanges(_ notification: Notification) {
+        guard let changedKeys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String] else { return }
+        for key in changedKeys {
+            switch key {
+            case Keys.autoLoadReplyCount:
+                autoLoadReplyCount = (kvStore.object(forKey: key) as? Int) ?? 3
+            case Keys.maxAutoExpandDepth:
+                maxAutoExpandDepth = (kvStore.object(forKey: key) as? Int) ?? 2
+            case Keys.enabledOptionalTabs:
+                let raw = (kvStore.array(forKey: key) as? [String]) ?? AppTab.optional.map(\.rawValue)
+                enabledOptionalTabs = Set(raw.compactMap(AppTab.init(rawValue:)))
+            case Keys.tabOrder:
+                let saved = ((kvStore.array(forKey: key) as? [String]) ?? []).compactMap(AppTab.init(rawValue:))
+                let missing = AppTab.optional.filter { !saved.contains($0) }
+                tabOrder = saved + missing
+            case Keys.commentRenderingStyle:
+                commentRenderingStyle = CommentRenderMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .rich
+            case Keys.hideCuratedLoadingBanner:
+                hideCuratedLoadingBanner = kvStore.bool(forKey: key)
+            case Keys.enabledBuiltInCuratedSources:
+                let raw = (kvStore.array(forKey: key) as? [String]) ?? BuiltInCuratedSource.allCases.map(\.rawValue)
+                enabledBuiltInCuratedSources = Set(raw)
+            case Keys.customCuratedFeeds:
+                if let data = kvStore.data(forKey: key),
+                   let feeds = try? JSONDecoder().decode([CustomCuratedFeed].self, from: data) {
+                    customCuratedFeeds = feeds
+                } else {
+                    customCuratedFeeds = []
+                }
+            case Keys.feedCategoryOrder:
+                let saved = ((kvStore.array(forKey: key) as? [String]) ?? []).compactMap(StoryCategory.init(rawValue:))
+                let missing = StoryCategory.allCases.filter { !saved.contains($0) }
+                feedCategoryOrder = saved + missing
+            case Keys.enabledFeedCategories:
+                let raw = (kvStore.array(forKey: key) as? [String]) ?? StoryCategory.defaults.map(\.rawValue)
+                enabledFeedCategories = Set(raw.compactMap(StoryCategory.init(rawValue:)))
+            case Keys.tapAction:
+                tapAction = StoryAction(rawValue: kvStore.string(forKey: key) ?? "") ?? .openComments
+            case Keys.swipeLeftAction:
+                swipeLeftAction = StoryAction(rawValue: kvStore.string(forKey: key) ?? "") ?? .favourite
+            case Keys.swipeRightAction:
+                swipeRightAction = StoryAction(rawValue: kvStore.string(forKey: key) ?? "") ?? .saveLater
+            case Keys.defaultLinkOpen:
+                defaultLinkOpen = LinkOpenMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .browser
+            case Keys.hiddenPostsExpiry:
+                hiddenPostsExpiry = HiddenPostsExpiry(rawValue: kvStore.string(forKey: key) ?? "") ?? .days30
+            case Keys.readBehaviour:
+                readBehaviour = ReadBehaviour(rawValue: kvStore.string(forKey: key) ?? "") ?? .dim
+            case Keys.readerShowImagesByDefault:
+                readerShowImagesByDefault = kvStore.bool(forKey: key)
+            case Keys.showReadLaterBadge:
+                // kvStore.bool(forKey:) returns false for absent keys; this setting defaults to true
+                showReadLaterBadge = (kvStore.object(forKey: key) as? Bool) ?? true
+            default:
+                break
+            }
+        }
+    }
+
     private init() {
-        let defaults = UserDefaults.standard
+        // Refresh the in-memory KV cache from disk before reading any values,
+        // so settings changed on another device while this app wasn't running are picked up.
+        NSUbiquitousKeyValueStore.default.synchronize()
+        UserSettings.migrateFromUserDefaultsIfNeeded(kvStore: .default, migrationKey: UserSettings.migrationKey)
 
-        // Register sensible defaults for first launch
-        defaults.register(defaults: [
-            Keys.autoLoadReplyCount:           3,
-            Keys.maxAutoExpandDepth:           2,
-            Keys.enabledOptionalTabs:          AppTab.optional.map(\.rawValue),
-            Keys.tabOrder:                     AppTab.optional.map(\.rawValue),
-            Keys.commentRenderingStyle:        CommentRenderMode.rich.rawValue,
-            Keys.enabledBuiltInCuratedSources: BuiltInCuratedSource.allCases.map(\.rawValue),
-            Keys.feedCategoryOrder:            StoryCategory.allCases.map(\.rawValue),
-            Keys.enabledFeedCategories:        StoryCategory.defaults.map(\.rawValue),
-            Keys.tapAction:                    StoryAction.openComments.rawValue,
-            Keys.swipeLeftAction:              StoryAction.favourite.rawValue,
-            Keys.swipeRightAction:             StoryAction.saveLater.rawValue,
-            Keys.defaultLinkOpen:              LinkOpenMode.browser.rawValue,
-            Keys.hiddenPostsExpiry:            HiddenPostsExpiry.days30.rawValue,
-            Keys.readBehaviour:                ReadBehaviour.dim.rawValue,
-            Keys.readerShowImagesByDefault:    false,
-            Keys.showReadLaterBadge:           true,
-        ])
+        autoLoadReplyCount = (kvStore.object(forKey: Keys.autoLoadReplyCount) as? Int) ?? 3
+        maxAutoExpandDepth = (kvStore.object(forKey: Keys.maxAutoExpandDepth) as? Int) ?? 2
 
-        autoLoadReplyCount = defaults.integer(forKey: Keys.autoLoadReplyCount)
-        maxAutoExpandDepth = defaults.integer(forKey: Keys.maxAutoExpandDepth)
-
-        let rawTabs = defaults.stringArray(forKey: Keys.enabledOptionalTabs)
+        let rawTabs = (kvStore.array(forKey: Keys.enabledOptionalTabs) as? [String])
             ?? AppTab.optional.map(\.rawValue)
         enabledOptionalTabs = Set(rawTabs.compactMap(AppTab.init(rawValue:)))
 
-        // Restore tab order; append any tabs missing from a previous version's saved order
-        let savedOrder = (defaults.stringArray(forKey: Keys.tabOrder) ?? [])
+        let savedOrder = ((kvStore.array(forKey: Keys.tabOrder) as? [String]) ?? [])
             .compactMap(AppTab.init(rawValue:))
         let missing = AppTab.optional.filter { !savedOrder.contains($0) }
         tabOrder = savedOrder + missing
 
-        let rawRenderMode = defaults.string(forKey: Keys.commentRenderingStyle) ?? CommentRenderMode.rich.rawValue
+        let rawRenderMode = kvStore.string(forKey: Keys.commentRenderingStyle) ?? CommentRenderMode.rich.rawValue
         commentRenderingStyle = CommentRenderMode(rawValue: rawRenderMode) ?? .rich
 
-        let rawBuiltIn = defaults.stringArray(forKey: Keys.enabledBuiltInCuratedSources)
+        let rawBuiltIn = (kvStore.array(forKey: Keys.enabledBuiltInCuratedSources) as? [String])
             ?? BuiltInCuratedSource.allCases.map(\.rawValue)
         enabledBuiltInCuratedSources = Set(rawBuiltIn)
 
-        hideCuratedLoadingBanner = defaults.bool(forKey: Keys.hideCuratedLoadingBanner)
+        hideCuratedLoadingBanner = kvStore.bool(forKey: Keys.hideCuratedLoadingBanner)
 
-        if let data = defaults.data(forKey: Keys.customCuratedFeeds),
+        if let data = kvStore.data(forKey: Keys.customCuratedFeeds),
            let feeds = try? JSONDecoder().decode([CustomCuratedFeed].self, from: data) {
             customCuratedFeeds = feeds
         } else {
             customCuratedFeeds = []
         }
 
-        // Feed categories: restore saved order and append any new categories added in updates
-        let savedCategoryOrder = (defaults.stringArray(forKey: Keys.feedCategoryOrder) ?? [])
+        let savedCategoryOrder = ((kvStore.array(forKey: Keys.feedCategoryOrder) as? [String]) ?? [])
             .compactMap(StoryCategory.init(rawValue:))
         let missingCategories = StoryCategory.allCases.filter { !savedCategoryOrder.contains($0) }
         feedCategoryOrder = savedCategoryOrder + missingCategories
 
-        let rawEnabled = defaults.stringArray(forKey: Keys.enabledFeedCategories)
+        let rawEnabled = (kvStore.array(forKey: Keys.enabledFeedCategories) as? [String])
             ?? StoryCategory.defaults.map(\.rawValue)
         enabledFeedCategories = Set(rawEnabled.compactMap(StoryCategory.init(rawValue:)))
 
-        let rawTap = defaults.string(forKey: Keys.tapAction) ?? StoryAction.openComments.rawValue
+        let rawTap = kvStore.string(forKey: Keys.tapAction) ?? StoryAction.openComments.rawValue
         tapAction = StoryAction(rawValue: rawTap) ?? .openComments
 
-        let rawSwipeLeft = defaults.string(forKey: Keys.swipeLeftAction) ?? StoryAction.favourite.rawValue
+        let rawSwipeLeft = kvStore.string(forKey: Keys.swipeLeftAction) ?? StoryAction.favourite.rawValue
         swipeLeftAction = StoryAction(rawValue: rawSwipeLeft) ?? .favourite
 
-        let rawSwipeRight = defaults.string(forKey: Keys.swipeRightAction) ?? StoryAction.saveLater.rawValue
+        let rawSwipeRight = kvStore.string(forKey: Keys.swipeRightAction) ?? StoryAction.saveLater.rawValue
         swipeRightAction = StoryAction(rawValue: rawSwipeRight) ?? .saveLater
 
-        let rawLinkOpen = defaults.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.browser.rawValue
+        let rawLinkOpen = kvStore.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.browser.rawValue
         defaultLinkOpen = LinkOpenMode(rawValue: rawLinkOpen) ?? .browser
 
-        let rawExpiry = defaults.string(forKey: Keys.hiddenPostsExpiry) ?? HiddenPostsExpiry.days30.rawValue
+        let rawExpiry = kvStore.string(forKey: Keys.hiddenPostsExpiry) ?? HiddenPostsExpiry.days30.rawValue
         hiddenPostsExpiry = HiddenPostsExpiry(rawValue: rawExpiry) ?? .days30
 
-        let rawReadBehaviour = defaults.string(forKey: Keys.readBehaviour) ?? ReadBehaviour.dim.rawValue
+        let rawReadBehaviour = kvStore.string(forKey: Keys.readBehaviour) ?? ReadBehaviour.dim.rawValue
         readBehaviour = ReadBehaviour(rawValue: rawReadBehaviour) ?? .dim
 
-        readerShowImagesByDefault = defaults.bool(forKey: Keys.readerShowImagesByDefault)
+        readerShowImagesByDefault = kvStore.bool(forKey: Keys.readerShowImagesByDefault)
 
-        showReadLaterBadge = defaults.bool(forKey: Keys.showReadLaterBadge)
+        // kvStore.bool(forKey:) returns false for absent keys; this setting defaults to true
+        showReadLaterBadge = (kvStore.object(forKey: Keys.showReadLaterBadge) as? Bool) ?? true
+
+        // Listen for changes pushed from other devices
+        NotificationCenter.default.addObserver(
+            forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
+            object: kvStore,
+            queue: .main
+        ) { [weak self] notification in
+            self?.applyExternalChanges(notification)
+        }
     }
 }

@@ -26,6 +26,7 @@ private enum TabSelection: Hashable {
 struct ContentView: View {
 
     @State private var settings = UserSettings.shared
+    @State private var store = SavedPostsStore.shared
     @State private var deepLinkedStory: HNItem?
     @State private var deepLinkError = false
     @Environment(DeepLinkState.self) private var deepLink
@@ -71,6 +72,7 @@ struct ContentView: View {
                 Tab(tab.label, systemImage: tab.systemImage, value: TabSelection.tab(tab)) {
                     tabContent(for: tab)
                 }
+                .badge(readLaterBadgeCount(for: tab))
             }
 
             if hasOverflow {
@@ -190,6 +192,13 @@ struct ContentView: View {
         .transition(.opacity)
     }
 
+    // MARK: - Badge
+
+    private func readLaterBadgeCount(for tab: AppTab) -> Int {
+        guard tab == .readLater, settings.showReadLaterBadge else { return 0 }
+        return store.readLaterIDs.count
+    }
+
     // MARK: - Tab management
 
     private func selectOverflow(_ tab: AppTab) {
@@ -206,7 +215,7 @@ struct ContentView: View {
         switch tab {
         case .feed:       NavigationStack { StoriesListView() }
         case .catchUp:    NavigationStack { CatchUpView() }
-        case .saved:      NavigationStack { SavedView() }
+        case .readLater:  NavigationStack { ReadLaterView() }
         case .history:    NavigationStack { HistoryView() }
         case .favourites: NavigationStack { FavouritesView() }
         case .curated:    NavigationStack { CuratedView() }
