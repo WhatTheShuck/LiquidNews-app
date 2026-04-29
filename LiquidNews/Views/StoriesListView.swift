@@ -47,8 +47,7 @@ struct StoriesListView: View {
     @State private var viewModel: StoriesViewModel
     @State private var settings = UserSettings.shared
     @State private var selectedStory: HNItem?
-    @State private var webReaderURL: IdentifiableURL?
-    @State private var webReaderInitialReaderMode = false
+    @State private var readerURL: IdentifiableURL?
     @State private var safariURL: IdentifiableURL?
     @State private var showingSearch = false
     @State private var showingSettings = false
@@ -187,9 +186,9 @@ struct StoriesListView: View {
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
         }
-        .sheet(item: $webReaderURL) { item in
+        .sheet(item: $readerURL) { item in
             NavigationStack {
-                WebReaderView(url: item.url, initialReaderMode: webReaderInitialReaderMode)
+                ArticleReaderView(url: item.url)
             }
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
@@ -357,8 +356,7 @@ struct StoriesListView: View {
             safariURL = IdentifiableURL(url)
         case .openReader:
             guard let urlString = story.url, let url = URL(string: urlString) else { selectedStory = story; return }
-            webReaderInitialReaderMode = true
-            webReaderURL = IdentifiableURL(url)
+            readerURL = IdentifiableURL(url)
         case .openSafari:
             if let urlString = story.url, let url = URL(string: urlString) { openURL(url) } else { selectedStory = story }
         case .favourite:

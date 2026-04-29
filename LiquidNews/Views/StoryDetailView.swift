@@ -21,14 +21,14 @@ import SwiftUI
 
 enum DetailSheet: Identifiable {
     case nativeReader(URL)
-    case webReader(URL)
+    case inAppSafari(URL)
     case share(URL)
 
     var id: String {
         switch self {
-        case .nativeReader(let url): return "native-reader-\(url.absoluteString)"
-        case .webReader(let url):    return "reader-\(url.absoluteString)"
-        case .share(let url):        return "share-\(url.absoluteString)"
+        case .nativeReader(let url):  return "native-reader-\(url.absoluteString)"
+        case .inAppSafari(let url):   return "in-app-safari-\(url.absoluteString)"
+        case .share(let url):         return "share-\(url.absoluteString)"
         }
     }
 }
@@ -106,6 +106,18 @@ struct StoryDetailView: View {
         // rendering Liquid Glass — per WWDC25 guidance to remove
         // backgrounds sitting behind toolbars.
         .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .environment(\.openURL, OpenURLAction { url in
+            switch settings.commentLinkOpen {
+            case .inAppSafari:
+                activeSheet = .inAppSafari(url)
+                return .handled
+            case .reader:
+                activeSheet = .nativeReader(url)
+                return .handled
+            case .safari:
+                return .systemAction
+            }
+        })
         .navigationBarTitleDisplayMode(.inline)
         // Hide the nav bar's own background fill so the app gradient is
         // continuous behind the toolbar. iOS 26 then renders each toolbar
@@ -174,7 +186,7 @@ struct StoryDetailView: View {
                 NavigationStack { ArticleReaderView(url: url) }
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(.glassCornerRadius)
-            case .webReader(let url):
+            case .inAppSafari(let url):
                 SafariView(url: url)
             case .share(let url):
                 ShareSheet(items: [url])
@@ -239,11 +251,11 @@ struct StoryDetailView: View {
                     Button { activeSheet = .nativeReader(url) } label: {
                         Label("Open in Reader", systemImage: "textformat")
                     }
-                    Button { activeSheet = .webReader(url) } label: {
-                        Label("Open in Browser", systemImage: "globe")
+                    Button { activeSheet = .inAppSafari(url) } label: {
+                        Label("Open in In-App Safari", systemImage: "safari")
                     }
                     Button { openURL(url) } label: {
-                        Label("Open in Safari", systemImage: "safari")
+                        Label("Open in Safari", systemImage: "arrow.up.right.square")
                     }
                 } label: {
                     Label("Open Article As…", systemImage: "arrow.up.right.square")
@@ -317,9 +329,9 @@ struct StoryDetailView: View {
     /// Opens an article URL using the user's default link open mode.
     private func openArticle(_ url: URL) {
         switch settings.defaultLinkOpen {
-        case .reader:  activeSheet = .nativeReader(url)
-        case .browser: activeSheet = .webReader(url)
-        case .safari:  openURL(url)
+        case .reader:      activeSheet = .nativeReader(url)
+        case .inAppSafari: activeSheet = .inAppSafari(url)
+        case .safari:      openURL(url)
         }
     }
 
@@ -388,11 +400,11 @@ struct StoryDetailView: View {
                     Button { activeSheet = .nativeReader(url) } label: {
                         Label("Open in Reader", systemImage: "textformat")
                     }
-                    Button { activeSheet = .webReader(url) } label: {
-                        Label("Open in Browser", systemImage: "globe")
+                    Button { activeSheet = .inAppSafari(url) } label: {
+                        Label("Open in In-App Safari", systemImage: "safari")
                     }
                     Button { openURL(url) } label: {
-                        Label("Open in Safari", systemImage: "safari")
+                        Label("Open in Safari", systemImage: "arrow.up.right.square")
                     }
                 }
             }
@@ -400,14 +412,30 @@ struct StoryDetailView: View {
             // Self-post body
             if let text = story.text, !text.isEmpty {
                 Divider().overlay(AppTheme.glassBorder)
-                Text(text.htmlStripped)
-                    .font(AppTheme.bodyFont(14))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                storyBody(for: text)
             }
         }
         .padding(18)
         .glassCard()
+    }
+
+    @ViewBuilder
+    private func storyBody(for text: String) -> some View {
+        switch settings.commentRenderingStyle {
+        case .textOnly:
+            Text(text.htmlStripped)
+                .font(AppTheme.bodyFont(14))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        case .textWithLinks:
+            Text(text.htmlWithLinks)
+                .font(AppTheme.bodyFont(14))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .tint(AppTheme.accent)
+        case .rich:
+            CommentBodyView(html: text)
+        }
     }
 
     // MARK: - Related stories

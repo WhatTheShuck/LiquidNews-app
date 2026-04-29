@@ -82,8 +82,10 @@ extension CuratedEntry {
     // MARK: - Factories
 
     /// Converts a parsed newsletter entry into a CuratedEntry.
-    static func from(_ entry: NewsletterEntry, issueNumber: Int, date: Date) -> CuratedEntry {
-        CuratedEntry(
+    /// Returns nil if the entry has no HN item ID — URL-only entries are not shown.
+    static func from(_ entry: NewsletterEntry, issueNumber: Int, date: Date) -> CuratedEntry? {
+        guard let hnItemID = entry.hnItemID else { return nil }
+        return CuratedEntry(
             id: normalise(entry.articleURL),
             title: entry.title,
             url: entry.articleURL,
@@ -91,7 +93,7 @@ extension CuratedEntry {
             sources: [.newsletter(issueNumber: issueNumber, section: entry.section.rawValue)],
             votes: entry.votes,
             commentCount: entry.commentCount,
-            hnItemID: entry.hnItemID,
+            hnItemID: hnItemID,
             note: nil,
             sourceDomain: entry.sourceDomain,
             articleDate: nil

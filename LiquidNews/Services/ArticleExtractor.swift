@@ -5,8 +5,8 @@
 // Setup required:
 //   Download Readability.js from https://github.com/mozilla/readability
 //   and add it to the Xcode target (drag into project, tick "Add to target").
-//   The extractor will log a clear error and fall back to WebReaderView if the
-//   file is missing from the bundle.
+//   The extractor will log a clear error and present a SafariView sheet as a
+//   fallback if the file is missing from the bundle.
 //
 // Threading model:
 //   @MainActor-isolated. WKNavigationDelegate methods are nonisolated (WebKit

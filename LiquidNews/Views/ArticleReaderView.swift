@@ -15,7 +15,7 @@
 //              loadHTMLString. On the second didFinish the overlay lifts,
 //              revealing the clean reader view.
 //
-//   If anything fails, the overlay is replaced by WebReaderView (full browser).
+//   If anything fails, a SafariView sheet is presented as a fallback.
 
 import SwiftUI
 import UIKit
@@ -210,6 +210,16 @@ private enum ReadabilitySource {
     }()
 }
 
+// MARK: - Direct link intent
+
+/// User-chosen action from the long-press context menu on a link.
+/// Enum with associated values avoids tuple-Equatable limitations with .onChange(of:).
+enum PendingDirectLink: Equatable {
+    case inline(URL)
+    case inAppSafari(URL)
+    case safari(URL)
+}
+
 // MARK: - State
 
 @Observable
@@ -229,6 +239,23 @@ final class ReaderState {
 
     /// Called by the toolbar's reload button to restart the full extraction flow.
     var reloadAction: (() -> Void)?
+
+    /// When true, the WKNavigationDelegate intercepts .linkActivated navigations
+    /// instead of allowing them inline.
+    var interceptLinks: Bool = false
+
+    /// Set by the coordinator when a link is intercepted; cleared by the view
+    /// after routing.
+    var pendingLinkURL: URL? = nil
+
+    /// Set by the long-press context menu; cleared by ArticleReaderView after routing.
+    var pendingDirectLink: PendingDirectLink? = nil
+
+    /// KVO-updated: true when the WKWebView's back/forward list has a prior entry.
+    var canGoBack: Bool = false
+
+    /// Set to true the first time the user follows an inline link; reset on article reload.
+    var userHasNavigatedInline: Bool = false
 
     var isSuccess: Bool {
         if case .success = phase { return true }
@@ -261,9 +288,12 @@ struct ArticleReaderView: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
     @State private var readerState = ReaderState()
-    @State private var useFallbackBrowser = false
     @State private var preferences: ReaderPreferences
     @State private var showReaderOptions = false
+    @State private var readerLinkSafariURL: IdentifiableURL?
+    @State private var readerLinkReaderURL: IdentifiableURL?
+    @State private var fallbackSafariURL: IdentifiableURL?
+    @State private var settings = UserSettings.shared
 
     init(url: URL) {
         self.url = url
@@ -273,12 +303,7 @@ struct ArticleReaderView: View {
     }
 
     var body: some View {
-        if useFallbackBrowser {
-            // Full handoff — WebReaderView owns its own toolbar from here
-            WebReaderView(url: url)
-        } else {
-            readerContent
-        }
+        readerContent
     }
 
     private var readerContent: some View {
@@ -294,6 +319,19 @@ struct ArticleReaderView: View {
             }
         }
         .animation(.easeOut(duration: 0.3), value: showOverlay)
+        .safeAreaInset(edge: .bottom) {
+            if readerState.canGoBack && readerState.userHasNavigatedInline {
+                HStack {
+                    ReaderToolbarButton(icon: "chevron.left", enabled: true) {
+                        readerState.webView?.goBack()
+                    }
+                    .glassEffect(in: Circle())
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -333,7 +371,50 @@ struct ArticleReaderView: View {
             if success { readerState.applyPreferences(preferences) }
         }
         .onChange(of: isFailed) { _, failed in
-            if failed { useFallbackBrowser = true }
+            if failed { fallbackSafariURL = IdentifiableURL(url) }
+        }
+        .onAppear {
+            updateReaderLinkInterception()
+        }
+        .onChange(of: settings.readerLinkOpen) { _, _ in
+            updateReaderLinkInterception()
+        }
+        .onChange(of: readerState.pendingLinkURL) { _, url in
+            guard let url else { return }
+            readerState.pendingLinkURL = nil
+            switch settings.readerLinkOpen {
+            case .inAppSafari:
+                readerLinkSafariURL = IdentifiableURL(url)
+            case .reader:
+                readerLinkReaderURL = IdentifiableURL(url)
+            case .safari:
+                UIApplication.shared.open(url)
+            case .inline:
+                break
+            }
+        }
+        .onChange(of: readerState.pendingDirectLink) { _, value in
+            guard let intent = value else { return }
+            readerState.pendingDirectLink = nil
+            switch intent {
+            case .inline(let url):
+                readerState.webView?.load(URLRequest(url: url))
+            case .inAppSafari(let url):
+                readerLinkSafariURL = IdentifiableURL(url)
+            case .safari(let url):
+                UIApplication.shared.open(url)
+            }
+        }
+        .sheet(item: $readerLinkSafariURL) { item in
+            SafariView(url: item.url)
+        }
+        .sheet(item: $readerLinkReaderURL) { item in
+            NavigationStack {
+                ArticleReaderView(url: item.url)
+            }
+        }
+        .sheet(item: $fallbackSafariURL) { item in
+            SafariView(url: item.url)
         }
         .sheet(isPresented: $showReaderOptions) {
             ReaderOptionsSheet(preferences: preferences)
@@ -355,6 +436,10 @@ struct ArticleReaderView: View {
     private var isFailed: Bool {
         if case .failed = readerState.phase { return true }
         return false
+    }
+
+    private func updateReaderLinkInterception() {
+        readerState.interceptLinks = (settings.readerLinkOpen != .inline)
     }
 
     // MARK: - Loading overlay
@@ -427,9 +512,12 @@ private struct ReaderWebView: UIViewRepresentable {
 
         let wv = WKWebView(frame: .zero, configuration: config)
         wv.navigationDelegate = context.coordinator
+        wv.uiDelegate = context.coordinator
         wv.backgroundColor = UIColor(red: 0.06, green: 0.06, blue: 0.10, alpha: 1)
 
         wv.addObserver(context.coordinator, forKeyPath: "estimatedProgress",
+                       options: .new, context: nil)
+        wv.addObserver(context.coordinator, forKeyPath: "canGoBack",
                        options: .new, context: nil)
 
         // Wire up reload so the toolbar can restart extraction from scratch.
@@ -453,14 +541,16 @@ private struct ReaderWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ wv: WKWebView, coordinator: Coordinator) {
         wv.removeObserver(coordinator, forKeyPath: "estimatedProgress")
+        wv.removeObserver(coordinator, forKeyPath: "canGoBack")
         wv.navigationDelegate = nil
+        wv.uiDelegate = nil
     }
 }
 
 // MARK: - Coordinator
 
 extension ReaderWebView {
-    final class Coordinator: NSObject {
+    final class Coordinator: NSObject, WKUIDelegate {
         let url: URL
         let state: ReaderState
         /// Incremented on every reset so in-flight Tasks can detect they are stale.
@@ -483,6 +573,9 @@ extension ReaderWebView {
             loadGeneration += 1
             hasExtracted = false
             readerHTMLLoaded = false
+            Task { @MainActor [weak self] in
+                self?.state.userHasNavigatedInline = false
+            }
         }
 
         /// Entry point for loading.
@@ -566,12 +659,21 @@ extension ReaderWebView {
                                    of object: Any?,
                                    change: [NSKeyValueChangeKey: Any]?,
                                    context: UnsafeMutableRawPointer?) {
-            guard keyPath == "estimatedProgress",
-                  let wv = object as? WKWebView else { return }
-            let p = wv.estimatedProgress
-            Task { @MainActor [weak self] in
-                guard let self, case .loading = self.state.phase else { return }
-                self.state.phase = .loading(progress: p)
+            guard let wv = object as? WKWebView else { return }
+            switch keyPath {
+            case "estimatedProgress":
+                let p = wv.estimatedProgress
+                Task { @MainActor [weak self] in
+                    guard let self, case .loading = self.state.phase else { return }
+                    self.state.phase = .loading(progress: p)
+                }
+            case "canGoBack":
+                let back = wv.canGoBack
+                Task { @MainActor [weak self] in
+                    self?.state.canGoBack = back
+                }
+            default:
+                break
             }
         }
     }
@@ -596,6 +698,17 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
                 self.state.webView = webView
                 self.state.phase = .success
             }
+        } else {
+            // A back/forward navigation completed while the reader is fully loaded.
+            // backList.count == 1 means only the phase-1 raw page is behind the
+            // reader HTML — the user has navigated back to the reader root.
+            // backList.count > 1 means there are still inline pages behind the
+            // current page. Mirror that state into userHasNavigatedInline so the
+            // back button hides at the reader root and shows while browsing inline.
+            let hasInlineHistory = webView.backForwardList.backList.count > 1
+            Task { @MainActor [weak self] in
+                self?.state.userHasNavigatedInline = hasInlineHistory
+            }
         }
     }
 
@@ -615,6 +728,71 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
             self?.state.addLog("❌ \(error.localizedDescription)")
             self?.state.phase = .failed
         }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard
+            navigationAction.navigationType == .linkActivated,
+            let url = navigationAction.request.url,
+            state.interceptLinks
+        else {
+            // Allow the navigation. If it's a link tap in inline mode, flag it.
+            if navigationAction.navigationType == .linkActivated {
+                Task { @MainActor [weak self] in
+                    self?.state.userHasNavigatedInline = true
+                }
+            }
+            decisionHandler(.allow)
+            return
+        }
+        decisionHandler(.cancel)
+        Task { @MainActor [weak self] in
+            self?.state.pendingLinkURL = url
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        contextMenuConfigurationForElement elementInfo: WKContextMenuElementInfo,
+        completionHandler: @escaping (UIContextMenuConfiguration?) -> Void
+    ) {
+        guard let url = elementInfo.linkURL else {
+            completionHandler(nil)
+            return
+        }
+
+        let config = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard let self else { return nil }
+
+            let inline = UIAction(
+                title: "Open Inline",
+                image: UIImage(systemName: "arrow.turn.down.right")
+            ) { [weak self] _ in
+                DispatchQueue.main.async { self?.state.pendingDirectLink = .inline(url) }
+            }
+
+            let inAppSafari = UIAction(
+                title: "Open in In-App Safari",
+                image: UIImage(systemName: "safari")
+            ) { [weak self] _ in
+                DispatchQueue.main.async { self?.state.pendingDirectLink = .inAppSafari(url) }
+            }
+
+            let safari = UIAction(
+                title: "Open in Safari",
+                image: UIImage(systemName: "arrow.up.right.square")
+            ) { [weak self] _ in
+                DispatchQueue.main.async { self?.state.pendingDirectLink = .safari(url) }
+            }
+
+            return UIMenu(title: url.host ?? "", children: [inline, inAppSafari, safari])
+        }
+
+        completionHandler(config)
     }
 
     // MARK: - Extraction
@@ -1033,6 +1211,27 @@ private struct FontOptionButton: View {
                 )
                 .foregroundStyle(isSelected ? AppTheme.accent : .primary)
         }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Toolbar button
+
+/// Individual icon button used in glass toolbar pills.
+private struct ReaderToolbarButton: View {
+    let icon: String
+    let enabled: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 19, weight: .medium))
+                .foregroundStyle(enabled ? Color.primary : Color.primary.opacity(0.25))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .disabled(!enabled)
         .buttonStyle(.plain)
     }
 }

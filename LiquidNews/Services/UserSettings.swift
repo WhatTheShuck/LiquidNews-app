@@ -11,33 +11,105 @@ import SwiftUI
 // MARK: - Link open mode
 
 enum LinkOpenMode: String, CaseIterable, Identifiable {
-    case reader  = "reader"
-    case browser = "browser"
-    case safari  = "safari"
+    case reader      = "reader"
+    case inAppSafari = "inAppSafari"
+    case safari      = "safari"
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .reader:  "Reader"
-        case .browser: "In-App Browser"
-        case .safari:  "Safari"
+        case .reader:      "Reader"
+        case .inAppSafari: "In-App Safari"
+        case .safari:      "Safari"
         }
     }
 
     var subtitle: String {
         switch self {
-        case .reader:  "Extract and display article content natively"
-        case .browser: "Open articles inside the app with full web rendering"
-        case .safari:  "Hand off to Safari for every link"
+        case .reader:      "Extract and display article content natively"
+        case .inAppSafari: "Open articles inside the app with Safari"
+        case .safari:      "Hand off to Safari for every link"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .reader:  "textformat"
-        case .browser: "globe"
-        case .safari:  "safari"
+        case .reader:      "textformat"
+        case .inAppSafari: "safari"
+        case .safari:      "arrow.up.right.square"
+        }
+    }
+}
+
+// MARK: - Comment link mode
+
+enum CommentLinkMode: String, CaseIterable, Identifiable {
+    case inAppSafari = "inAppSafari"
+    case reader      = "reader"
+    case safari      = "safari"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .inAppSafari: "In-App Safari"
+        case .reader:      "Reader"
+        case .safari:      "Safari"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .inAppSafari: "Open in Safari without leaving the app"
+        case .reader:      "Extract and display content natively"
+        case .safari:      "Hand off to Safari"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .inAppSafari: "safari"
+        case .reader:      "textformat"
+        case .safari:      "arrow.up.right.square"
+        }
+    }
+}
+
+// MARK: - Reader link mode
+
+enum ReaderLinkMode: String, CaseIterable, Identifiable {
+    case inAppSafari = "inAppSafari"
+    case reader      = "reader"
+    case inline      = "inline"
+    case safari      = "safari"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .inAppSafari: "In-App Safari"
+        case .reader:      "Reader"
+        case .inline:      "Inline"
+        case .safari:      "Safari"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .inAppSafari: "Open in Safari without leaving the app"
+        case .reader:      "Extract and display content natively"
+        case .inline:      "Navigate within the current view"
+        case .safari:      "Hand off to Safari"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .inAppSafari: "safari"
+        case .reader:      "textformat"
+        case .inline:      "arrow.turn.down.right"
+        case .safari:      "arrow.up.right.square"
         }
     }
 }
@@ -125,7 +197,7 @@ enum StoryAction: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .openComments: "Open Comments"
-        case .openBrowser:  "Open in Browser"
+        case .openBrowser:  "In-App Safari"
         case .openReader:   "Open in Reader"
         case .openSafari:   "Open in Safari"
         case .favourite:    "Favourite"
@@ -138,7 +210,7 @@ enum StoryAction: String, CaseIterable, Identifiable {
     var systemImage: String {
         switch self {
         case .openComments: "bubble.left"
-        case .openBrowser:  "globe"
+        case .openBrowser:  "safari"
         case .openReader:   "textformat"
         case .openSafari:   "safari"
         case .favourite:    "heart"
@@ -239,6 +311,18 @@ final class UserSettings {
         didSet { kvStore.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) }
     }
 
+    // MARK: - Inline link modes
+
+    /// How links tapped inside comment text open.
+    var commentLinkOpen: CommentLinkMode {
+        didSet { kvStore.set(commentLinkOpen.rawValue, forKey: Keys.commentLinkOpen) }
+    }
+
+    /// How links tapped inside reader views open.
+    var readerLinkOpen: ReaderLinkMode {
+        didSet { kvStore.set(readerLinkOpen.rawValue, forKey: Keys.readerLinkOpen) }
+    }
+
     // MARK: - Tap + swipe actions
 
     /// What happens when the user taps a story card.
@@ -323,6 +407,8 @@ final class UserSettings {
         static let swipeLeftAction              = "LN_swipeLeftAction"
         static let swipeRightAction             = "LN_swipeRightAction"
         static let defaultLinkOpen              = "LN_defaultLinkOpen"
+        static let commentLinkOpen              = "LN_commentLinkOpen"
+        static let readerLinkOpen               = "LN_readerLinkOpen"
         static let hiddenPostsExpiry            = "LN_hiddenPostsExpiry"
         static let readBehaviour                = "LN_readBehaviour"
         static let readerShowImagesByDefault    = "LN_readerShowImagesByDefault"
@@ -346,7 +432,8 @@ final class UserSettings {
             Keys.enabledBuiltInCuratedSources, Keys.customCuratedFeeds,
             Keys.feedCategoryOrder, Keys.enabledFeedCategories,
             Keys.tapAction, Keys.swipeLeftAction, Keys.swipeRightAction,
-            Keys.defaultLinkOpen, Keys.hiddenPostsExpiry, Keys.readBehaviour,
+            Keys.defaultLinkOpen, Keys.commentLinkOpen, Keys.readerLinkOpen,
+            Keys.hiddenPostsExpiry, Keys.readBehaviour,
             Keys.readerShowImagesByDefault, Keys.showReadLaterBadge,
         ]
         for key in allKeys {
@@ -401,7 +488,13 @@ final class UserSettings {
             case Keys.swipeRightAction:
                 swipeRightAction = StoryAction(rawValue: kvStore.string(forKey: key) ?? "") ?? .saveLater
             case Keys.defaultLinkOpen:
-                defaultLinkOpen = LinkOpenMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .browser
+                let raw = kvStore.string(forKey: key) ?? ""
+                let migrated = raw == "browser" ? LinkOpenMode.inAppSafari.rawValue : raw
+                defaultLinkOpen = LinkOpenMode(rawValue: migrated) ?? .inAppSafari
+            case Keys.commentLinkOpen:
+                commentLinkOpen = CommentLinkMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .inAppSafari
+            case Keys.readerLinkOpen:
+                readerLinkOpen = ReaderLinkMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .inAppSafari
             case Keys.hiddenPostsExpiry:
                 hiddenPostsExpiry = HiddenPostsExpiry(rawValue: kvStore.string(forKey: key) ?? "") ?? .days30
             case Keys.readBehaviour:
@@ -469,8 +562,18 @@ final class UserSettings {
         let rawSwipeRight = kvStore.string(forKey: Keys.swipeRightAction) ?? StoryAction.saveLater.rawValue
         swipeRightAction = StoryAction(rawValue: rawSwipeRight) ?? .saveLater
 
-        let rawLinkOpen = kvStore.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.browser.rawValue
-        defaultLinkOpen = LinkOpenMode(rawValue: rawLinkOpen) ?? .browser
+        let rawLinkOpen = kvStore.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.inAppSafari.rawValue
+        let migratedLinkOpen = rawLinkOpen == "browser" ? LinkOpenMode.inAppSafari.rawValue : rawLinkOpen
+        defaultLinkOpen = LinkOpenMode(rawValue: migratedLinkOpen) ?? .inAppSafari
+        if rawLinkOpen == "browser" {
+            kvStore.set(migratedLinkOpen, forKey: Keys.defaultLinkOpen)
+        }
+
+        let rawCommentLink = kvStore.string(forKey: Keys.commentLinkOpen) ?? CommentLinkMode.inAppSafari.rawValue
+        commentLinkOpen = CommentLinkMode(rawValue: rawCommentLink) ?? .inAppSafari
+
+        let rawReaderLink = kvStore.string(forKey: Keys.readerLinkOpen) ?? ReaderLinkMode.inAppSafari.rawValue
+        readerLinkOpen = ReaderLinkMode(rawValue: rawReaderLink) ?? .inAppSafari
 
         let rawExpiry = kvStore.string(forKey: Keys.hiddenPostsExpiry) ?? HiddenPostsExpiry.days30.rawValue
         hiddenPostsExpiry = HiddenPostsExpiry(rawValue: rawExpiry) ?? .days30

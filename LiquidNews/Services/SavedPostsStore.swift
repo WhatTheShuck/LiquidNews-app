@@ -181,16 +181,20 @@ final class SavedPostsStore {
     // MARK: - Hidden posts
 
     func hide(_ item: HNItem) {
-        guard !hiddenIDs.contains(item.id) else { return }
+        hide(id: item.id, title: item.title, url: item.url, by: item.by)
+    }
+
+    func hide(id: Int, title: String?, url: String?, by: String? = nil) {
+        guard !hiddenIDs.contains(id) else { return }
         let entry = HiddenPostEntry(
-            id:       item.id,
+            id:       id,
             hiddenAt: Date(),
-            title:    item.title,
-            url:      item.url,
-            by:       item.by
+            title:    title,
+            url:      url,
+            by:       by
         )
         hiddenPosts.insert(entry, at: 0)
-        hiddenIDs.insert(item.id)
+        hiddenIDs.insert(id)
         saveHiddenPosts()
     }
 

@@ -20,8 +20,7 @@ struct CatchUpView: View {
 
     @State private var viewModel = CatchUpViewModel()
     @State private var selectedStory: HNItem?
-    @State private var webReaderURL: IdentifiableURL?
-    @State private var webReaderInitialReaderMode = false
+    @State private var readerURL: IdentifiableURL?
     @State private var safariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
     // 0 = controls fully visible, 1 = controls fully hidden.
@@ -89,9 +88,9 @@ struct CatchUpView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
         }
-        .sheet(item: $webReaderURL) { item in
+        .sheet(item: $readerURL) { item in
             NavigationStack {
-                WebReaderView(url: item.url, initialReaderMode: webReaderInitialReaderMode)
+                ArticleReaderView(url: item.url)
             }
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
@@ -257,8 +256,7 @@ struct CatchUpView: View {
             guard let urlString = story.url, let url = URL(string: urlString) else {
                 selectedStory = story; return
             }
-            webReaderInitialReaderMode = true
-            webReaderURL = IdentifiableURL(url)
+            readerURL = IdentifiableURL(url)
         case .openSafari:
             if let urlString = story.url, let url = URL(string: urlString) {
                 openURL(url)

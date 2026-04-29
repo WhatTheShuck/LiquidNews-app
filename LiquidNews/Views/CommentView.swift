@@ -222,7 +222,7 @@ struct CommentView: View {
                 .tint(AppTheme.accent)
 
         case .rich:
-            CommentBodyView(html: text)
+            CommentBodyView(html: text, tintColor: threadColor)
         }
     }
 

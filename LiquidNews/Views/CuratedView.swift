@@ -1,10 +1,10 @@
 // CuratedView.swift
 // Chronological feed of curated articles from all enabled sources.
 //
-// Tap behaviour mirrors the main feed:
-//   - Entries with an HN item ID → fetch full HNItem → open StoryDetailView
-//     (which has the "Read Article" CTA inside, just like the main feed).
-//   - JSON-only entries with no HN ID → open article directly in WebReaderView.
+// Tap behaviour: fetch full HNItem → open StoryDetailView
+// (which has the "Read Article" CTA inside, just like the main feed).
+// All curated entries are required to have an HN item ID — URL-only entries
+// are filtered out at ingestion time in CuratedStore.
 
 import SwiftUI
 
@@ -29,9 +29,11 @@ struct CuratedView: View {
 
     @State private var viewModel = CuratedViewModel()
     @State private var selectedStory: HNItem?
-    @State private var webReaderURL: IdentifiableURL?
+    @State private var readerURL: IdentifiableURL?
+    @State private var safariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
     @Environment(\.openURL) private var openURL
+    private let store = SavedPostsStore.shared
     /// True when the user has dismissed the banner for the current load cycle only.
     @State private var bannerHiddenThisLoad = false
 
@@ -67,23 +69,18 @@ struct CuratedView: View {
         .task {
             await viewModel.load()
         }
-        // HN thread (mirrors main feed sheet presentation)
         .sheet(item: $selectedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
         }
-        // Fallback for JSON-only entries that have no HN thread — respects defaultLinkOpen
-        .sheet(item: $webReaderURL) { item in
-            NavigationStack {
-                switch settings.defaultLinkOpen {
-                case .reader:  ArticleReaderView(url: item.url)
-                case .browser: WebReaderView(url: item.url)
-                case .safari:  WebReaderView(url: item.url) // safari handled inline in open(_:)
-                }
-            }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+        .sheet(item: $readerURL) { item in
+            NavigationStack { ArticleReaderView(url: item.url) }
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(.glassCornerRadius)
+        }
+        .sheet(item: $safariURL) { item in
+            SafariView(url: item.url)
         }
     }
 
@@ -127,55 +124,72 @@ struct CuratedView: View {
     // MARK: - Entries list
 
     private var entriesList: some View {
-        ScrollView(.vertical) {
-            LazyVStack(spacing: 12) {
-                if (viewModel.isLoadingInitial || viewModel.isRefreshing)
-                    && !settings.hideCuratedLoadingBanner
-                    && !bannerHiddenThisLoad {
-                    refreshingBanner
-                }
+        List {
+            if (viewModel.isLoadingInitial || viewModel.isRefreshing)
+                && !settings.hideCuratedLoadingBanner
+                && !bannerHiddenThisLoad {
+                refreshingBanner
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 0, trailing: 16))
+            }
 
-                ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
-                    Button {
-                        Task { await open(entry) }
-                    } label: {
-                        CuratedEntryRowView(entry: entry)
-                            .contentShape(Rectangle())
+            ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
+                Button {
+                    performAction(settings.tapAction, entry: entry)
+                } label: {
+                    CuratedEntryRowView(entry: entry)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    swipeActionButton(settings.swipeLeftAction, entry: entry)
+                }
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    swipeActionButton(settings.swipeRightAction, entry: entry)
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                // Trigger next page when within 5 rows of the bottom of visible entries.
+                .onAppear {
+                    if index >= filteredEntries.count - 5 {
+                        Task { await viewModel.loadMore() }
                     }
-                    .buttonStyle(.plain)
-                    // Trigger next page when within 5 rows of the bottom of visible entries.
-                    .onAppear {
-                        if index >= filteredEntries.count - 5 {
-                            Task { await viewModel.loadMore() }
-                        }
-                    }
-                }
-
-                if viewModel.isLoadingMore {
-                    ProgressView()
-                        .tint(.white)
-                        .padding(.vertical, 16)
-                }
-
-                if !viewModel.canLoadMore && !filteredEntries.isEmpty && !viewModel.isLoadingInitial {
-                    Text("All caught up")
-                        .font(AppTheme.captionFont(12))
-                        .foregroundStyle(.tertiary)
-                        .padding(.vertical, 24)
-                }
-
-                if filteredEntries.isEmpty && selectedSourceID != nil {
-                    Text("No entries from this source")
-                        .font(AppTheme.bodyFont(14))
-                        .foregroundStyle(.secondary)
-                        .padding(.vertical, 48)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity)
+
+            if viewModel.isLoadingMore {
+                ProgressView()
+                    .tint(.white)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            if !viewModel.canLoadMore && !filteredEntries.isEmpty && !viewModel.isLoadingInitial {
+                Text("All caught up")
+                    .font(AppTheme.captionFont(12))
+                    .foregroundStyle(.tertiary)
+                    .padding(.vertical, 24)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
+
+            if filteredEntries.isEmpty && selectedSourceID != nil {
+                Text("No entries from this source")
+                    .font(AppTheme.bodyFont(14))
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 48)
+                    .frame(maxWidth: .infinity)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+            }
         }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
         .scrollBounceBehavior(.basedOnSize)
         .refreshable {
             await viewModel.refresh()
@@ -203,6 +217,69 @@ struct CuratedView: View {
             sourcePickerRow
                 .opacity(1 - pickerProgress * 1.6)
                 .offset(y: -pickerProgress * 24)
+        }
+    }
+
+    // MARK: - Swipe actions
+
+    private func performAction(_ action: StoryAction, entry: CuratedEntry) {
+        switch action {
+        case .openComments:
+            Task { await open(entry) }
+        case .openBrowser:
+            safariURL = IdentifiableURL(entry.url)
+        case .openReader:
+            readerURL = IdentifiableURL(entry.url)
+        case .openSafari:
+            openURL(entry.url)
+        case .favourite:
+            guard let id = entry.hnItemID else { return }
+            store.toggleFavourite(id)
+        case .saveLater:
+            guard let id = entry.hnItemID else { return }
+            store.toggleReadLater(id)
+        case .hide:
+            guard let id = entry.hnItemID else { return }
+            store.hide(id: id, title: entry.title, url: entry.url.absoluteString)
+        case .none:
+            break
+        }
+    }
+
+    @ViewBuilder
+    private func swipeActionButton(_ action: StoryAction, entry: CuratedEntry) -> some View {
+        if action != .none {
+            Button {
+                performAction(action, entry: entry)
+            } label: {
+                swipeLabel(for: action, entry: entry)
+            }
+            .tint(swipeTint(for: action, entry: entry))
+        }
+    }
+
+    private func swipeLabel(for action: StoryAction, entry: CuratedEntry) -> Label<Text, Image> {
+        guard let id = entry.hnItemID else {
+            return Label(action.label, systemImage: action.systemImage)
+        }
+        switch action {
+        case .favourite:
+            return Label(store.isFavourite(id) ? "Unfavourite" : "Favourite",
+                         systemImage: store.isFavourite(id) ? "heart.slash" : "heart")
+        case .saveLater:
+            return Label(store.isReadLater(id) ? "Remove" : "Read Later",
+                         systemImage: store.isReadLater(id) ? "bookmark.slash" : "bookmark")
+        default:
+            return Label(action.label, systemImage: action.systemImage)
+        }
+    }
+
+    private func swipeTint(for action: StoryAction, entry: CuratedEntry) -> Color {
+        guard let id = entry.hnItemID else { return action.swipeTint }
+        switch action {
+        case .favourite: return store.isFavourite(id) ? .gray : .orange
+        case .saveLater: return store.isReadLater(id) ? .gray : .indigo
+        default:         return action.swipeTint
         }
     }
 
@@ -322,18 +399,11 @@ struct CuratedView: View {
 
     // MARK: - Open entry
 
-    /// Opens the entry the same way the main feed does:
-    /// HN thread first (StoryDetailView), article from within that view.
-    /// Falls back to the user's preferred open mode for entries with no HN thread.
+    /// Opens the HN thread for a curated entry.
     private func open(_ entry: CuratedEntry) async {
-        if let hnID = entry.hnItemID,
-           let story = try? await HNAPIService.shared.item(id: hnID) {
-            selectedStory = story
-        } else if settings.defaultLinkOpen == .safari {
-            openURL(entry.url)
-        } else {
-            webReaderURL = IdentifiableURL(entry.url)
-        }
+        guard let hnID = entry.hnItemID,
+              let story = try? await HNAPIService.shared.item(id: hnID) else { return }
+        selectedStory = story
     }
 }
 
@@ -368,14 +438,6 @@ private struct CuratedSourceChip: View {
             .glassEffect(in: Capsule())
             .glassEffectID(isSelected ? "activeChip" : chipID, in: namespace)
     }
-}
-
-// MARK: - URL sheet wrapper
-
-struct IdentifiableURL: Identifiable {
-    let id: String
-    let url: URL
-    init(_ url: URL) { self.id = url.absoluteString; self.url = url }
 }
 
 // MARK: - Preview

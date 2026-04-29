@@ -117,7 +117,7 @@ final class CuratedStore {
                     HackerNewsletterService.shared.parseIssue(from: item)
                 }.value
 
-                let newEntries = issue.entries.map {
+                let newEntries = issue.entries.compactMap {
                     CuratedEntry.from($0, issueNumber: issue.issueNumber, date: issue.pubDate)
                 }
                 mergeEntries(newEntries)
@@ -144,7 +144,7 @@ final class CuratedStore {
             await HackerNewsletterService.shared.parseIssue(from: item)
         }.value
 
-        let newEntries = issue.entries.map {
+        let newEntries = issue.entries.compactMap {
             CuratedEntry.from($0, issueNumber: issue.issueNumber, date: issue.pubDate)
         }
         mergeEntries(newEntries)

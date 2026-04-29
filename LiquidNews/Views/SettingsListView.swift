@@ -651,6 +651,132 @@ struct SettingsListView: View {
 
                 Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
 
+                // Comment link mode
+                HStack(spacing: 12) {
+                    Image(systemName: "bubble.left")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Links in comments")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text(settings.commentLinkOpen.subtitle)
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
+
+                HStack(spacing: 0) {
+                    ForEach(CommentLinkMode.allCases) { mode in
+                        Button {
+                            settings.commentLinkOpen = mode
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: mode.systemImage)
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(mode.label)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                settings.commentLinkOpen == mode
+                                    ? AppTheme.accent.opacity(0.2)
+                                    : Color.clear
+                            )
+                            .foregroundStyle(
+                                settings.commentLinkOpen == mode
+                                    ? AppTheme.accent
+                                    : Color.secondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if mode != CommentLinkMode.allCases.last {
+                            Divider()
+                                .frame(height: 32)
+                                .overlay(AppTheme.glassBorder)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(AppTheme.glassBorder, lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Reader link mode
+                HStack(spacing: 12) {
+                    Image(systemName: "textformat")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Links in reader")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.white)
+                        Text(settings.readerLinkOpen.subtitle)
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
+
+                HStack(spacing: 0) {
+                    ForEach(ReaderLinkMode.allCases) { mode in
+                        Button {
+                            settings.readerLinkOpen = mode
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: mode.systemImage)
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(mode.label)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                settings.readerLinkOpen == mode
+                                    ? AppTheme.accent.opacity(0.2)
+                                    : Color.clear
+                            )
+                            .foregroundStyle(
+                                settings.readerLinkOpen == mode
+                                    ? AppTheme.accent
+                                    : Color.secondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if mode != ReaderLinkMode.allCases.last {
+                            Divider()
+                                .frame(height: 32)
+                                .overlay(AppTheme.glassBorder)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(AppTheme.glassBorder, lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
                 // Reader images default
                 HStack(spacing: 12) {
                     Image(systemName: "photo")
