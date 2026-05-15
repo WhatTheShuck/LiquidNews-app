@@ -1425,8 +1425,8 @@ struct SettingsListView: View {
             .padding(.bottom, 14)
 
             HStack(spacing: 24) {
-                iconChoice(label: "Droplet", iconName: nil, imageName: "AppIcon")
-                iconChoice(label: "Letter", iconName: "AppIconAlt", imageName: "AppIconAlt")
+                iconChoice(label: "Droplet", iconName: nil, imageName: "AppIconPreview")
+                iconChoice(label: "Letter", iconName: "AppIconAlt", imageName: "AppIconAltPreview")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
@@ -1438,7 +1438,8 @@ struct SettingsListView: View {
     private func iconChoice(label: String, iconName: String?, imageName: String) -> some View {
         let isSelected = selectedIconName == iconName
         Button {
-            UIApplication.shared.setAlternateIconName(iconName) { _ in
+            UIApplication.shared.setAlternateIconName(iconName) { error in
+                if let error { print("[AppIcon] setAlternateIconName failed: \(error)") }
                 selectedIconName = UIApplication.shared.alternateIconName
             }
         } label: {
