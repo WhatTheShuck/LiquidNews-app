@@ -53,6 +53,7 @@ struct StoriesListView: View {
     @State private var showingSettings = false
     @State private var showingAccount = false
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
     // 0 = picker fully visible, 1 = picker fully hidden.
     // Driven directly from scroll offset so the animation tracks finger speed.
     // Snapped to 0 or 1 with a spring once scrolling stops.
@@ -109,7 +110,7 @@ struct StoriesListView: View {
                 storiesList
             }
         }
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -123,7 +124,7 @@ struct StoriesListView: View {
                 ZStack {
                     Text("LiquidNews")
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .opacity(max(0, 1 - pickerProgress * 2))
                         .scaleEffect(1 - pickerProgress * 0.25)
 
@@ -147,7 +148,7 @@ struct StoriesListView: View {
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundStyle(.secondary)
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .glassEffect(in: Capsule())
@@ -561,7 +562,7 @@ struct CategoryChip: View {
     var body: some View {
         Text(category.rawValue)
             .font(.system(size: 14, weight: .semibold, design: .rounded))
-            .foregroundStyle(isSelected ? AppTheme.accent : Color.white)
+            .foregroundStyle(isSelected ? AppTheme.accent : Color.primary)
             // All chips fade identically during convergence — selected included.
             // This leaves uniform plain-glass capsules for GlassEffectContainer
             // to blend, rather than one visually distinct chip resisting the merge.
@@ -602,7 +603,7 @@ struct OverflowChip: View {
         HStack(spacing: 3) {
             Text(isActive ? selectedCategory.rawValue : "More")
                 .font(.system(size: 14, weight: .semibold, design: .rounded))
-                .foregroundStyle(isActive ? AppTheme.accent : Color.white)
+                .foregroundStyle(isActive ? AppTheme.accent : Color.primary)
             // Chevron is always visible — when active it signals the chip is
             // still tappable to switch between overflow categories.
             Image(systemName: "chevron.down")
@@ -610,7 +611,7 @@ struct OverflowChip: View {
                 .foregroundStyle(
                     isActive
                         ? AppTheme.accent.opacity(0.55)
-                        : Color.white.opacity(0.55)
+                        : Color.primary.opacity(0.55)
                 )
         }
         .opacity(max(0, 1 - mergeProgress * 2))
@@ -645,7 +646,7 @@ struct ErrorView: View {
                 .foregroundStyle(AppTheme.accent)
             Text("Couldn't load stories")
                 .font(AppTheme.titleFont(18))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text(message)
                 .font(AppTheme.bodyFont(13))
                 .foregroundStyle(.secondary)
@@ -667,7 +668,6 @@ struct ErrorView: View {
     return NavigationStack {
         StoriesListView(viewModel: vm)
     }
-    .preferredColorScheme(.dark)
 }
 
 #Preview("Feed — loading") {
@@ -676,5 +676,4 @@ struct ErrorView: View {
     return NavigationStack {
         StoriesListView(viewModel: vm)
     }
-    .preferredColorScheme(.dark)
 }

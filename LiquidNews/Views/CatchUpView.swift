@@ -26,6 +26,7 @@ struct CatchUpView: View {
     // 0 = controls fully visible, 1 = controls fully hidden.
     @State private var controlsProgress: Double = 0
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
 
     private let store = SavedPostsStore.shared
 
@@ -42,7 +43,7 @@ struct CatchUpView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -52,13 +53,13 @@ struct CatchUpView: View {
                 ZStack {
                     Text(AppTab.catchUp.label)
                         .font(.system(size: titleSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .opacity(max(0, 1 - controlsProgress * 2))
                         .scaleEffect(1 - controlsProgress * 0.25)
 
                     Text(viewModel.compactTitle)
                         .font(.system(size: compactTitleSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
                         .glassEffect(in: Capsule())
@@ -138,7 +139,7 @@ struct CatchUpView: View {
         } label: {
             Text(preset.rawValue)
                 .font(.system(size: chipSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(isSelected ? AppTheme.accent : .white)
+                .foregroundStyle(isSelected ? AppTheme.accent : .primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .padding(.horizontal, 12)
@@ -178,7 +179,7 @@ struct CatchUpView: View {
                 Text(mode.rawValue)
                     .font(.system(size: chipSize, weight: .semibold, design: .rounded))
             }
-            .foregroundStyle(isSelected ? AppTheme.accent : .white)
+            .foregroundStyle(isSelected ? AppTheme.accent : .primary)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .overlay {
@@ -384,7 +385,7 @@ struct CatchUpView: View {
                 .foregroundStyle(AppTheme.accent)
             Text("No stories found")
                 .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text("Try a different date range or sort order.")
                 .font(AppTheme.bodyFont(13))
                 .foregroundStyle(.secondary)
@@ -396,5 +397,4 @@ struct CatchUpView: View {
 
 #Preview {
     NavigationStack { CatchUpView() }
-        .preferredColorScheme(.dark)
 }

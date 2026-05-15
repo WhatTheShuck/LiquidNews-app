@@ -6,6 +6,7 @@ import SwiftUI
 
 struct LicensesView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationStack {
@@ -20,7 +21,7 @@ struct LicensesView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient.ignoresSafeArea())
+            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
             .navigationTitle("Open Source Licenses")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -54,7 +55,7 @@ private struct LicenseCard: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(license.name)
                             .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text(license.licenseName)
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
@@ -135,5 +136,4 @@ private struct License: Identifiable {
 
 #Preview {
     LicensesView()
-        .preferredColorScheme(.dark)
 }

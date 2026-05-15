@@ -8,6 +8,7 @@
 //     feels instant but stays reasonably fresh.
 
 import Foundation
+import Network
 
 final class HNAPIService {
 
@@ -15,6 +16,16 @@ final class HNAPIService {
 
     private let baseURL = "https://hacker-news.firebaseio.com/v0"
     private let decoder = JSONDecoder()
+
+    // MARK: - Network path monitor
+
+    private let pathMonitor = NWPathMonitor()
+    private var isOnWifi = true
+
+    private var maxConcurrentFetches: Int {
+        let s = UserSettings.shared
+        return isOnWifi ? s.maxConcurrentFetchesWifi : s.maxConcurrentFetchesCellular
+    }
 
     // MARK: - Caches
 
@@ -29,7 +40,12 @@ final class HNAPIService {
     private var listCache: [String: CachedList] = [:]
     private let listCacheTTL: TimeInterval = 5 * 60  // 5 minutes
 
-    private init() {}
+    private init() {
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            self?.isOnWifi = path.usesInterfaceType(.wifi)
+        }
+        pathMonitor.start(queue: .global(qos: .utility))
+    }
 
     // MARK: - Story ID lists
 
@@ -96,19 +112,31 @@ final class HNAPIService {
         return item
     }
 
-    /// Fetch multiple items concurrently, preserving original order.
+    /// Fetch multiple items concurrently (max 6 in-flight), preserving original order.
     func items(ids: [Int]) async throws -> [HNItem] {
         let positions = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($1, $0) })
 
         return try await withThrowingTaskGroup(of: HNItem.self) { group in
-            for id in ids {
-                group.addTask { try await self.item(id: id) }
+            // Bound concurrency using the user's WiFi/cellular setting.
+            let limit = self.maxConcurrentFetches
+            var inFlight = 0
+            var pending = ids.makeIterator()
+
+            func addNext() {
+                while inFlight < limit, let id = pending.next() {
+                    inFlight += 1
+                    group.addTask { try await self.item(id: id) }
+                }
             }
+
+            addNext()
 
             var results: [HNItem] = []
             results.reserveCapacity(ids.count)
             for try await item in group {
                 results.append(item)
+                inFlight -= 1
+                addNext()
             }
 
             return results

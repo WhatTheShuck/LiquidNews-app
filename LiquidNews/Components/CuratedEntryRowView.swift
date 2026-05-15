@@ -8,6 +8,15 @@ import SwiftUI
 struct CuratedEntryRowView: View {
     let entry: CuratedEntry
 
+    @Environment(\.colorScheme) private var colorScheme
+    private let store = SavedPostsStore.shared
+    private let settings = UserSettings.shared
+
+    private var shouldDim: Bool {
+        guard let hnID = entry.hnItemID else { return false }
+        return settings.readBehaviour == .dim && store.isRead(hnID)
+    }
+
     /// The text shown beneath the title: curator note for JSON entries,
     /// newsletter section name for newsletter entries.
     private var subNote: String? {
@@ -33,13 +42,14 @@ struct CuratedEntryRowView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(AppTheme.accentMuted, in: Capsule())
+                    .overlay(Capsule().strokeBorder(AppTheme.accent.opacity(settings.selectedAppTheme == .classic ? 0.5 : 0), lineWidth: 1))
             }
 
             // ── Title + section/note ──────────────────────────────────────────
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title)
                     .font(AppTheme.titleFont(15))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary.opacity(shouldDim ? 0.4 : 1.0))
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -118,7 +128,7 @@ extension Date {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient.ignoresSafeArea()
+        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
         ScrollView {
             VStack(spacing: 12) {
 
@@ -159,5 +169,4 @@ extension Date {
             .padding(.horizontal, 16)
         }
     }
-    .preferredColorScheme(.dark)
 }

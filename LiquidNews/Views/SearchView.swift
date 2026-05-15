@@ -20,10 +20,11 @@ struct SearchView: View {
     @State private var selectedStory: HNItem?
     @FocusState private var fieldFocused: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient.ignoresSafeArea()
+            AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 searchHeader
@@ -86,7 +87,7 @@ struct SearchView: View {
 
                 TextField("Search Hacker News…", text: $viewModel.query)
                     .font(.system(size: searchFontSize))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .submitLabel(.search)
@@ -136,7 +137,7 @@ struct SearchView: View {
         return Button { viewModel.dateFilter = filter } label: {
             Text(filter.rawValue)
                 .font(.system(size: chipSize, weight: .semibold, design: .rounded))
-                .foregroundStyle(isSelected ? AppTheme.accent : .white)
+                .foregroundStyle(isSelected ? AppTheme.accent : .primary)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .glassEffect(in: Capsule())
@@ -225,5 +226,4 @@ struct SearchView: View {
 
 #Preview {
     SearchView()
-        .preferredColorScheme(.dark)
 }

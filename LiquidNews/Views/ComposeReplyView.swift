@@ -16,16 +16,17 @@ struct ComposeReplyView: View {
     @State private var isPosting = false
     @State private var error: String?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient.ignoresSafeArea()
+            AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
             VStack(alignment: .leading, spacing: 12) {
                 TextEditor(text: $text)
                     .scrollContentBackground(.hidden)
                     .background(Color.clear)
                     .font(.system(size: bodySize))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .frame(minHeight: 140)
                     .padding(14)
                     .glassCard()

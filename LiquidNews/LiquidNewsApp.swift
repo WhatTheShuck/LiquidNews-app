@@ -16,7 +16,11 @@ class DeepLinkState {
 struct LiquidNewsApp: App {
 
     @State private var deepLink = DeepLinkState()
+    @State private var store = StoreService.shared
     @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var showThemeNudge = false
+    @State private var showThemePaywall = false
 
     var body: some Scene {
         WindowGroup {
@@ -30,6 +34,29 @@ struct LiquidNewsApp: App {
                         UserSettings.shared.hiddenPostsExpiry
                     )
                 }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        Task { await SavedPostsStore.shared.mergeFromiCloud() }
+                        Task {
+                            await store.updatePurchasedProducts()
+                            enforceTrials()
+                        }
+                    }
+                }
+                .alert("Trial Ended", isPresented: $showThemeNudge) {
+                    Button("Unlock Themes") { showThemePaywall = true }
+                    Button("Use Default", role: .destructive) {
+                        UserSettings.shared.selectedAppTheme = .standard
+                    }
+                } message: {
+                    Text("Your 7-day free trial has ended. Unlock Themes to keep using premium themes.")
+                }
+                .sheet(isPresented: $showThemePaywall) {
+                    NavigationStack {
+                        PremiumPaywallView(focused: StoreService.ProductID.themes)
+                    }
+                    .presentationCornerRadius(.glassCornerRadius)
+                }
                 .sheet(isPresented: .init(
                     get: { !hasSeenOnboarding },
                     set: { _ in hasSeenOnboarding = true }
@@ -39,6 +66,27 @@ struct LiquidNewsApp: App {
                     }
                     .presentationCornerRadius(.glassCornerRadius)
                 }
+        }
+    }
+
+    @MainActor
+    private func enforceTrials() {
+        let state = store.trialState
+        guard state == .grace || state == .hardExpired else { return }
+
+        if state == .hardExpired {
+            // Force free state — no dialog, no bypass.
+            if !store.isAccountUnlocked && HNAuthService.shared.isLoggedIn {
+                HNAuthService.shared.logout()
+            }
+            if !store.isThemesUnlocked && UserSettings.shared.selectedAppTheme.isPremium {
+                UserSettings.shared.selectedAppTheme = .standard
+            }
+        } else if state == .grace {
+            // Nudge only — still allowed to use the app.
+            if !store.isThemesUnlocked && UserSettings.shared.selectedAppTheme.isPremium {
+                showThemeNudge = true
+            }
         }
     }
 

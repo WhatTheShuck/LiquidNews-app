@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var deepLinkedStory: HNItem?
     @State private var deepLinkError = false
     @Environment(DeepLinkState.self) private var deepLink
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var selection: TabSelection = .tab(.feed)
     /// The last real (non-More) tab the user was on — used to show contextual
@@ -98,7 +99,7 @@ struct ContentView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(settings.selectedAppTheme == .classic ? .light : settings.appColorScheme.resolved)
         .sheet(item: $deepLinkedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
                 .presentationDragIndicator(.visible)
@@ -155,7 +156,7 @@ struct ContentView: View {
         ZStack(alignment: .bottomTrailing) {
             Rectangle()
                 .glassEffect(in: Rectangle())
-                .overlay(AppTheme.backgroundGradient.opacity(0.55))
+                .overlay(AppTheme.backgroundGradient(for: colorScheme).opacity(0.55))
                 .ignoresSafeArea()
                 .onTapGesture {
                     withAnimation(.spring(duration: 0.28)) {
@@ -174,7 +175,7 @@ struct ContentView: View {
                             Text(tab.label)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
                         }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 13)
                         .glassEffect(in: Capsule())

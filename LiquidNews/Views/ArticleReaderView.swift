@@ -25,53 +25,78 @@ import WebKit
 
 enum ReaderTheme: String, CaseIterable, Equatable {
     case dark, light, sepia, warm
+    // Premium cases
+    case oled
+    case terminal
+    case solarized
+    case paper
 
     var label: String {
         switch self {
-        case .dark:  return "Dark"
-        case .light: return "Light"
-        case .sepia: return "Sepia"
-        case .warm:  return "Warm"
+        case .dark:      return "Dark"
+        case .light:     return "Light"
+        case .sepia:     return "Sepia"
+        case .warm:      return "Warm"
+        case .oled:      return "OLED"
+        case .terminal:  return "Terminal"
+        case .solarized: return "Solarized"
+        case .paper:     return "Paper"
         }
     }
 
     /// CSS hex value for the page background
     var background: String {
         switch self {
-        case .dark:  return "#0f0f1a"
-        case .light: return "#ffffff"
-        case .sepia: return "#f5f1e8"
-        case .warm:  return "#1a1815"
+        case .dark:      return "#0f0f1a"
+        case .light:     return "#ffffff"
+        case .sepia:     return "#f5f1e8"
+        case .warm:      return "#1a1815"
+        case .oled:      return "#000000"
+        case .terminal:  return "#0d1a0d"
+        case .solarized: return "#002b36"
+        case .paper:     return "#f8f4e8"
         }
     }
 
     /// CSS hex value for body text
     var text: String {
         switch self {
-        case .dark:  return "#e8e8ee"
-        case .light: return "#1a1a1a"
-        case .sepia: return "#3a3019"
-        case .warm:  return "#ddd8cc"
+        case .dark:      return "#e8e8ee"
+        case .light:     return "#1a1a1a"
+        case .sepia:     return "#3a3019"
+        case .warm:      return "#ddd8cc"
+        case .oled:      return "#e8e8ee"
+        case .terminal:  return "#33ff66"
+        case .solarized: return "#839496"
+        case .paper:     return "#3a3019"
         }
     }
 
     /// CSS hex value for dimmed / secondary text
     var dim: String {
         switch self {
-        case .dark:  return "#8888aa"
-        case .light: return "#6b6b7a"
-        case .sepia: return "#7a7060"
-        case .warm:  return "#9a9080"
+        case .dark:      return "#8888aa"
+        case .light:     return "#6b6b7a"
+        case .sepia:     return "#7a7060"
+        case .warm:      return "#9a9080"
+        case .oled:      return "#6666aa"
+        case .terminal:  return "#1a8832"
+        case .solarized: return "#586e75"
+        case .paper:     return "#7a7060"
         }
     }
 
     /// CSS hex value for headings (needs separate control on light backgrounds)
     var heading: String {
         switch self {
-        case .dark:  return "#ffffff"
-        case .light: return "#111111"
-        case .sepia: return "#2a2012"
-        case .warm:  return "#ece7dc"
+        case .dark:      return "#ffffff"
+        case .light:     return "#111111"
+        case .sepia:     return "#2a2012"
+        case .warm:      return "#ece7dc"
+        case .oled:      return "#ffffff"
+        case .terminal:  return "#66ff88"
+        case .solarized: return "#93a1a1"
+        case .paper:     return "#2a2012"
         }
     }
 
@@ -88,15 +113,26 @@ enum ReaderTheme: String, CaseIterable, Equatable {
     /// SwiftUI color for the theme swatch circle
     var swatchColor: Color {
         switch self {
-        case .dark:  return Color(red: 0.06, green: 0.06, blue: 0.10)
-        case .light: return Color.white
-        case .sepia: return Color(red: 0.96, green: 0.95, blue: 0.91)
-        case .warm:  return Color(red: 0.10, green: 0.10, blue: 0.08)
+        case .dark:      return Color(red: 0.06, green: 0.06, blue: 0.10)
+        case .light:     return Color.white
+        case .sepia:     return Color(red: 0.96, green: 0.95, blue: 0.91)
+        case .warm:      return Color(red: 0.10, green: 0.10, blue: 0.08)
+        case .oled:      return Color.black
+        case .terminal:  return Color(red: 0.05, green: 0.10, blue: 0.05)
+        case .solarized: return Color(red: 0.00, green: 0.17, blue: 0.21)
+        case .paper:     return Color(red: 0.97, green: 0.96, blue: 0.91)
         }
     }
 
     /// True for light-background themes — used to pick checkmark colour
-    var isLight: Bool { self == .light || self == .sepia }
+    var isLight: Bool { self == .light || self == .sepia || self == .paper }
+
+    var isPremium: Bool {
+        switch self {
+        case .oled, .terminal, .solarized, .paper: return true
+        default: return false
+        }
+    }
 }
 
 enum ReaderFont: String, CaseIterable, Equatable {
@@ -128,6 +164,10 @@ final class ReaderPreferences {
     var fontSize: Double    = 18
     var fontFamily: ReaderFont = .system
     var showImages: Bool    = false
+    /// Custom text color override. nil = use theme default.
+    var textColor: Color?
+    /// Custom heading color override. nil = use theme default.
+    var headingColor: Color?
 
     static let minFontSize: Double = 14
     static let maxFontSize: Double = 26
@@ -145,9 +185,9 @@ final class ReaderPreferences {
             var root = document.documentElement;
             root.style.fontSize = '\(Int(fontSize))px';
             root.style.setProperty('--bg',      '\(theme.background)');
-            root.style.setProperty('--text',    '\(theme.text)');
+            root.style.setProperty('--text',    '\(textColorCSS)');
             root.style.setProperty('--dim',     '\(theme.dim)');
-            root.style.setProperty('--heading', '\(theme.heading)');
+            root.style.setProperty('--heading', '\(headingColorCSS)');
             root.style.setProperty('--border',  '\(theme.border)');
             root.style.setProperty('--code-bg', '\(theme.codeBg)');
             root.style.setProperty('--font', "\(fontFamily.cssFamily)");
@@ -168,6 +208,20 @@ final class ReaderPreferences {
             }
         })();
         """
+    }
+
+    private var textColorCSS: String {
+        if let color = textColor {
+            return "#\(color.toHexString())"
+        }
+        return theme.text
+    }
+
+    private var headingColorCSS: String {
+        if let color = headingColor {
+            return "#\(color.toHexString())"
+        }
+        return theme.heading
     }
 }
 
@@ -290,6 +344,7 @@ struct ArticleReaderView: View {
     @State private var readerState = ReaderState()
     @State private var preferences: ReaderPreferences
     @State private var showReaderOptions = false
+    @State private var isPreparingReport = false
     @State private var readerLinkSafariURL: IdentifiableURL?
     @State private var readerLinkReaderURL: IdentifiableURL?
     @State private var fallbackSafariURL: IdentifiableURL?
@@ -346,11 +401,26 @@ struct ArticleReaderView: View {
                 }
                 .disabled(!readerState.isSuccess)
 
-                Button {
-                    preferences.showImages.toggle()
+                Menu {
+                    Button {
+                        preferences.showImages.toggle()
+                    } label: {
+                        Label(
+                            preferences.showImages ? "Hide Images" : "Show Images",
+                            systemImage: preferences.showImages ? "photo.fill" : "photo"
+                        )
+                    }
+
+                    Divider()
+
+                    Button {
+                        Task { await reportReaderIssue() }
+                    } label: {
+                        Label("Report Reader Issue", systemImage: "exclamationmark.bubble")
+                    }
+                    .disabled(isPreparingReport)
                 } label: {
-                    // photo.fill = images on (filled = active), photo = images off
-                    Image(systemName: preferences.showImages ? "photo.fill" : "photo")
+                    Image(systemName: "ellipsis.circle")
                 }
                 .disabled(!readerState.isSuccess)
 
@@ -366,7 +436,9 @@ struct ArticleReaderView: View {
         .onChange(of: preferences.theme)      { _, _ in readerState.applyPreferences(preferences) }
         .onChange(of: preferences.fontSize)   { _, _ in readerState.applyPreferences(preferences) }
         .onChange(of: preferences.fontFamily) { _, _ in readerState.applyPreferences(preferences) }
-        .onChange(of: preferences.showImages) { _, _ in readerState.applyPreferences(preferences) }
+        .onChange(of: preferences.showImages)    { _, _ in readerState.applyPreferences(preferences) }
+        .onChange(of: preferences.textColor)    { _, _ in readerState.applyPreferences(preferences) }
+        .onChange(of: preferences.headingColor) { _, _ in readerState.applyPreferences(preferences) }
         .onChange(of: readerState.isSuccess) { _, success in
             if success { readerState.applyPreferences(preferences) }
         }
@@ -413,12 +485,12 @@ struct ArticleReaderView: View {
                 ArticleReaderView(url: item.url)
             }
         }
-        .sheet(item: $fallbackSafariURL) { item in
+        .sheet(item: $fallbackSafariURL, onDismiss: { dismiss() }) { item in
             SafariView(url: item.url)
         }
         .sheet(isPresented: $showReaderOptions) {
             ReaderOptionsSheet(preferences: preferences)
-                .presentationDetents([.height(300)])
+                .presentationDetents([.height(StoreService.shared.isThemesUnlocked ? 380 : 300)])
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
         }
@@ -440,6 +512,49 @@ struct ArticleReaderView: View {
 
     private func updateReaderLinkInterception() {
         readerState.interceptLinks = (settings.readerLinkOpen != .inline)
+    }
+
+    // MARK: - Report issue
+
+    private func reportReaderIssue() async {
+        isPreparingReport = true
+        defer { isPreparingReport = false }
+
+        let hnURL = await fetchHNItemURL(for: url)
+        let device = UIDevice.current
+        let body = """
+        Article URL: \(url.absoluteString)
+        HN Item: \(hnURL ?? "Not found")
+
+        Device: \(device.model)
+        iOS: \(device.systemVersion)
+
+        --- Describe the issue below ---
+
+        """
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "issues@what-the-shuck.com"
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: "Reader Issue"),
+            URLQueryItem(name: "body", value: body)
+        ]
+        guard let mailURL = components.url else { return }
+        await UIApplication.shared.open(mailURL)
+    }
+
+    private func fetchHNItemURL(for articleURL: URL) async -> String? {
+        let query = articleURL.absoluteString
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        guard let apiURL = URL(string: "https://hn.algolia.com/api/v1/search?query=\(query)&restrictSearchableAttributes=url") else { return nil }
+        guard
+            let (data, _) = try? await URLSession.shared.data(from: apiURL),
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let hits = json["hits"] as? [[String: Any]],
+            let first = hits.first,
+            let objectID = first["objectID"] as? String
+        else { return nil }
+        return "https://news.ycombinator.com/item?id=\(objectID)"
     }
 
     // MARK: - Loading overlay
@@ -464,7 +579,7 @@ struct ArticleReaderView: View {
                             ForEach(readerState.log, id: \.self) { entry in
                                 Text(entry)
                                     .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(.primary.opacity(0.5))
                                     .frame(maxWidth: .infinity, alignment: .leading)
                             }
                         }
@@ -967,8 +1082,8 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
 
     // MARK: - CSS
     // Colours match AppTheme: accent = rgb(255,107,20), bg = indigo-to-near-black.
-    // CSS custom properties (--bg, --text, --dim, --font) are overridden live via JS
-    // when the user changes preferences in the reader toolbar.
+    // CSS custom properties (--bg, --text, --dim, --heading, --border, --code-bg, --font)
+    // are overridden live via JS when the user changes preferences in the reader toolbar.
     private static let readerCSS = """
     :root {
         --bg:      #0f0f1a;
@@ -1054,6 +1169,8 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
 
 private struct ReaderOptionsSheet: View {
     @Bindable var preferences: ReaderPreferences
+    @State private var store = StoreService.shared
+    @State private var showPaywall = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1098,11 +1215,25 @@ private struct ReaderOptionsSheet: View {
             optionsSection("Theme") {
                 HStack(spacing: 14) {
                     ForEach(ReaderTheme.allCases, id: \.rawValue) { theme in
-                        ThemeSwatchButton(
-                            theme: theme,
-                            isSelected: preferences.theme == theme
-                        ) {
-                            preferences.theme = theme
+                        ZStack(alignment: .topTrailing) {
+                            ThemeSwatchButton(
+                                theme: theme,
+                                isSelected: preferences.theme == theme
+                            ) {
+                                if theme.isPremium && !store.isThemesUnlocked {
+                                    showPaywall = true
+                                } else {
+                                    preferences.theme = theme
+                                }
+                            }
+                            if theme.isPremium && !store.isThemesUnlocked {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(.white)
+                                    .padding(3)
+                                    .background(Color.black.opacity(0.6), in: Circle())
+                                    .offset(x: 2, y: -2)
+                            }
                         }
                     }
                     Spacer()
@@ -1124,8 +1255,59 @@ private struct ReaderOptionsSheet: View {
                     }
                 }
             }
+            if store.isThemesUnlocked {
+                Divider().padding(.horizontal, 20)
+
+                optionsSection("Colors") {
+                    HStack(spacing: 16) {
+                        VStack(spacing: 4) {
+                            ColorPicker("", selection: Binding(
+                                get: { preferences.textColor ?? Color(hexString: preferences.theme.text) ?? .white },
+                                set: { preferences.textColor = $0 }
+                            ), supportsOpacity: false)
+                            .labelsHidden()
+                            .frame(width: 44, height: 32)
+                            Text("Text")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            if preferences.textColor != nil {
+                                Button("Reset") { preferences.textColor = nil }
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                    .buttonStyle(.plain)
+                            }
+                        }
+
+                        VStack(spacing: 4) {
+                            ColorPicker("", selection: Binding(
+                                get: { preferences.headingColor ?? Color(hexString: preferences.theme.heading) ?? .white },
+                                set: { preferences.headingColor = $0 }
+                            ), supportsOpacity: false)
+                            .labelsHidden()
+                            .frame(width: 44, height: 32)
+                            Text("Heading")
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(.secondary)
+                            if preferences.headingColor != nil {
+                                Button("Reset") { preferences.headingColor = nil }
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.secondary)
+                                    .buttonStyle(.plain)
+                            }
+                        }
+
+                        Spacer()
+                    }
+                }
+            }
         }
         .padding(.top, 8)
+        .sheet(isPresented: $showPaywall) {
+            NavigationStack {
+                PremiumPaywallView(focused: StoreService.ProductID.themes)
+            }
+            .presentationCornerRadius(.glassCornerRadius)
+        }
     }
 
     @ViewBuilder
@@ -1242,5 +1424,4 @@ private struct ReaderToolbarButton: View {
     NavigationStack {
         ArticleReaderView(url: URL(string: "https://paulgraham.com/taste.html")!)
     }
-    .preferredColorScheme(.dark)
 }

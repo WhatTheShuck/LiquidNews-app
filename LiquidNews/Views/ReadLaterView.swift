@@ -8,6 +8,7 @@ struct ReadLaterView: View {
     @State private var viewModel = ReadLaterViewModel()
     @State private var selectedStory: HNItem?
     @State private var settings = UserSettings.shared
+    @Environment(\.colorScheme) private var colorScheme
 
     private let store = SavedPostsStore.shared
 
@@ -26,7 +27,7 @@ struct ReadLaterView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationTitle(AppTab.readLater.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -128,5 +129,4 @@ struct ReadLaterView: View {
 
 #Preview {
     NavigationStack { ReadLaterView() }
-        .preferredColorScheme(.dark)
 }

@@ -6,47 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		667EEFAE2F792C4F006872B8 /* LiquidNewsShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 667EEFA42F792C4F006872B8 /* LiquidNewsShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		667EEFAC2F792C4F006872B8 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 66853FDA2F724480001B84E8 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 667EEFA32F792C4F006872B8;
-			remoteInfo = LiquidNewsShareExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		667EEFAF2F792C4F006872B8 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				667EEFAE2F792C4F006872B8 /* LiquidNewsShareExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
-		667EEFA42F792C4F006872B8 /* LiquidNewsShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiquidNewsShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		66853FE22F724480001B84E8 /* LiquidNews.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiquidNews.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		667EEFB52F792C4F006872B8 /* Exceptions for "LiquidNewsShareExtension" folder in "LiquidNewsShareExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 667EEFA32F792C4F006872B8 /* LiquidNewsShareExtension */;
-		};
 		66853FF02F724482001B84E8 /* Exceptions for "LiquidNews" folder in "LiquidNews" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -59,9 +23,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		667EEFA52F792C4F006872B8 /* LiquidNewsShareExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				667EEFB52F792C4F006872B8 /* Exceptions for "LiquidNewsShareExtension" folder in "LiquidNewsShareExtension" target */,
-			);
 			path = LiquidNewsShareExtension;
 			sourceTree = "<group>";
 		};
@@ -76,13 +37,6 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		667EEFA12F792C4F006872B8 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		66853FDF2F724480001B84E8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -106,7 +60,6 @@
 			isa = PBXGroup;
 			children = (
 				66853FE22F724480001B84E8 /* LiquidNews.app */,
-				667EEFA42F792C4F006872B8 /* LiquidNewsShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -114,28 +67,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		667EEFA32F792C4F006872B8 /* LiquidNewsShareExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 667EEFB32F792C4F006872B8 /* Build configuration list for PBXNativeTarget "LiquidNewsShareExtension" */;
-			buildPhases = (
-				667EEFA02F792C4F006872B8 /* Sources */,
-				667EEFA12F792C4F006872B8 /* Frameworks */,
-				667EEFA22F792C4F006872B8 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				667EEFA52F792C4F006872B8 /* LiquidNewsShareExtension */,
-			);
-			name = LiquidNewsShareExtension;
-			packageProductDependencies = (
-			);
-			productName = LiquidNewsShareExtension;
-			productReference = 667EEFA42F792C4F006872B8 /* LiquidNewsShareExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		66853FE12F724480001B84E8 /* LiquidNews */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 66853FED2F724482001B84E8 /* Build configuration list for PBXNativeTarget "LiquidNews" */;
@@ -143,12 +74,10 @@
 				66853FDE2F724480001B84E8 /* Sources */,
 				66853FDF2F724480001B84E8 /* Frameworks */,
 				66853FE02F724480001B84E8 /* Resources */,
-				667EEFAF2F792C4F006872B8 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				667EEFAD2F792C4F006872B8 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				66853FE42F724480001B84E8 /* LiquidNews */,
@@ -170,9 +99,6 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
-					667EEFA32F792C4F006872B8 = {
-						CreatedOnToolsVersion = 26.4;
-					};
 					66853FE12F724480001B84E8 = {
 						CreatedOnToolsVersion = 26.3;
 					};
@@ -193,19 +119,11 @@
 			projectRoot = "";
 			targets = (
 				66853FE12F724480001B84E8 /* LiquidNews */,
-				667EEFA32F792C4F006872B8 /* LiquidNewsShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		667EEFA22F792C4F006872B8 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		66853FE02F724480001B84E8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -216,13 +134,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		667EEFA02F792C4F006872B8 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		66853FDE2F724480001B84E8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -232,75 +143,7 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		667EEFAD2F792C4F006872B8 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 667EEFA32F792C4F006872B8 /* LiquidNewsShareExtension */;
-			targetProxy = 667EEFAC2F792C4F006872B8 /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin XCBuildConfiguration section */
-		667EEFB02F792C4F006872B8 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = LiquidNewsShareExtension/LiquidNewsShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3GXN9TG2N7;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiquidNewsShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = LiquidNewsShareExtension;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNews.LiquidNewsShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		667EEFB12F792C4F006872B8 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = LiquidNewsShareExtension/LiquidNewsShareExtension.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 3GXN9TG2N7;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = LiquidNewsShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = LiquidNewsShareExtension;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.4;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNews.LiquidNewsShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 		66853FEB2F724482001B84E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -336,7 +179,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 3GXN9TG2N7;
+				DEVELOPMENT_TEAM = H6D6G7R575;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -401,7 +244,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 3GXN9TG2N7;
+				DEVELOPMENT_TEAM = H6D6G7R575;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
@@ -430,8 +273,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = LiquidNews/LiquidNews.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H6D6G7R575;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LiquidNews/Info.plist;
@@ -440,6 +285,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -447,6 +293,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNews;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -463,8 +310,10 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = LiquidNews/LiquidNews.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H6D6G7R575;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = LiquidNews/Info.plist;
@@ -473,6 +322,7 @@
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -480,6 +330,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNews;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
@@ -493,15 +344,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		667EEFB32F792C4F006872B8 /* Build configuration list for PBXNativeTarget "LiquidNewsShareExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				667EEFB02F792C4F006872B8 /* Debug */,
-				667EEFB12F792C4F006872B8 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		66853FDD2F724480001B84E8 /* Build configuration list for PBXProject "LiquidNews" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

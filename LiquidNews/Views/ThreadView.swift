@@ -11,6 +11,7 @@ struct ThreadView: View {
     var opUsername: String? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView(.vertical) {
@@ -28,7 +29,7 @@ struct ThreadView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -41,7 +42,7 @@ struct ThreadView: View {
             ToolbarItem(placement: .principal) {
                 Text("Thread")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
             }
         }
     }

@@ -11,6 +11,7 @@ struct FavouritesView: View {
     @State private var safariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
 
     private let store = SavedPostsStore.shared
 
@@ -29,7 +30,7 @@ struct FavouritesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationTitle(AppTab.favourites.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -161,5 +162,4 @@ struct FavouritesView: View {
 
 #Preview {
     NavigationStack { FavouritesView() }
-        .preferredColorScheme(.dark)
 }

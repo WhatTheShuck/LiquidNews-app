@@ -55,14 +55,19 @@ final class CuratedStore {
     func initialLoad(settings: UserSettings) async {
         guard !isLoadingInitial else { return }
         isLoadingInitial = true
-        defer { isLoadingInitial = false }
-
         // Step 1: restore from disk immediately (gives instant display).
         restoreFromDisk(settings: settings)
+        // Cache is now visible — clear the initial flag so posts are interactive.
+        isLoadingInitial = false
+
         // Resolve any metadata that wasn't fetched before the last cache write.
         Task { await resolveMissingArticleDates() }
 
-        // Step 2: refresh anything stale in the background.
+        // Step 2: refresh anything stale under the isRefreshing flag so the list
+        // stays interactive and only the banner indicates background activity.
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         await performRefresh(settings: settings, force: false)
     }
 

@@ -10,8 +10,11 @@ struct AccountView: View {
     @ScaledMetric(relativeTo: .body)      private var buttonFontSize:   CGFloat = 16
     @ScaledMetric(relativeTo: .footnote)  private var linkFontSize:     CGFloat = 13
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var auth = HNAuthService.shared
+    @State private var store = StoreService.shared
+    @State private var showPaywall = false
+    @State private var showTrialExpiredNudge = false
     @FocusState private var focusedField: LoginField?
 
     // Login form state
@@ -25,26 +28,53 @@ struct AccountView: View {
     var body: some View {
         ScrollView(.vertical) {
             VStack(spacing: 20) {
-                if auth.isLoggedIn {
-                    loggedInSection
-                } else {
-                    loginSection
+                switch store.trialState {
+                case .notStarted where !store.isAccountUnlocked:
+                    trialNotStartedSection
+                case .hardExpired where !store.isAccountUnlocked:
+                    trialExpiredSection
+                default:
+                    if auth.isLoggedIn {
+                        loggedInSection
+                    } else {
+                        loginSection
+                    }
+                    if store.isInAccountTrial {
+                        trialBanner
+                    } else if store.trialState == .grace && !store.isAccountUnlocked {
+                        graceBanner
+                    }
                 }
+                #if DEBUG
+                debugSection
+                #endif
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
             .padding(.bottom, 32)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .task {
+            if store.trialState == .grace && !store.isAccountUnlocked && auth.isLoggedIn {
+                showTrialExpiredNudge = true
+            }
+        }
+        .sheet(isPresented: $showPaywall) {
+            NavigationStack {
+                PremiumPaywallView(focused: StoreService.ProductID.account)
+            }
+            .presentationCornerRadius(.glassCornerRadius)
+        }
+        .alert("Trial Ended", isPresented: $showTrialExpiredNudge) {
+            Button("Unlock Account") { showPaywall = true }
+            Button("Sign Out", role: .destructive) { auth.logout() }
+        } message: {
+            Text("Your 7-day free trial has ended. Unlock Account to stay signed in.")
+        }
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close", systemImage: "xmark") { dismiss() }
-            }
-        }
     }
 
     // MARK: - Logged-in state
@@ -60,7 +90,7 @@ struct AccountView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(auth.username ?? "")
                         .font(.system(size: usernameFontSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Link("View profile on HN",
                          destination: URL(string: "https://news.ycombinator.com/user?id=\(auth.username ?? "")")!)
                         .font(.system(size: linkFontSize))
@@ -98,7 +128,7 @@ struct AccountView: View {
                     .foregroundStyle(AppTheme.accent)
                 Text("Sign in to Hacker News")
                     .font(.system(size: headerFontSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 Text("Use your existing HN username and password.")
                     .font(.system(size: linkFontSize))
                     .foregroundStyle(.secondary)
@@ -116,7 +146,7 @@ struct AccountView: View {
                     .focused($focusedField, equals: .username)
                     .onSubmit { focusedField = .password }
                     .padding(16)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
 
                 Divider().overlay(AppTheme.glassBorder)
 
@@ -126,7 +156,7 @@ struct AccountView: View {
                     .focused($focusedField, equals: .password)
                     .onSubmit { Task { await attemptLogin() } }
                     .padding(16)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
             }
             .glassCard()
 
@@ -137,7 +167,7 @@ struct AccountView: View {
                         .foregroundStyle(.red)
                     Text(error)
                         .font(.system(size: linkFontSize))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Spacer()
                 }
                 .padding(14)
@@ -155,7 +185,7 @@ struct AccountView: View {
                     } else {
                         Text("Sign In")
                             .font(.system(size: buttonFontSize, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                     }
                     Spacer()
                 }
@@ -176,6 +206,162 @@ struct AccountView: View {
                 .foregroundStyle(AppTheme.accent)
         }
     }
+
+    // MARK: - Trial banner
+
+    private var trialBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.fill")
+                .foregroundStyle(AppTheme.accent)
+            Text("\(store.trialDaysRemaining) day\(store.trialDaysRemaining == 1 ? "" : "s") left in your free trial.")
+                .font(.system(size: linkFontSize))
+                .foregroundStyle(.primary)
+            Spacer()
+            Button("Unlock") { showPaywall = true }
+                .font(.system(size: linkFontSize, weight: .semibold))
+                .foregroundStyle(AppTheme.accent)
+        }
+        .padding(14)
+        .glassCard(tint: AppTheme.accent)
+    }
+
+    // MARK: - Grace banner
+
+    private var graceBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            Text("\(store.graceDaysRemaining) day\(store.graceDaysRemaining == 1 ? "" : "s") left before access is removed.")
+                .font(.system(size: linkFontSize))
+                .foregroundStyle(.primary)
+            Spacer()
+            Button("Unlock") { showPaywall = true }
+                .font(.system(size: linkFontSize, weight: .semibold))
+                .foregroundStyle(.orange)
+        }
+        .padding(14)
+        .glassCard(tint: .orange)
+    }
+
+    // MARK: - Trial not started
+
+    private var trialNotStartedSection: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 8) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AppTheme.accent)
+                Text("Sign in to Hacker News")
+                    .font(.system(size: headerFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text("Vote, reply, and flag. Try Account and Themes free for 7 days.")
+                    .font(.system(size: linkFontSize))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 8)
+
+            Button {
+                store.startTrialIfNeeded()
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("Start 7-Day Free Trial")
+                        .font(.system(size: buttonFontSize, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 16)
+                .glassEffect(in: RoundedRectangle(cornerRadius: .glassCornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: .glassCornerRadius, style: .continuous)
+                        .fill(AppTheme.accent.opacity(0.25))
+                        .allowsHitTesting(false)
+                }
+            }
+            .buttonStyle(.plain)
+
+            Button { showPaywall = true } label: {
+                Text("Unlock now")
+                    .font(.system(size: linkFontSize))
+                    .foregroundStyle(AppTheme.accent)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Trial expired
+
+    private var trialExpiredSection: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 48))
+                    .foregroundStyle(AppTheme.accent)
+                Text("Trial Ended")
+                    .font(.system(size: headerFontSize, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                Text("Your 7-day free trial has ended. Unlock Account to continue.")
+                    .font(.system(size: linkFontSize))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.top, 8)
+
+            Button {
+                showPaywall = true
+            } label: {
+                HStack {
+                    Spacer()
+                    Text("Unlock Account")
+                        .font(.system(size: buttonFontSize, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                }
+                .padding(.vertical, 16)
+                .glassEffect(in: RoundedRectangle(cornerRadius: .glassCornerRadius, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: .glassCornerRadius, style: .continuous)
+                        .fill(AppTheme.accent.opacity(0.25))
+                        .allowsHitTesting(false)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Debug controls (DEBUG builds only)
+
+    #if DEBUG
+    private var debugSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Trial Debug")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .tracking(0.5)
+                .textCase(.uppercase)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+
+            VStack(spacing: 0) {
+                Button("Start Fresh Trial") { store.debugStartFreshTrial() }
+                    .padding(14)
+                Divider().overlay(AppTheme.glassBorder)
+                Button("Grace Period (−8 days)") { store.debugExpireTrial() }
+                    .padding(14)
+                Divider().overlay(AppTheme.glassBorder)
+                Button("Hard Expired (−11 days)") { store.debugHardExpireTrial() }
+                    .padding(14)
+                Divider().overlay(AppTheme.glassBorder)
+                Button("Reset Trial (not started)") { store.debugResetTrial() }
+                    .padding(14)
+            }
+            .font(.system(size: 14, design: .rounded))
+            .foregroundStyle(AppTheme.accent)
+            .glassCard()
+        }
+    }
+    #endif
 
     // MARK: - Login action
 
@@ -199,5 +385,4 @@ struct AccountView: View {
     NavigationStack {
         AccountView()
     }
-    .preferredColorScheme(.dark)
 }

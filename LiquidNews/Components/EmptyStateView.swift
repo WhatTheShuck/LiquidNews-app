@@ -8,6 +8,8 @@ struct EmptyStateView: View {
     let title: String
     let message: String
 
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: 14) {
             Image(systemName: icon)
@@ -15,7 +17,7 @@ struct EmptyStateView: View {
                 .foregroundStyle(AppTheme.accent)
             Text(title)
                 .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text(message)
                 .font(AppTheme.bodyFont(13))
                 .foregroundStyle(.secondary)
@@ -28,12 +30,11 @@ struct EmptyStateView: View {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient.ignoresSafeArea()
+        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
         EmptyStateView(
             icon: "bookmark",
             title: "You're all caught up",
             message: "Bookmark a story to save it for later."
         )
     }
-    .preferredColorScheme(.dark)
 }

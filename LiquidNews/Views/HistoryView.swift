@@ -8,6 +8,7 @@ struct HistoryView: View {
 
     @State private var selectedStory: HNItem?
     @State private var showingClearConfirm = false
+    @Environment(\.colorScheme) private var colorScheme
 
     private let store = SavedPostsStore.shared
 
@@ -20,7 +21,7 @@ struct HistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationTitle(AppTab.history.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -140,7 +141,7 @@ private struct HistoryRowView: View {
 
             Text(entry.title ?? "Untitled")
                 .font(AppTheme.titleFont(15))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -168,5 +169,4 @@ private struct HistoryRowView: View {
 
 #Preview {
     NavigationStack { HistoryView() }
-        .preferredColorScheme(.dark)
 }

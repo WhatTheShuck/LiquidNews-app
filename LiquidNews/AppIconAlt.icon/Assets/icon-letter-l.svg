@@ -1,0 +1,11 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    White rounded L centred in 1024×1024.
+    Vertical bar:  242,182  →  402,842  (160×660, rx 80)
+    Horizontal foot: 242,682 → 782,842  (540×160, rx 80)
+    Bars overlap from y=682 to y=842 in the column x=242–402,
+    so they merge seamlessly into a solid L corner.
+  -->
+  <rect x="242" y="182" width="160" height="660" rx="80" fill="white"/>
+  <rect x="242" y="682" width="540" height="160" rx="80" fill="white"/>
+</svg>

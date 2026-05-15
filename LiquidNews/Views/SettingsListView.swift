@@ -7,6 +7,7 @@ import UniformTypeIdentifiers
 struct SettingsListView: View {
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
 
     @ScaledMetric(relativeTo: .body)    private var rowFontSize:      CGFloat = 15
     @ScaledMetric(relativeTo: .caption) private var subtitleFontSize: CGFloat = 12
@@ -30,6 +31,9 @@ struct SettingsListView: View {
     @State private var showingClearHistoryConfirm = false
     @State private var navigateToHiddenPosts = false
     @State private var selectedIconName: String? = UIApplication.shared.alternateIconName
+    @State private var paymentsStore = StoreService.shared
+    @State private var showThemePaywall = false
+    @State private var showThemePicker = false
 
     var body: some View {
         NavigationStack {
@@ -51,7 +55,7 @@ struct SettingsListView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient.ignoresSafeArea())
+            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -66,6 +70,20 @@ struct SettingsListView: View {
             .navigationDestination(isPresented: $navigateToHiddenPosts) {
                 HiddenPostsView()
             }
+        }
+        .sheet(isPresented: $showThemePaywall) {
+            NavigationStack {
+                PremiumPaywallView(focused: StoreService.ProductID.themes)
+            }
+            .presentationCornerRadius(.glassCornerRadius)
+        }
+        .sheet(isPresented: $showThemePicker) {
+            NavigationStack {
+                AppThemePickerView()
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(.glassCornerRadius)
         }
         // Export share sheet
         .sheet(isPresented: $showingExportSheet) {
@@ -147,7 +165,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(auth.isLoggedIn ? (auth.username ?? "Account") : "Sign In")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text(
                             auth.isLoggedIn
                                 ? "Tap to manage your account" : "Log in with your HN account"
@@ -157,6 +175,15 @@ struct SettingsListView: View {
                     }
 
                     Spacer()
+
+                    if paymentsStore.isDonating {
+                        Label("Supporter", systemImage: "heart.fill")
+                            .font(.system(size: subtitleFontSize, weight: .medium))
+                            .foregroundStyle(.pink)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(.pink.opacity(0.15), in: Capsule())
+                    }
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
@@ -185,7 +212,7 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         Text(tab.label)
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle(
                             "",
@@ -228,7 +255,7 @@ struct SettingsListView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Read Later Badge")
                         .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Text("Show a count badge on the Read Later tab")
                         .font(.system(size: subtitleFontSize))
                         .foregroundStyle(.secondary)
@@ -258,7 +285,7 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         Text(category.rawValue)
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle(
                             "",
@@ -340,7 +367,7 @@ struct SettingsListView: View {
                             .frame(width: 30)
                         Text(source.name)
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Spacer()
                         Toggle(
                             "",
@@ -376,7 +403,7 @@ struct SettingsListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(feed.name)
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                             Text(feed.urlString)
                                 .font(.system(size: 11))
                                 .foregroundStyle(.tertiary)
@@ -434,7 +461,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Show loading notice")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text("Banner warning that newsletter parsing may take a moment")
                             .font(.system(size: subtitleFontSize, design: .rounded))
                             .foregroundStyle(.secondary)
@@ -451,6 +478,31 @@ struct SettingsListView: View {
                     .tint(AppTheme.accent)
                 }
                 .padding(16)
+
+                // Hacker Newsletter attribution
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+                Link(destination: URL(string: "https://www.hackernewsletter.com")!) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "envelope.open")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Powered by Hacker Newsletter")
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text("The best of HN, curated weekly. Consider sponsoring or donating to support their work.")
+                                .font(.system(size: subtitleFontSize))
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer()
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(16)
+                }
             }
         }
         .glassCard()
@@ -476,7 +528,7 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     Text("Auto-load replies")
                         .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Spacer()
                     Text("\(settings.autoLoadReplyCount)")
                         .font(.system(size: rowFontSize, weight: .semibold, design: .rounded))
@@ -498,7 +550,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Max auto-expand depth")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text("Replies deeper than this require a tap")
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
@@ -515,6 +567,58 @@ struct SettingsListView: View {
 
                 Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
 
+                // Concurrent fetch limit — WiFi
+                HStack {
+                    Image(systemName: "wifi")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Parallel loads (WiFi)")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text("Higher = faster threads, more bandwidth")
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(settings.maxConcurrentFetchesWifi)")
+                        .font(.system(size: rowFontSize, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(minWidth: 28, alignment: .trailing)
+                    Stepper("", value: $settings.maxConcurrentFetchesWifi, in: 1...20)
+                        .labelsHidden()
+                }
+                .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Concurrent fetch limit — Cellular
+                HStack {
+                    Image(systemName: "antenna.radiowaves.left.and.right")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Parallel loads (Cellular)")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text("Lower = less data usage on slow connections")
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Text("\(settings.maxConcurrentFetchesCellular)")
+                        .font(.system(size: rowFontSize, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(minWidth: 28, alignment: .trailing)
+                    Stepper("", value: $settings.maxConcurrentFetchesCellular, in: 1...20)
+                        .labelsHidden()
+                }
+                .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
                 // Comment rendering style
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
@@ -525,7 +629,7 @@ struct SettingsListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Comment rendering")
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                             Text(settings.commentRenderingStyle.subtitle)
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
@@ -577,6 +681,29 @@ struct SettingsListView: View {
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
                 }
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Code block line wrapping
+                HStack(spacing: 12) {
+                    Image(systemName: "text.word.spacing")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Wrap code block lines")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text("Wrap long lines instead of scrolling horizontally")
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $settings.codeWrapLines)
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                }
+                .padding(16)
             }
         }
         .glassCard()
@@ -597,7 +724,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Default open mode")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text(settings.defaultLinkOpen.subtitle)
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
@@ -660,7 +787,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Links in comments")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text(settings.commentLinkOpen.subtitle)
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
@@ -723,7 +850,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Links in reader")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text(settings.readerLinkOpen.subtitle)
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
@@ -786,13 +913,36 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Show images in Reader")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text("Fetch and display images when opening articles in Reader mode")
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
                     Toggle("", isOn: $settings.readerShowImagesByDefault)
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                }
+                .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Safari Reader Mode
+                HStack(spacing: 12) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Safari Reader Mode")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text("Auto-enter Reader Mode when opening articles in In-App Safari")
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $settings.safariReaderMode)
                         .labelsHidden()
                         .tint(AppTheme.accent)
                 }
@@ -857,7 +1007,7 @@ struct SettingsListView: View {
                     .frame(width: 30)
                 Text(title)
                     .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 Spacer()
                 Picker("", selection: selection) {
                     ForEach(options) { action in
@@ -896,7 +1046,7 @@ struct SettingsListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Hidden Posts")
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                             Text("\(store.hiddenPosts.count) hidden")
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
@@ -921,7 +1071,7 @@ struct SettingsListView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Auto-clear hidden posts")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                         Text("HN posts age quickly — auto-expiry keeps the list lean")
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
@@ -949,7 +1099,7 @@ struct SettingsListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("When you view a post")
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                             Text(settings.readBehaviour.subtitle)
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
@@ -1050,7 +1200,7 @@ struct SettingsListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Export Data")
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                             Text("Share favourites, read later, history, or everything")
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
@@ -1106,7 +1256,7 @@ struct SettingsListView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Import Data")
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                             Text("Restore from a previous export")
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
@@ -1127,6 +1277,30 @@ struct SettingsListView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("About")
 
+            if !paymentsStore.isDonating {
+                Button {
+                    showThemePaywall = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "heart")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        Text("Support LiquidNews")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text("$0.99/mo")
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+            }
+
             Link(destination: URL(string: "https://news.ycombinator.com")!) {
                 HStack(spacing: 12) {
                     Image(systemName: "safari")
@@ -1135,7 +1309,7 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     Text("Open Hacker News")
                         .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 12, weight: .semibold))
@@ -1156,7 +1330,7 @@ struct SettingsListView: View {
                         .frame(width: 30)
                     Text("Open Source Licenses")
                         .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 13, weight: .semibold))
@@ -1175,7 +1349,7 @@ struct SettingsListView: View {
                     .frame(width: 30)
                 Text("LiquidNews")
                     .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 Spacer()
                 Text(appVersion)
                     .font(.system(size: 14))
@@ -1195,6 +1369,47 @@ struct SettingsListView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader("Appearance")
 
+            // Color Scheme row
+            HStack {
+                Label("Color Scheme", systemImage: "circle.lefthalf.filled")
+                    .foregroundStyle(.primary)
+                    .font(.system(size: rowFontSize))
+                Spacer()
+                Picker("Color Scheme", selection: $settings.appColorScheme) {
+                    ForEach(AppColorScheme.allCases) { scheme in
+                        Text(scheme.label).tag(scheme)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(maxWidth: 180)
+                .tint(AppTheme.accent)
+            }
+            .padding(16)
+
+            Divider().overlay(AppTheme.glassBorder)
+
+            // App Theme row
+            Button {
+                showThemePicker = true
+            } label: {
+                HStack {
+                    Label("App Theme", systemImage: "paintpalette")
+                        .foregroundStyle(.primary)
+                        .font(.system(size: rowFontSize))
+                    Spacer()
+                    Text(settings.selectedAppTheme.label)
+                        .font(.system(size: subtitleFontSize))
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: subtitleFontSize, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(16)
+            }
+            .buttonStyle(.plain)
+
+            Divider().overlay(AppTheme.glassBorder)
+
             HStack(spacing: 12) {
                 Image(systemName: "app.badge")
                     .font(.system(size: 16))
@@ -1202,7 +1417,7 @@ struct SettingsListView: View {
                     .frame(width: 30)
                 Text("App Icon")
                     .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 Spacer()
             }
             .padding(.horizontal, 16)
@@ -1210,16 +1425,8 @@ struct SettingsListView: View {
             .padding(.bottom, 14)
 
             HStack(spacing: 24) {
-                iconChoice(label: "Droplet", iconName: nil) {
-                    Image(systemName: "drop.fill")
-                        .font(.system(size: 28, weight: .medium))
-                        .foregroundStyle(.white)
-                }
-                iconChoice(label: "Letter", iconName: "AppIcon-L") {
-                    Text("L")
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                }
+                iconChoice(label: "Droplet", iconName: nil, imageName: "AppIcon")
+                iconChoice(label: "Letter", iconName: "AppIconAlt", imageName: "AppIconAlt")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
@@ -1228,11 +1435,7 @@ struct SettingsListView: View {
     }
 
     @ViewBuilder
-    private func iconChoice<Symbol: View>(
-        label: String,
-        iconName: String?,
-        @ViewBuilder symbol: () -> Symbol
-    ) -> some View {
+    private func iconChoice(label: String, iconName: String?, imageName: String) -> some View {
         let isSelected = selectedIconName == iconName
         Button {
             UIApplication.shared.setAlternateIconName(iconName) { _ in
@@ -1240,27 +1443,18 @@ struct SettingsListView: View {
             }
         } label: {
             VStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(LinearGradient(
-                            colors: [
-                                Color(red: 1.0, green: 0.55, blue: 0.19),
-                                Color(red: 0.91, green: 0.33, blue: 0.0)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                    symbol()
-                }
-                .frame(width: 64, height: 64)
-                .clipShape(RoundedRectangle(cornerRadius: 16))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(
-                            isSelected ? AppTheme.accent : Color.white.opacity(0.12),
-                            lineWidth: isSelected ? 3 : 1
-                        )
-                )
+                Image(imageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .strokeBorder(
+                                isSelected ? AppTheme.accent : Color.white.opacity(0.12),
+                                lineWidth: isSelected ? 3 : 1
+                            )
+                    )
 
                 Text(label)
                     .font(.system(size: 12, weight: .medium, design: .rounded))
@@ -1314,7 +1508,150 @@ struct SettingsListView: View {
 
 #Preview {
     SettingsListView()
-        .preferredColorScheme(.dark)
+}
+
+// MARK: - App Theme Picker
+
+private struct AppThemePickerView: View {
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var settings = UserSettings.shared
+    @State private var paymentsStore = StoreService.shared
+    @State private var showPaywall = false
+    @State private var showExpiredNudge = false
+
+    @ScaledMetric(relativeTo: .body)     private var rowSize:   CGFloat = 15
+    @ScaledMetric(relativeTo: .footnote) private var labelSize: CGFloat = 12
+
+    var body: some View {
+        ScrollView(.vertical) {
+            VStack(spacing: 16) {
+                // Theme presets
+                VStack(spacing: 0) {
+                    ForEach(Array(AppThemePreset.allCases.enumerated()), id: \.element.id) { index, preset in
+                        if index > 0 { Divider().overlay(AppTheme.glassBorder) }
+                        themePresetRow(preset)
+                    }
+                }
+                .glassCard()
+                .sheet(isPresented: $showPaywall) {
+                    NavigationStack {
+                        PremiumPaywallView(focused: StoreService.ProductID.themes)
+                    }
+                }
+
+                // Custom accent color picker
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Accent Color")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+
+                    HStack {
+                        Text("Custom Accent")
+                            .font(.system(size: rowSize))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        ColorPicker("", selection: Binding(
+                            get: {
+                                if let hex = settings.customAccentHex,
+                                   let color = Color(hexString: hex) { return color }
+                                return settings.selectedAppTheme.accent
+                            },
+                            set: { color in
+                                settings.customAccentHex = color.toHexString()
+                            }
+                        ), supportsOpacity: false)
+                        .labelsHidden()
+                        .frame(width: 44, height: 32)
+
+                        if settings.customAccentHex != nil {
+                            Button {
+                                settings.customAccentHex = nil
+                            } label: {
+                                Text("Reset")
+                                    .font(.system(size: labelSize))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(16)
+                    .glassCard()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+            .padding(.bottom, 32)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .navigationTitle("App Theme")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Done") { dismiss() }
+            }
+        }
+        .task {
+            if paymentsStore.trialState == .hardExpired && !paymentsStore.isThemesUnlocked && settings.selectedAppTheme.isPremium {
+                showExpiredNudge = true
+            }
+        }
+        .alert("Trial Ended", isPresented: $showExpiredNudge) {
+            Button("Unlock Themes") { showPaywall = true }
+            Button("Use Default", role: .destructive) { settings.selectedAppTheme = .standard }
+        } message: {
+            Text("Your 7-day free trial has ended. Unlock Themes to keep your current theme.")
+        }
+    }
+
+    @ViewBuilder
+    private func themePresetRow(_ preset: AppThemePreset) -> some View {
+        let locked = preset.isPremium && !paymentsStore.themesAccessible
+        Button {
+            if preset.isPremium && !paymentsStore.isThemesUnlocked {
+                switch paymentsStore.trialState {
+                case .notStarted:
+                    paymentsStore.startTrialIfNeeded()
+                    settings.selectedAppTheme = preset
+                case .active, .grace:
+                    settings.selectedAppTheme = preset
+                case .hardExpired:
+                    showPaywall = true
+                }
+            } else {
+                settings.selectedAppTheme = preset
+            }
+        } label: {
+            HStack(spacing: 14) {
+                Circle()
+                    .fill(preset.swatchColor)
+                    .frame(width: 32, height: 32)
+                    .overlay(Circle().strokeBorder(AppTheme.glassBorder, lineWidth: 1))
+                Text(preset.label)
+                    .font(.system(size: rowSize, design: .rounded))
+                    .foregroundStyle(locked ? Color.secondary : Color.primary)
+                Spacer()
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: labelSize))
+                        .foregroundStyle(Color.secondary)
+                } else if settings.selectedAppTheme == preset {
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(AppTheme.accent)
+                }
+            }
+            .padding(16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - Add Curated Feed sheet
@@ -1324,6 +1661,7 @@ private struct AddCuratedFeedView: View {
     var onSave: (CustomCuratedFeed) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @State private var name = ""
     @State private var urlString = ""
     @State private var showFormat = false
@@ -1343,7 +1681,7 @@ private struct AddCuratedFeedView: View {
                             fieldLabel("Feed name")
                             TextField("My Curated List", text: $name)
                                 .font(.system(size: 15, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                                 .padding(16)
                         }
                         Divider().overlay(AppTheme.glassBorder).padding(.leading, 16)
@@ -1351,7 +1689,7 @@ private struct AddCuratedFeedView: View {
                             fieldLabel("JSON URL")
                             TextField("https://example.com/curated.json", text: $urlString)
                                 .font(.system(size: 15, design: .rounded))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(.primary)
                                 .keyboardType(.URL)
                                 .autocorrectionDisabled()
                                 .textInputAutocapitalization(.never)
@@ -1372,7 +1710,7 @@ private struct AddCuratedFeedView: View {
                                     .frame(width: 30)
                                 Text("Expected JSON format")
                                     .font(.system(size: 15, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(.primary)
                                 Spacer()
                                 Image(systemName: showFormat ? "chevron.up" : "chevron.down")
                                     .font(.system(size: 12, weight: .semibold))
@@ -1420,7 +1758,7 @@ private struct AddCuratedFeedView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient.ignoresSafeArea())
+            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
             .navigationTitle("Add Custom Feed")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -1442,7 +1780,6 @@ private struct AddCuratedFeedView: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 
     @ViewBuilder

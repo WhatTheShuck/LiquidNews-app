@@ -14,6 +14,7 @@ struct CommentBodyView: View {
     var tintColor: Color = AppTheme.accent
 
     @ScaledMetric(relativeTo: .body) private var bodySize: CGFloat = 14
+    @Environment(\.colorScheme) private var colorScheme
 
     // Parsed representation of one chunk of comment content.
     private struct Segment: Identifiable {
@@ -26,21 +27,14 @@ struct CommentBodyView: View {
         let content: Content
     }
 
-    // Shared parse cache — HN comments are immutable so this never needs invalidation.
-    // When LazyVStack recreates a view on scroll-in, the cache gives an instant hit
-    // and segments is pre-populated, so the first render is already rich — no flicker.
+    // Shared parse cache keyed by "html:scheme" — segments embed CSS colors so they
+    // are not valid across color-scheme changes.
     private static var cache: [String: [Segment]] = [:]
+
+    private var cacheKey: String { "\(html):\(colorScheme == .light ? "l" : "d")" }
 
     /// nil while the first parse hasn't completed yet.
     @State private var segments: [Segment]?
-
-    init(html: String, tintColor: Color = AppTheme.accent) {
-        self.html = html
-        self.tintColor = tintColor
-        // Pre-populate from cache if this HTML has been parsed before so the first
-        // render is already rich (no flash on scroll-in / view recreation).
-        _segments = State(initialValue: CommentBodyView.cache[html])
-    }
 
     var body: some View {
         Group {
@@ -64,15 +58,18 @@ struct CommentBodyView: View {
                 // Fallback shown while parsing or if NSAttributedString parse fails.
                 Text(html.htmlStripped)
                     .font(.system(size: bodySize))
-                    .foregroundStyle(.white.opacity(0.88))
+                    .foregroundStyle(.primary.opacity(0.88))
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // Skip the parse entirely on a cache hit; only run on first encounter.
-        .task(id: html) {
-            guard segments == nil else { return }
+        // Re-runs whenever html or colorScheme changes; cache gives instant hit on revisit.
+        .task(id: cacheKey) {
+            if let cached = CommentBodyView.cache[cacheKey] {
+                segments = cached
+                return
+            }
             let parsed = buildSegments(from: html)
-            CommentBodyView.cache[html] = parsed
+            CommentBodyView.cache[cacheKey] = parsed
             segments = parsed
         }
     }
@@ -140,12 +137,14 @@ struct CommentBodyView: View {
         let processed = html
             .replacingOccurrences(of: #"(?i)</p>"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: #"(?i)<p\b[^>]*>"#, with: "<br><br>", options: .regularExpression)
+        let textColor = colorScheme == .light ? "#1C1C1E" : "#DCDCDC"
+        let boldColor = colorScheme == .light ? "#000000" : "#F0F0F0"
         let styledHTML = """
         <html><head><meta charset="UTF-8"><style>
-        body      { font-family: -apple-system; font-size: 14px; color: #DCDCDC; white-space: pre-line; }
+        body      { font-family: -apple-system; font-size: 14px; color: \(textColor); white-space: pre-line; }
         a         { color: #FF6B14; text-decoration: none; }
         code      { font-family: Menlo, 'SF Mono', monospace; font-size: 12.5px; }
-        b, strong { font-weight: 600; color: #F0F0F0; }
+        b, strong { font-weight: 600; color: \(boldColor); }
         i, em     { font-style: italic; }
         </style></head><body>\(processed)</body></html>
         """
@@ -254,6 +253,7 @@ private struct CodeBlockView: View {
     let code: String
 
     @State private var copied = false
+    @State private var settings = UserSettings.shared
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -280,25 +280,34 @@ private struct CodeBlockView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .foregroundStyle(.white.opacity(0.35))
+            .foregroundStyle(.primary.opacity(0.35))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
             // Separator between header and code area
             Rectangle()
-                .fill(Color.white.opacity(0.08))
+                .fill(Color.primary.opacity(0.08))
                 .frame(height: 1)
 
-            // ── Scrollable code area ──
-            ScrollView(.horizontal, showsIndicators: false) {
+            // ── Code area: scrollable or wrapping ──
+            if settings.codeWrapLines {
                 Text(code)
                     .font(.system(size: 12.5, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(.primary.opacity(0.85))
                     .lineSpacing(3)
-                    // Prevent text from wrapping — each source line stays on one line.
-                    .fixedSize(horizontal: true, vertical: false)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    Text(code)
+                        .font(.system(size: 12.5, design: .monospaced))
+                        .foregroundStyle(.primary.opacity(0.85))
+                        .lineSpacing(3)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                }
             }
         }
         .glassCard(cornerRadius: 12)
@@ -321,7 +330,7 @@ private struct QuoteBlockView: View {
 
             Text(text)
                 .font(.system(size: quoteSize))
-                .foregroundStyle(.white.opacity(0.65))
+                .foregroundStyle(.primary.opacity(0.65))
                 .fixedSize(horizontal: false, vertical: true)
                 .tint(AppTheme.accent)
         }
@@ -347,11 +356,10 @@ private extension String {
 
 #Preview("Rich comment with code") {
     ZStack {
-        AppTheme.backgroundGradient.ignoresSafeArea()
+        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
         ScrollView {
             CommentBodyView(html: PreviewData.richComment.text ?? "")
                 .padding()
         }
     }
-    .preferredColorScheme(.dark)
 }

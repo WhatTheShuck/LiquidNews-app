@@ -8,6 +8,7 @@ struct HiddenPostsView: View {
 
     @State private var selectedStory: HNItem?
     @State private var showingClearConfirm = false
+    @Environment(\.colorScheme) private var colorScheme
 
     private let store = SavedPostsStore.shared
 
@@ -20,7 +21,7 @@ struct HiddenPostsView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationTitle("Hidden Posts")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -120,7 +121,7 @@ struct HiddenPostsView: View {
                 .foregroundStyle(AppTheme.accent)
             Text("No hidden posts")
                 .font(AppTheme.titleFont(22))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
             Text("Posts you hide will appear here.")
                 .font(AppTheme.bodyFont(13))
                 .foregroundStyle(.secondary)
@@ -143,7 +144,7 @@ private struct HiddenPostRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title ?? "Untitled")
                     .font(AppTheme.titleFont(14))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.primary.opacity(0.6))
                     .lineLimit(2)
 
                 HStack(spacing: 8) {
@@ -176,5 +177,4 @@ private struct HiddenPostRowView: View {
 
 #Preview {
     NavigationStack { HiddenPostsView() }
-        .preferredColorScheme(.dark)
 }

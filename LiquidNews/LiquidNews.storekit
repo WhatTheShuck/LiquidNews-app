@@ -1,0 +1,245 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "F4A7416D",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "2.99",
+      "familyShareable" : false,
+      "internalID" : "C5DF8F2C",
+      "localizations" : [
+        {
+          "description" : "Vote, reply, and flag on Hacker News",
+          "displayName" : "Account",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.liquidnews.premium.account",
+      "referenceName" : "Account",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "99A9A8FA",
+      "localizations" : [
+        {
+          "description" : "Premium app and reader themes",
+          "displayName" : "Themes",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.liquidnews.premium.themes",
+      "referenceName" : "Themes",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "5.99",
+      "familyShareable" : false,
+      "internalID" : "995039A8",
+      "localizations" : [
+        {
+          "description" : "Account and Themes at a discount",
+          "displayName" : "Bundle",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.liquidnews.premium.bundle",
+      "referenceName" : "Bundle",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_compatibilityTimeRate" : {
+      "3" : 3
+    },
+    "_disableDialogs" : false,
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+
+    ],
+    "_timeRate" : 10
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "5402C717",
+      "localizations" : [
+
+      ],
+      "name" : "Donations",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "0.99",
+          "familyShareable" : false,
+          "groupNumber" : 5,
+          "internalID" : "6D8C9921",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Still counts",
+              "displayName" : "Lurker",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.liquidnews.donation.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Lurker",
+          "subscriptionGroupID" : "5402C717",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 4,
+          "internalID" : "5C8B2E50",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Has opinions on tabs vs spaces",
+              "displayName" : "Commenter",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.liquidnews.donation.monthly.commenter",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Commenter",
+          "subscriptionGroupID" : "5402C717",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 3,
+          "internalID" : "2E96C6D1",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Checks HN before coffee",
+              "displayName" : "Power User",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.liquidnews.donation.monthly.poweruser",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Power User",
+          "subscriptionGroupID" : "5402C717",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "19.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "internalID" : "7AD5ECC3",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Probably has an exit",
+              "displayName" : "YC Alum",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.liquidnews.donation.monthly.ycalum",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "YC Alum",
+          "subscriptionGroupID" : "5402C717",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "BE3B4B4F",
+          "introductoryOffers" : [
+
+          ],
+          "localizations" : [
+            {
+              "description" : "Writes the cheques",
+              "displayName" : "Parnter",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.liquidnews.donation.monthly.partner",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Partner",
+          "subscriptionGroupID" : "5402C717",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 5,
+    "minor" : 0
+  }
+}

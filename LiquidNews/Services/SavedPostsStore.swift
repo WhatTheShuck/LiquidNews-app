@@ -227,17 +227,21 @@ final class SavedPostsStore {
     // MARK: - Read history
 
     func recordRead(_ item: HNItem) {
-        if readHistory.first?.id == item.id { return }
+        recordRead(id: item.id, title: item.title, url: item.url, by: item.by, score: item.score)
+    }
+
+    func recordRead(id: Int, title: String?, url: String?, by: String? = nil, score: Int? = nil) {
+        if readHistory.first?.id == id { return }
         let entry = ReadHistoryEntry(
-            id:     item.id,
+            id:     id,
             readAt: Date(),
-            title:  item.title,
-            url:    item.url,
-            by:     item.by,
-            score:  item.score
+            title:  title,
+            url:    url,
+            by:     by,
+            score:  score
         )
         readHistory.insert(entry, at: 0)
-        readIDs.insert(item.id)
+        readIDs.insert(id)
         if readHistory.count > maxHistoryCount {
             let removed = readHistory.removeLast()
             if !readHistory.contains(where: { $0.id == removed.id }) {

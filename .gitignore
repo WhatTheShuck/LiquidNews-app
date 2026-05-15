@@ -82,3 +82,6 @@ fastlane/test_output
 iOSInjectionProject/
 
 .worktrees/
+docs/
+
+.DS_Store

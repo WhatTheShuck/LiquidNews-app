@@ -6,6 +6,7 @@ import SwiftUI
 struct OnboardingView: View {
 
     var onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     private let features: [(icon: String, title: String, body: String)] = [
         (
@@ -42,7 +43,7 @@ struct OnboardingView: View {
                             .padding(.top, 56)
                         Text("Welcome to LiquidNews")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                             .multilineTextAlignment(.center)
                     }
 
@@ -57,7 +58,7 @@ struct OnboardingView: View {
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(feature.title)
                                         .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(.primary)
                                     Text(feature.body)
                                         .font(.system(size: 13))
                                         .foregroundStyle(.secondary)
@@ -78,7 +79,7 @@ struct OnboardingView: View {
             Button(action: onDismiss) {
                 Text("Get Started")
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
                     .glassEffect(
@@ -94,7 +95,7 @@ struct OnboardingView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
     }
 }
 

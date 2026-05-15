@@ -46,10 +46,11 @@ struct CuratedView: View {
     @State private var pickerProgress: Double = 0
     @State private var chipCenters: [Int: CGFloat] = [:]
     @State private var pickerRowWidth: CGFloat = 0
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
-            if viewModel.isLoadingInitial && viewModel.entries.isEmpty {
+            if (viewModel.isLoadingInitial || viewModel.isRefreshing) && viewModel.entries.isEmpty {
                 CuratedSkeletonView()
             } else if let error = viewModel.error, viewModel.entries.isEmpty {
                 ErrorView(message: error) {
@@ -62,7 +63,7 @@ struct CuratedView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .navigationTitle(AppTab.curated.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -107,6 +108,7 @@ struct CuratedView: View {
 
     // MARK: - Filtering
 
+    /// Source-filtered entries from the view model.
     private var filteredEntries: [CuratedEntry] {
         guard let sourceID = selectedSourceID else { return viewModel.entries }
         return viewModel.entries.filter { entry in
@@ -118,6 +120,15 @@ struct CuratedView: View {
                     return feedID == sourceID
                 }
             }
+        }
+    }
+
+    /// Source-filtered entries with hidden posts removed.
+    /// Reactive: SavedPostsStore is @Observable so this recomputes whenever hiddenIDs changes.
+    private var visibleEntries: [CuratedEntry] {
+        filteredEntries.filter { entry in
+            guard let id = entry.hnItemID else { return true }
+            return !store.isHidden(id)
         }
     }
 
@@ -134,7 +145,7 @@ struct CuratedView: View {
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 0, trailing: 16))
             }
 
-            ForEach(Array(filteredEntries.enumerated()), id: \.element.id) { index, entry in
+            ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, entry in
                 Button {
                     performAction(settings.tapAction, entry: entry)
                 } label: {
@@ -153,7 +164,7 @@ struct CuratedView: View {
                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                 // Trigger next page when within 5 rows of the bottom of visible entries.
                 .onAppear {
-                    if index >= filteredEntries.count - 5 {
+                    if index >= visibleEntries.count - 5 {
                         Task { await viewModel.loadMore() }
                     }
                 }
@@ -168,7 +179,7 @@ struct CuratedView: View {
                     .listRowSeparator(.hidden)
             }
 
-            if !viewModel.canLoadMore && !filteredEntries.isEmpty && !viewModel.isLoadingInitial {
+            if !viewModel.canLoadMore && !visibleEntries.isEmpty && !viewModel.isLoadingInitial {
                 Text("All caught up")
                     .font(AppTheme.captionFont(12))
                     .foregroundStyle(.tertiary)
@@ -178,7 +189,7 @@ struct CuratedView: View {
                     .listRowSeparator(.hidden)
             }
 
-            if filteredEntries.isEmpty && selectedSourceID != nil {
+            if visibleEntries.isEmpty && selectedSourceID != nil {
                 Text("No entries from this source")
                     .font(AppTheme.bodyFont(14))
                     .foregroundStyle(.secondary)
@@ -225,12 +236,16 @@ struct CuratedView: View {
     private func performAction(_ action: StoryAction, entry: CuratedEntry) {
         switch action {
         case .openComments:
+            // StoryDetailView.task handles recordRead + auto-hide for this path.
             Task { await open(entry) }
         case .openBrowser:
+            recordReadAndMaybeHide(entry)
             safariURL = IdentifiableURL(entry.url)
         case .openReader:
+            recordReadAndMaybeHide(entry)
             readerURL = IdentifiableURL(entry.url)
         case .openSafari:
+            recordReadAndMaybeHide(entry)
             openURL(entry.url)
         case .favourite:
             guard let id = entry.hnItemID else { return }
@@ -243,6 +258,18 @@ struct CuratedView: View {
             store.hide(id: id, title: entry.title, url: entry.url.absoluteString)
         case .none:
             break
+        }
+    }
+
+    /// Records the entry as read and, if readBehaviour is .hide, hides it from the feed
+    /// (mirroring what StoryDetailView.task does for the openComments path).
+    private func recordReadAndMaybeHide(_ entry: CuratedEntry) {
+        guard let id = entry.hnItemID else { return }
+        store.recordRead(id: id, title: entry.title, url: entry.url.absoluteString)
+        if settings.readBehaviour == .hide,
+           !store.isFavourite(id),
+           !store.isReadLater(id) {
+            store.hide(id: id, title: entry.title, url: entry.url.absoluteString)
         }
     }
 
@@ -363,7 +390,7 @@ struct CuratedView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Loading curated stories…")
                     .font(AppTheme.bodyFont(13))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                 Text("Newsletter parsing may take a moment.")
                     .font(AppTheme.captionFont(11))
                     .foregroundStyle(.secondary)
@@ -422,7 +449,7 @@ private struct CuratedSourceChip: View {
     var body: some View {
         Text(label)
             .font(.system(size: 14, weight: .semibold, design: .rounded))
-            .foregroundStyle(isSelected ? AppTheme.accent : Color.white)
+            .foregroundStyle(isSelected ? AppTheme.accent : Color.primary)
             .opacity(max(0, 1 - mergeProgress * 2))
             .lineLimit(1)
             .minimumScaleFactor(0.85)
@@ -444,5 +471,4 @@ private struct CuratedSourceChip: View {
 
 #Preview {
     NavigationStack { CuratedView() }
-        .preferredColorScheme(.dark)
 }

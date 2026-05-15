@@ -1,0 +1,12 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Border square as a filled compound path (evenodd) — no stroke, no background fill.
+    Outer rect: 141,141 → 883,883
+    Inner rect: 179,179 → 845,845  (38px border width)
+    Set fill to orange in icon composer — the centre hole stays transparent.
+  -->
+  <path fill-rule="evenodd"
+        d="M 141 141 L 883 141 L 883 883 L 141 883 Z
+           M 179 179 L 179 845 L 845 845 L 845 179 Z"
+        fill="#FF6600"/>
+</svg>

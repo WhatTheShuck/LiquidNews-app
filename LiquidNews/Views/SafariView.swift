@@ -9,9 +9,12 @@ import SafariServices
 
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
+    var readerMode: Bool = UserSettings.shared.safariReaderMode
 
     func makeUIViewController(context: Context) -> SFSafariViewController {
-        SFSafariViewController(url: url)
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = readerMode
+        return SFSafariViewController(url: url, configuration: config)
     }
 
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}

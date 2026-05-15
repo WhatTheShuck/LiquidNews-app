@@ -60,6 +60,7 @@ struct StoryDetailView: View {
     @State private var actionError: String?
     @State private var hasUpvoted = false
     @State private var localScore: Int
+    @Environment(\.colorScheme) private var colorScheme
 
     init(story: HNItem) {
         self.story = story
@@ -69,8 +70,6 @@ struct StoryDetailView: View {
 
     var body: some View {
         ScrollView(.vertical) {
-            // LazyVStack so each CommentView is only created as it scrolls
-            // into view — essential for threads with 500+ top-level comments.
             LazyVStack(alignment: .leading, spacing: 10) {
                 storyHeaderCard
                     .padding(.top, 6)
@@ -90,7 +89,13 @@ struct StoryDetailView: View {
                         .glassCard()
                 } else {
                     ForEach(viewModel.comments) { comment in
-                        CommentView(comment: comment, depth: 0, opUsername: story.by)
+                        // Each comment gets its own GlassEffectContainer so the
+                        // glass rendering is spatially coordinated within that one
+                        // card. A single container over the whole list caused blank-
+                        // screen flicker during fast scrolling on long threads.
+                        GlassEffectContainer {
+                            CommentView(comment: comment, depth: 0, opUsername: story.by)
+                        }
                     }
                 }
             }
@@ -100,12 +105,15 @@ struct StoryDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
+        // Disable scroll clip so glass cards near the top/bottom of the viewport
+        // can render their full glow region without being cut off by the clip bounds.
+        .scrollClipDisabled()
         // Gradient applied here rather than in a ZStack that fills the
         // entire view including the toolbar area. An opaque layer behind
         // the toolbar prevents the system from sampling content and
         // rendering Liquid Glass — per WWDC25 guidance to remove
         // backgrounds sitting behind toolbars.
-        .background(AppTheme.backgroundGradient.ignoresSafeArea())
+        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .environment(\.openURL, OpenURLAction { url in
             switch settings.commentLinkOpen {
             case .inAppSafari:
@@ -355,7 +363,7 @@ struct StoryDetailView: View {
 
             Text(story.title ?? "")
                 .font(.system(size: titleSize, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
 
             HStack(spacing: 16) {
                 Label("\(localScore) points", systemImage: hasUpvoted ? "arrow.up.circle.fill" : "arrow.up")
@@ -389,7 +397,7 @@ struct StoryDetailView: View {
                             .font(.system(size: domainBadgeSize))
                     }
                     .font(.system(size: buttonSize, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(.primary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .background(AppTheme.accent, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -470,7 +478,7 @@ struct StoryDetailView: View {
                         .foregroundStyle(AppTheme.accent)
                     Text(isLoadingRelated ? "Also Discussed on HN" : "Also Discussed on HN (\(relatedStories.count))")
                         .font(.system(size: metaSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.85))
+                        .foregroundStyle(.primary.opacity(0.85))
                     Spacer()
                 }
                 .padding(.horizontal, 14)
@@ -513,7 +521,7 @@ struct StoryDetailView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(related.title ?? "")
                 .font(.system(size: metaSize, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(.primary.opacity(0.9))
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -538,7 +546,7 @@ struct StoryDetailView: View {
     private var commentsHeader: some View {
         Text("Comments")
             .font(.system(size: sectionHeaderSize, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
+            .foregroundStyle(.primary)
             .padding(.horizontal, 2)
             .padding(.top, 4)
     }
@@ -551,7 +559,6 @@ struct StoryDetailView: View {
         StoryDetailView(story: PreviewData.stories[0])
     }
     .presentationDragIndicator(.visible)
-    .preferredColorScheme(.dark)
 }
 
 #Preview("Ask HN self-post") {
@@ -559,5 +566,4 @@ struct StoryDetailView: View {
         StoryDetailView(story: PreviewData.stories[2])
     }
     .presentationDragIndicator(.visible)
-    .preferredColorScheme(.dark)
 }

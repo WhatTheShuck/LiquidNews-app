@@ -11,6 +11,7 @@ struct StoryRowView: View {
     @ScaledMetric(relativeTo: .caption2) private var domainSize: CGFloat = 11
     @ScaledMetric(relativeTo: .caption2) private var metaSize:   CGFloat = 11
 
+    @Environment(\.colorScheme) private var colorScheme
     private let store = SavedPostsStore.shared
     private let settings = UserSettings.shared
 
@@ -39,12 +40,13 @@ struct StoryRowView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(AppTheme.accentMuted, in: Capsule())
+                        .overlay(Capsule().strokeBorder(AppTheme.accent.opacity(settings.selectedAppTheme == .classic ? 0.5 : 0), lineWidth: 1))
                     }
 
                     // Story title — optionally dimmed once the user has opened it
                     Text(story.title ?? "Untitled")
                         .font(.system(size: titleSize, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white.opacity(shouldDim ? 0.4 : 1.0))
+                        .foregroundStyle(.primary.opacity(shouldDim ? 0.4 : 1.0))
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -108,7 +110,7 @@ struct MetaBadge: View {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient.ignoresSafeArea()
+        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
         StoryRowView(
             story: HNItem(
                 id: 1,
@@ -128,5 +130,4 @@ struct MetaBadge: View {
         )
         .padding()
     }
-    .preferredColorScheme(.dark)
 }

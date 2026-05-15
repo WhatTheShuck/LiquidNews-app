@@ -1,0 +1,10 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Thin sharp-cornered border square, YC-style.
+    Transparent background — layer over icon-bg.svg.
+    Square sits at x=141, y=141, size=742×742, stroke=38px.
+    Stroke is inset by 19px on each side, so visual outer edge = 141, inner edge = 198.
+  -->
+  <rect x="141" y="141" width="742" height="742"
+        fill="none" stroke="white" stroke-width="38"/>
+</svg>

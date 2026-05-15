@@ -13,13 +13,22 @@
             </array>
         </dict>
     </array>
-    <key>UIUserInterfaceStyle</key>
-    <string>Dark</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
     <key>UIRequiresFullScreen</key>
     <true/>
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundleAlternateIcons</key>
+        <dict>
+            <key>AppIconAlt</key>
+            <dict>
+                <key>CFBundleIconName</key>
+                <string>AppIconAlt</string>
+            </dict>
+        </dict>
+    </dict>
 </dict>
 </plist>

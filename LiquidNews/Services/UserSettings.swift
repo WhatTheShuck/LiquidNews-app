@@ -240,6 +240,34 @@ enum StoryAction: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - App color scheme override
+
+enum AppColorScheme: String, CaseIterable, Identifiable {
+    case system = "system"
+    case dark   = "dark"
+    case light  = "light"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "System"
+        case .dark:   return "Dark"
+        case .light:  return "Light"
+        }
+    }
+
+    /// The SwiftUI ColorScheme to pass to `.preferredColorScheme()`.
+    /// nil means follow the system — SwiftUI treats nil as "no override".
+    var resolved: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .dark:   return .dark
+        case .light:  return .light
+        }
+    }
+}
+
 @Observable
 final class UserSettings {
 
@@ -263,6 +291,17 @@ final class UserSettings {
     /// Default of 2 keeps threads readable without infinite nesting.
     var maxAutoExpandDepth: Int {
         didSet { kvStore.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) }
+    }
+
+    /// Max concurrent comment fetches on WiFi. Higher = faster load, more bandwidth.
+    var maxConcurrentFetchesWifi: Int {
+        didSet { kvStore.set(maxConcurrentFetchesWifi, forKey: Keys.maxConcurrentFetchesWifi) }
+    }
+
+    /// Max concurrent comment fetches on cellular. Lower = less data usage and more
+    /// reliable loads on poor connections.
+    var maxConcurrentFetchesCellular: Int {
+        didSet { kvStore.set(maxConcurrentFetchesCellular, forKey: Keys.maxConcurrentFetchesCellular) }
     }
 
     // MARK: - Comment rendering
@@ -360,11 +399,44 @@ final class UserSettings {
         didSet { kvStore.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) }
     }
 
+    /// When true, SFSafariViewController will attempt to enter Safari Reader Mode automatically.
+    var safariReaderMode: Bool {
+        didSet { kvStore.set(safariReaderMode, forKey: Keys.safariReaderMode) }
+    }
+
+    /// When true, code blocks in comments wrap long lines instead of scrolling horizontally.
+    var codeWrapLines: Bool {
+        didSet { kvStore.set(codeWrapLines, forKey: Keys.codeWrapLines) }
+    }
+
     // MARK: - Read Later
 
     /// When true, a count badge appears on the Read Later tab.
     var showReadLaterBadge: Bool {
         didSet { kvStore.set(showReadLaterBadge, forKey: Keys.showReadLaterBadge) }
+    }
+
+    // MARK: - App Theme
+
+    var selectedAppTheme: AppThemePreset {
+        didSet { kvStore.set(selectedAppTheme.rawValue, forKey: Keys.selectedAppTheme) }
+    }
+
+    /// Custom accent color stored as a 6-char lowercase hex string, or nil for the preset default.
+    var customAccentHex: String? {
+        didSet {
+            if let hex = customAccentHex {
+                kvStore.set(hex, forKey: Keys.customAccentHex)
+            } else {
+                kvStore.removeObject(forKey: Keys.customAccentHex)
+            }
+        }
+    }
+
+    // MARK: - Color scheme override
+
+    var appColorScheme: AppColorScheme {
+        didSet { kvStore.set(appColorScheme.rawValue, forKey: Keys.appColorScheme) }
     }
 
     // MARK: - Curated sources
@@ -393,8 +465,10 @@ final class UserSettings {
     // MARK: - Init
 
     private enum Keys {
-        static let autoLoadReplyCount           = "LN_autoLoadReplyCount"
-        static let maxAutoExpandDepth           = "LN_maxAutoExpandDepth"
+        static let autoLoadReplyCount              = "LN_autoLoadReplyCount"
+        static let maxAutoExpandDepth              = "LN_maxAutoExpandDepth"
+        static let maxConcurrentFetchesWifi        = "LN_maxConcurrentFetchesWifi"
+        static let maxConcurrentFetchesCellular    = "LN_maxConcurrentFetchesCellular"
         static let enabledOptionalTabs          = "LN_enabledOptionalTabs"
         static let tabOrder                     = "LN_tabOrder"
         static let commentRenderingStyle        = "LN_commentRenderingStyle"
@@ -412,7 +486,12 @@ final class UserSettings {
         static let hiddenPostsExpiry            = "LN_hiddenPostsExpiry"
         static let readBehaviour                = "LN_readBehaviour"
         static let readerShowImagesByDefault    = "LN_readerShowImagesByDefault"
+        static let safariReaderMode             = "LN_safariReaderMode"
+        static let codeWrapLines                = "LN_codeWrapLines"
         static let showReadLaterBadge           = "LN_showReadLaterBadge"
+        static let selectedAppTheme             = "LN_selectedAppTheme"
+        static let customAccentHex              = "LN_customAccentHex"
+        static let appColorScheme               = "LN_appColorScheme"
     }
 
     /// Runs once on upgrade: copies existing UserDefaults values into the KV store
@@ -434,7 +513,8 @@ final class UserSettings {
             Keys.tapAction, Keys.swipeLeftAction, Keys.swipeRightAction,
             Keys.defaultLinkOpen, Keys.commentLinkOpen, Keys.readerLinkOpen,
             Keys.hiddenPostsExpiry, Keys.readBehaviour,
-            Keys.readerShowImagesByDefault, Keys.showReadLaterBadge,
+            Keys.readerShowImagesByDefault, Keys.safariReaderMode, Keys.codeWrapLines, Keys.showReadLaterBadge,
+            Keys.selectedAppTheme, Keys.customAccentHex, Keys.appColorScheme,
         ]
         for key in allKeys {
             if kvStore.object(forKey: key) == nil, let value = ud.object(forKey: key) {
@@ -453,6 +533,10 @@ final class UserSettings {
                 autoLoadReplyCount = (kvStore.object(forKey: key) as? Int) ?? 3
             case Keys.maxAutoExpandDepth:
                 maxAutoExpandDepth = (kvStore.object(forKey: key) as? Int) ?? 2
+            case Keys.maxConcurrentFetchesWifi:
+                maxConcurrentFetchesWifi = (kvStore.object(forKey: key) as? Int) ?? 10
+            case Keys.maxConcurrentFetchesCellular:
+                maxConcurrentFetchesCellular = (kvStore.object(forKey: key) as? Int) ?? 6
             case Keys.enabledOptionalTabs:
                 let raw = (kvStore.array(forKey: key) as? [String]) ?? AppTab.optional.map(\.rawValue)
                 enabledOptionalTabs = Set(raw.compactMap(AppTab.init(rawValue:)))
@@ -501,9 +585,19 @@ final class UserSettings {
                 readBehaviour = ReadBehaviour(rawValue: kvStore.string(forKey: key) ?? "") ?? .dim
             case Keys.readerShowImagesByDefault:
                 readerShowImagesByDefault = kvStore.bool(forKey: key)
+            case Keys.safariReaderMode:
+                safariReaderMode = (kvStore.object(forKey: key) as? Bool) ?? true
+            case Keys.codeWrapLines:
+                codeWrapLines = kvStore.bool(forKey: key)
             case Keys.showReadLaterBadge:
                 // kvStore.bool(forKey:) returns false for absent keys; this setting defaults to true
                 showReadLaterBadge = (kvStore.object(forKey: key) as? Bool) ?? true
+            case Keys.selectedAppTheme:
+                selectedAppTheme = AppThemePreset(rawValue: kvStore.string(forKey: key) ?? "") ?? .standard
+            case Keys.customAccentHex:
+                customAccentHex = kvStore.string(forKey: key).flatMap { $0.isEmpty ? nil : $0 }
+            case Keys.appColorScheme:
+                appColorScheme = AppColorScheme(rawValue: kvStore.string(forKey: key) ?? "") ?? .system
             default:
                 break
             }
@@ -518,6 +612,8 @@ final class UserSettings {
 
         autoLoadReplyCount = (kvStore.object(forKey: Keys.autoLoadReplyCount) as? Int) ?? 3
         maxAutoExpandDepth = (kvStore.object(forKey: Keys.maxAutoExpandDepth) as? Int) ?? 2
+        maxConcurrentFetchesWifi     = (kvStore.object(forKey: Keys.maxConcurrentFetchesWifi) as? Int) ?? 10
+        maxConcurrentFetchesCellular = (kvStore.object(forKey: Keys.maxConcurrentFetchesCellular) as? Int) ?? 6
 
         let rawTabs = (kvStore.array(forKey: Keys.enabledOptionalTabs) as? [String])
             ?? AppTab.optional.map(\.rawValue)
@@ -583,8 +679,19 @@ final class UserSettings {
 
         readerShowImagesByDefault = kvStore.bool(forKey: Keys.readerShowImagesByDefault)
 
-        // kvStore.bool(forKey:) returns false for absent keys; this setting defaults to true
+        // kvStore.bool(forKey:) returns false for absent keys; these settings default to true
+        safariReaderMode = (kvStore.object(forKey: Keys.safariReaderMode) as? Bool) ?? true
+        codeWrapLines = kvStore.bool(forKey: Keys.codeWrapLines)
+
         showReadLaterBadge = (kvStore.object(forKey: Keys.showReadLaterBadge) as? Bool) ?? true
+
+        let rawTheme = kvStore.string(forKey: Keys.selectedAppTheme) ?? AppThemePreset.standard.rawValue
+        selectedAppTheme = AppThemePreset(rawValue: rawTheme) ?? .standard
+
+        customAccentHex = kvStore.string(forKey: Keys.customAccentHex).flatMap { $0.isEmpty ? nil : $0 }
+
+        let rawColorScheme = kvStore.string(forKey: Keys.appColorScheme) ?? AppColorScheme.system.rawValue
+        appColorScheme = AppColorScheme(rawValue: rawColorScheme) ?? .system
 
         // Listen for changes pushed from other devices
         NotificationCenter.default.addObserver(
