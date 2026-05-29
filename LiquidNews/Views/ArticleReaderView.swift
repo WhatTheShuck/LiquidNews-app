@@ -274,6 +274,12 @@ enum PendingDirectLink: Equatable {
     case safari(URL)
 }
 
+/// Action chosen from the HN-link long-press context menu in the reader.
+/// Enum with associated values avoids tuple-Equatable limitations with .onChange(of:).
+enum PendingHNAction: Equatable {
+    case open(URL, HNLinkMode)
+}
+
 // MARK: - State
 
 @Observable
@@ -304,6 +310,12 @@ final class ReaderState {
 
     /// Set by the long-press context menu; cleared by ArticleReaderView after routing.
     var pendingDirectLink: PendingDirectLink? = nil
+
+    /// Set by the coordinator when a tapped link is an HN item URL; cleared by ArticleReaderView.
+    var pendingHNLinkURL: URL? = nil
+
+    /// Set by the coordinator when the user picks an action from the HN long-press menu; cleared by ArticleReaderView.
+    var pendingHNAction: PendingHNAction? = nil
 
     /// KVO-updated: true when the WKWebView's back/forward list has a prior entry.
     var canGoBack: Bool = false
@@ -349,6 +361,7 @@ struct ArticleReaderView: View {
     @State private var readerLinkReaderURL: IdentifiableURL?
     @State private var fallbackSafariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
+    @State private var linkedHNStory: HNItem?
 
     init(url: URL) {
         self.url = url
@@ -359,6 +372,21 @@ struct ArticleReaderView: View {
 
     var body: some View {
         readerContent
+            .onChange(of: readerState.pendingHNLinkURL) { _, url in
+                guard let url else { return }
+                readerState.pendingHNLinkURL = nil
+                handlePendingHNLinkURL(url)
+            }
+            .onChange(of: readerState.pendingHNAction) { _, action in
+                guard let action else { return }
+                readerState.pendingHNAction = nil
+                handlePendingHNAction(action)
+            }
+            .sheet(item: $linkedHNStory) { story in
+                NavigationStack { StoryDetailView(story: story) }
+                    .presentationDragIndicator(.visible)
+                    .presentationCornerRadius(.glassCornerRadius)
+            }
     }
 
     private var readerContent: some View {
@@ -512,6 +540,27 @@ struct ArticleReaderView: View {
 
     private func updateReaderLinkInterception() {
         readerState.interceptLinks = (settings.readerLinkOpen != .inline)
+    }
+
+    private func handlePendingHNLinkURL(_ url: URL) {
+        guard let id = HNURLRouter.itemID(from: url) else { return }
+        Task { @MainActor in linkedHNStory = try? await HNAPIService.shared.item(id: id) }
+    }
+
+    private func handlePendingHNAction(_ action: PendingHNAction) {
+        switch action {
+        case .open(let url, let mode):
+            switch mode {
+            case .inApp:
+                guard let id = HNURLRouter.itemID(from: url) else { return }
+                Task { @MainActor in linkedHNStory = try? await HNAPIService.shared.item(id: id) }
+            case .safari:
+                UIApplication.shared.open(url)
+            case .ask:
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                HNURLRouter.presentShareSheet(for: url)
+            }
+        }
     }
 
     // MARK: - Report issue
@@ -850,12 +899,22 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        // HN thread links are always intercepted regardless of the interceptLinks setting
+        if navigationAction.navigationType == .linkActivated,
+           let url = navigationAction.request.url,
+           HNURLRouter.isHNItemURL(url) {
+            decisionHandler(.cancel)
+            Task { @MainActor [weak self] in
+                self?.state.pendingHNLinkURL = url
+            }
+            return
+        }
+
         guard
             navigationAction.navigationType == .linkActivated,
             let url = navigationAction.request.url,
             state.interceptLinks
         else {
-            // Allow the navigation. If it's a link tap in inline mode, flag it.
             if navigationAction.navigationType == .linkActivated {
                 Task { @MainActor [weak self] in
                     self?.state.userHasNavigatedInline = true
@@ -877,6 +936,43 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
     ) {
         guard let url = elementInfo.linkURL else {
             completionHandler(nil)
+            return
+        }
+
+        if HNURLRouter.isHNItemURL(url) {
+            let config = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+
+                let inApp = UIAction(
+                    title: "Open in LiquidNews",
+                    image: UIImage(systemName: "apps.iphone")
+                ) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.state.pendingHNAction = .open(url, .inApp)
+                    }
+                }
+
+                let safari = UIAction(
+                    title: "Open in Safari",
+                    image: UIImage(systemName: "arrow.up.right.square")
+                ) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.state.pendingHNAction = .open(url, .safari)
+                    }
+                }
+
+                let share = UIAction(
+                    title: "Share…",
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { [weak self] _ in
+                    DispatchQueue.main.async {
+                        self?.state.pendingHNAction = .open(url, .ask)
+                    }
+                }
+
+                return UIMenu(title: "HN Thread", children: [inApp, safari, share])
+            }
+            completionHandler(config)
             return
         }
 

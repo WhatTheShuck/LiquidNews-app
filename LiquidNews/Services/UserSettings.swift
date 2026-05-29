@@ -114,6 +114,40 @@ enum ReaderLinkMode: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - HN thread link mode
+
+enum HNLinkMode: String, CaseIterable, Identifiable {
+    case inApp   = "inApp"
+    case safari  = "safari"
+    case ask     = "ask"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .inApp:   "In App"
+        case .safari:  "Safari"
+        case .ask:     "Ask Each Time"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .inApp:   "Open HN thread links within LiquidNews"
+        case .safari:  "Hand off to Safari"
+        case .ask:     "Show share sheet each time"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .inApp:   "apps.iphone"
+        case .safari:  "arrow.up.right.square"
+        case .ask:     "square.and.arrow.up"
+        }
+    }
+}
+
 // MARK: - Viewed post behaviour
 
 enum ReadBehaviour: String, CaseIterable, Identifiable {
@@ -362,6 +396,11 @@ final class UserSettings {
         didSet { kvStore.set(readerLinkOpen.rawValue, forKey: Keys.readerLinkOpen) }
     }
 
+    /// How links to other HN threads open when tapped inside comments or the reader.
+    var hnThreadLinkOpen: HNLinkMode {
+        didSet { kvStore.set(hnThreadLinkOpen.rawValue, forKey: Keys.hnThreadLinkOpen) }
+    }
+
     // MARK: - Tap + swipe actions
 
     /// What happens when the user taps a story card.
@@ -483,6 +522,7 @@ final class UserSettings {
         static let defaultLinkOpen              = "LN_defaultLinkOpen"
         static let commentLinkOpen              = "LN_commentLinkOpen"
         static let readerLinkOpen               = "LN_readerLinkOpen"
+        static let hnThreadLinkOpen             = "LN_hnThreadLinkOpen"
         static let hiddenPostsExpiry            = "LN_hiddenPostsExpiry"
         static let readBehaviour                = "LN_readBehaviour"
         static let readerShowImagesByDefault    = "LN_readerShowImagesByDefault"
@@ -512,6 +552,7 @@ final class UserSettings {
             Keys.feedCategoryOrder, Keys.enabledFeedCategories,
             Keys.tapAction, Keys.swipeLeftAction, Keys.swipeRightAction,
             Keys.defaultLinkOpen, Keys.commentLinkOpen, Keys.readerLinkOpen,
+            Keys.hnThreadLinkOpen,
             Keys.hiddenPostsExpiry, Keys.readBehaviour,
             Keys.readerShowImagesByDefault, Keys.safariReaderMode, Keys.codeWrapLines, Keys.showReadLaterBadge,
             Keys.selectedAppTheme, Keys.customAccentHex, Keys.appColorScheme,
@@ -579,6 +620,8 @@ final class UserSettings {
                 commentLinkOpen = CommentLinkMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .inAppSafari
             case Keys.readerLinkOpen:
                 readerLinkOpen = ReaderLinkMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .inAppSafari
+            case Keys.hnThreadLinkOpen:
+                hnThreadLinkOpen = HNLinkMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .inApp
             case Keys.hiddenPostsExpiry:
                 hiddenPostsExpiry = HiddenPostsExpiry(rawValue: kvStore.string(forKey: key) ?? "") ?? .days30
             case Keys.readBehaviour:
@@ -670,6 +713,9 @@ final class UserSettings {
 
         let rawReaderLink = kvStore.string(forKey: Keys.readerLinkOpen) ?? ReaderLinkMode.inAppSafari.rawValue
         readerLinkOpen = ReaderLinkMode(rawValue: rawReaderLink) ?? .inAppSafari
+
+        let rawHNLink = kvStore.string(forKey: Keys.hnThreadLinkOpen) ?? HNLinkMode.inApp.rawValue
+        hnThreadLinkOpen = HNLinkMode(rawValue: rawHNLink) ?? .inApp
 
         let rawExpiry = kvStore.string(forKey: Keys.hiddenPostsExpiry) ?? HiddenPostsExpiry.days30.rawValue
         hiddenPostsExpiry = HiddenPostsExpiry(rawValue: rawExpiry) ?? .days30

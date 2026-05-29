@@ -23,12 +23,14 @@ enum DetailSheet: Identifiable {
     case nativeReader(URL)
     case inAppSafari(URL)
     case share(URL)
+    case hnStory(HNItem)
 
     var id: String {
         switch self {
         case .nativeReader(let url):  return "native-reader-\(url.absoluteString)"
         case .inAppSafari(let url):   return "in-app-safari-\(url.absoluteString)"
         case .share(let url):         return "share-\(url.absoluteString)"
+        case .hnStory(let story):     return "hn-story-\(story.id)"
         }
     }
 }
@@ -115,6 +117,14 @@ struct StoryDetailView: View {
         // backgrounds sitting behind toolbars.
         .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .environment(\.openURL, OpenURLAction { url in
+            if let id = HNURLRouter.itemID(from: url) {
+                Task { @MainActor in
+                    if let story = try? await HNAPIService.shared.item(id: id) {
+                        activeSheet = .hnStory(story)
+                    }
+                }
+                return .handled
+            }
             switch settings.commentLinkOpen {
             case .inAppSafari:
                 activeSheet = .inAppSafari(url)
@@ -198,6 +208,10 @@ struct StoryDetailView: View {
                 SafariView(url: url)
             case .share(let url):
                 ShareSheet(items: [url])
+            case .hnStory(let story):
+                NavigationStack { StoryDetailView(story: story) }
+                    .presentationDragIndicator(.visible)
+                    .presentationCornerRadius(.glassCornerRadius)
             }
         }
         .sheet(isPresented: $showReply) {

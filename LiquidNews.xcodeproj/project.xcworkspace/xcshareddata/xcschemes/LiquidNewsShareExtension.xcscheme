@@ -16,7 +16,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "667EEFA32F792C4F006872B8"
+               BlueprintIdentifier = "0697A9422FC90508008402C7"
                BuildableName = "LiquidNewsShareExtension.appex"
                BlueprintName = "LiquidNewsShareExtension"
                ReferencedContainer = "container:">
@@ -44,6 +44,19 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "AA000001000000000000008"
+               BuildableName = "LiquidNewsTests.xctest"
+               BlueprintName = "LiquidNewsTests"
+               ReferencedContainer = "container:">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"

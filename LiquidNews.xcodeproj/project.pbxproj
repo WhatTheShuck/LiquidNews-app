@@ -6,11 +6,59 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0697A9632FC90614008402C7 /* LiquidNewsShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0697A9592FC90614008402C7 /* LiquidNewsShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AA000001000000000000004 /* StoreServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000002 /* StoreServiceTests.swift */; };
+		AA000001000000000000005 /* HNURLRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000003 /* HNURLRouterTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0697A9612FC90614008402C7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 66853FDA2F724480001B84E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0697A9582FC90614008402C7;
+			remoteInfo = LiquidNewsShareExtension;
+		};
+		AA00000100000000000000C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 66853FDA2F724480001B84E8 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 66853FE12F724480001B84E8;
+			remoteInfo = LiquidNews;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		0697A9522FC90508008402C7 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0697A9632FC90614008402C7 /* LiquidNewsShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		0697A9592FC90614008402C7 /* LiquidNewsShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = LiquidNewsShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		66853FE22F724480001B84E8 /* LiquidNews.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LiquidNews.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000001000000000000001 /* LiquidNewsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LiquidNewsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA000001000000000000002 /* StoreServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreServiceTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000003 /* HNURLRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNURLRouterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0697A9672FC90614008402C7 /* Exceptions for "LiquidNewsShareExtension" folder in "LiquidNewsShareExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 0697A9582FC90614008402C7 /* LiquidNewsShareExtension */;
+		};
 		66853FF02F724482001B84E8 /* Exceptions for "LiquidNews" folder in "LiquidNews" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -21,8 +69,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		667EEFA52F792C4F006872B8 /* LiquidNewsShareExtension */ = {
+		0697A95A2FC90614008402C7 /* LiquidNewsShareExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0697A9672FC90614008402C7 /* Exceptions for "LiquidNewsShareExtension" folder in "LiquidNewsShareExtension" target */,
+			);
 			path = LiquidNewsShareExtension;
 			sourceTree = "<group>";
 		};
@@ -37,7 +88,21 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		0697A9562FC90614008402C7 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		66853FDF2F724480001B84E8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA000001000000000000006 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -51,7 +116,8 @@
 			isa = PBXGroup;
 			children = (
 				66853FE42F724480001B84E8 /* LiquidNews */,
-				667EEFA52F792C4F006872B8 /* LiquidNewsShareExtension */,
+				AA000001000000000000007 /* LiquidNewsTests */,
+				0697A95A2FC90614008402C7 /* LiquidNewsShareExtension */,
 				66853FE32F724480001B84E8 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -60,13 +126,46 @@
 			isa = PBXGroup;
 			children = (
 				66853FE22F724480001B84E8 /* LiquidNews.app */,
+				AA000001000000000000001 /* LiquidNewsTests.xctest */,
+				0697A9592FC90614008402C7 /* LiquidNewsShareExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		AA000001000000000000007 /* LiquidNewsTests */ = {
+			isa = PBXGroup;
+			children = (
+				AA000001000000000000002 /* StoreServiceTests.swift */,
+				AA000001000000000000003 /* HNURLRouterTests.swift */,
+			);
+			path = LiquidNewsTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0697A9582FC90614008402C7 /* LiquidNewsShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0697A9642FC90614008402C7 /* Build configuration list for PBXNativeTarget "LiquidNewsShareExtension" */;
+			buildPhases = (
+				0697A9552FC90614008402C7 /* Sources */,
+				0697A9562FC90614008402C7 /* Frameworks */,
+				0697A9572FC90614008402C7 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				0697A95A2FC90614008402C7 /* LiquidNewsShareExtension */,
+			);
+			name = LiquidNewsShareExtension;
+			packageProductDependencies = (
+			);
+			productName = LiquidNewsShareExtension;
+			productReference = 0697A9592FC90614008402C7 /* LiquidNewsShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		66853FE12F724480001B84E8 /* LiquidNews */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 66853FED2F724482001B84E8 /* Build configuration list for PBXNativeTarget "LiquidNews" */;
@@ -74,10 +173,12 @@
 				66853FDE2F724480001B84E8 /* Sources */,
 				66853FDF2F724480001B84E8 /* Frameworks */,
 				66853FE02F724480001B84E8 /* Resources */,
+				0697A9522FC90508008402C7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				0697A9622FC90614008402C7 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				66853FE42F724480001B84E8 /* LiquidNews */,
@@ -89,6 +190,23 @@
 			productReference = 66853FE22F724480001B84E8 /* LiquidNews.app */;
 			productType = "com.apple.product-type.application";
 		};
+		AA000001000000000000008 /* LiquidNewsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA000001000000000000009 /* Build configuration list for PBXNativeTarget "LiquidNewsTests" */;
+			buildPhases = (
+				AA00000100000000000000A /* Sources */,
+				AA000001000000000000006 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AA00000100000000000000B /* PBXTargetDependency */,
+			);
+			name = LiquidNewsTests;
+			productName = LiquidNewsTests;
+			productReference = AA000001000000000000001 /* LiquidNewsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -96,11 +214,18 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
+					0697A9582FC90614008402C7 = {
+						CreatedOnToolsVersion = 26.5;
+					};
 					66853FE12F724480001B84E8 = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					AA000001000000000000008 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = 66853FE12F724480001B84E8;
 					};
 				};
 			};
@@ -119,11 +244,20 @@
 			projectRoot = "";
 			targets = (
 				66853FE12F724480001B84E8 /* LiquidNews */,
+				AA000001000000000000008 /* LiquidNewsTests */,
+				0697A9582FC90614008402C7 /* LiquidNewsShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		0697A9572FC90614008402C7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		66853FE02F724480001B84E8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -134,6 +268,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0697A9552FC90614008402C7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		66853FDE2F724480001B84E8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -141,9 +282,91 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		AA00000100000000000000A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000001000000000000004 /* StoreServiceTests.swift in Sources */,
+				AA000001000000000000005 /* HNURLRouterTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		0697A9622FC90614008402C7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0697A9582FC90614008402C7 /* LiquidNewsShareExtension */;
+			targetProxy = 0697A9612FC90614008402C7 /* PBXContainerItemProxy */;
+		};
+		AA00000100000000000000B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 66853FE12F724480001B84E8 /* LiquidNews */;
+			targetProxy = AA00000100000000000000C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		0697A9652FC90614008402C7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H6D6G7R575;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LiquidNewsShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiquidNewsShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNews.LiquidNewsShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		0697A9662FC90614008402C7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H6D6G7R575;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LiquidNewsShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = LiquidNewsShareExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNews.LiquidNewsShareExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		66853FEB2F724482001B84E8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -345,9 +568,62 @@
 			};
 			name = Release;
 		};
+		AA00000100000000000000D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H6D6G7R575;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNewsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LiquidNews.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LiquidNews";
+			};
+			name = Debug;
+		};
+		AA00000100000000000000E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = H6D6G7R575;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.WhatTheShuck.LiquidNewsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LiquidNews.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/LiquidNews";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0697A9642FC90614008402C7 /* Build configuration list for PBXNativeTarget "LiquidNewsShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0697A9652FC90614008402C7 /* Debug */,
+				0697A9662FC90614008402C7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		66853FDD2F724480001B84E8 /* Build configuration list for PBXProject "LiquidNews" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -362,6 +638,15 @@
 			buildConfigurations = (
 				66853FEE2F724482001B84E8 /* Debug */,
 				66853FEF2F724482001B84E8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA000001000000000000009 /* Build configuration list for PBXNativeTarget "LiquidNewsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA00000100000000000000D /* Debug */,
+				AA00000100000000000000E /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

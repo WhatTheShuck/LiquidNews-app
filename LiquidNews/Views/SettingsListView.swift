@@ -904,6 +904,69 @@ struct SettingsListView: View {
 
                 Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
 
+                // HN Thread Links
+                HStack(spacing: 12) {
+                    Image(systemName: settings.hnThreadLinkOpen.systemImage)
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("HN Thread Links")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(settings.hnThreadLinkOpen.subtitle)
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
+
+                HStack(spacing: 0) {
+                    ForEach(HNLinkMode.allCases) { mode in
+                        Button {
+                            settings.hnThreadLinkOpen = mode
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: mode.systemImage)
+                                    .font(.system(size: 14, weight: .medium))
+                                Text(mode.label)
+                                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                settings.hnThreadLinkOpen == mode
+                                    ? AppTheme.accent.opacity(0.2)
+                                    : Color.clear
+                            )
+                            .foregroundStyle(
+                                settings.hnThreadLinkOpen == mode
+                                    ? AppTheme.accent
+                                    : Color.secondary
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        if mode != HNLinkMode.allCases.last {
+                            Divider()
+                                .frame(height: 32)
+                                .overlay(AppTheme.glassBorder)
+                        }
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(AppTheme.glassBorder, lineWidth: 1)
+                )
+                .padding(.horizontal, 16)
+                .padding(.bottom, 16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
                 // Reader images default
                 HStack(spacing: 12) {
                     Image(systemName: "photo")

@@ -1,7 +1,5 @@
 // ShareViewController.swift
-// Share extension that intercepts HN story URLs and opens them in LiquidNews.
-// Extracts the item ID from the shared URL and opens liquidnews://story/{id}.
-// Non-HN URLs are silently ignored.
+// Share extension: extracts the HN story ID from a shared URL and opens it in LiquidNews.
 
 import UIKit
 import UniformTypeIdentifiers
@@ -24,13 +22,9 @@ class ShareViewController: UIViewController {
                 guard let self else { return }
 
                 let url: URL?
-                if let u = loaded as? URL {
-                    url = u
-                } else if let s = loaded as? String {
-                    url = URL(string: s)
-                } else {
-                    url = nil
-                }
+                if let u = loaded as? URL { url = u }
+                else if let s = loaded as? String { url = URL(string: s) }
+                else { url = nil }
 
                 guard let sharedURL = url,
                       sharedURL.host?.hasSuffix("ycombinator.com") == true,
@@ -43,10 +37,36 @@ class ShareViewController: UIViewController {
                 }
 
                 DispatchQueue.main.async {
-                    self.extensionContext?.open(appURL) { _ in self.finish() }
+                    self.openInContainingApp(appURL)
                 }
             }
             return
+        }
+
+        finish()
+    }
+
+    // extensionContext?.open(_:) only works in Today widgets, not share extensions.
+    // Walk the responder chain to reach UIApplication in the host process.
+    // iOS 18 requires a typed cast; older iOS uses the openURL: selector.
+    private func openInContainingApp(_ url: URL) {
+        var responder: UIResponder? = self
+
+        if #available(iOS 18.0, *) {
+            while let r = responder {
+                if let app = r as? UIApplication {
+                    app.open(url, options: [:], completionHandler: nil)
+                }
+                responder = r.next
+            }
+        } else {
+            let selector = sel_registerName("openURL:")
+            while let r = responder {
+                if r.responds(to: selector) {
+                    r.perform(selector, with: url)
+                }
+                responder = r.next
+            }
         }
 
         finish()

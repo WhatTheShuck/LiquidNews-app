@@ -195,20 +195,22 @@ struct CommentView: View {
 
     @ViewBuilder
     private func commentBody(for text: String) -> some View {
-        switch effectiveMode {
-        case .textOnly:
-            Text(text.htmlStripped)
-                .font(.system(size: 14))
-                .foregroundStyle(.primary.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-        case .textWithLinks:
-            Text(text.htmlWithLinks)
-                .font(.system(size: 14))
-                .foregroundStyle(.primary.opacity(0.88))
-                .fixedSize(horizontal: false, vertical: true)
-                .tint(AppTheme.accent)
-        case .rich:
-            CommentBodyView(html: text, tintColor: threadColor)
+        Group {
+            switch effectiveMode {
+            case .textOnly:
+                Text(text.htmlStripped)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.primary.opacity(0.88))
+                    .fixedSize(horizontal: false, vertical: true)
+            case .textWithLinks:
+                Text(text.htmlWithLinks)
+                    .font(.system(size: 14))
+                    .foregroundStyle(.primary.opacity(0.88))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .tint(AppTheme.accent)
+            case .rich:
+                CommentBodyView(html: text, tintColor: threadColor)
+            }
         }
     }
 
@@ -429,9 +431,6 @@ struct CommentView: View {
 
 /// Applies glass at depth 0 only. Nesting glassEffect inside glassEffect causes the
 /// parent's material to re-sample out of sync with layout changes, producing glow flicker.
-/// Uses .regular.interactive() to lock the glass into always-interactive mode — without
-/// this the context-aware glass re-evaluates interactivity on every layout change (e.g.
-/// child expanding/collapsing), causing the border-only / no-glow flicker.
 private struct CommentCardBackground: ViewModifier {
     let depth: Int
     let cornerRadius: CGFloat
@@ -440,7 +439,7 @@ private struct CommentCardBackground: ViewModifier {
     func body(content: Content) -> some View {
         if depth == 0 {
             content
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .glassCard(cornerRadius: cornerRadius, tint: threadColor)
         } else {
             content
                 .background(
