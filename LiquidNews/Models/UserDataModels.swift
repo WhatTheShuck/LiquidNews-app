@@ -52,3 +52,12 @@ struct UserDataExport: Codable {
         case hiddenPosts, readHistory
     }
 }
+
+// MARK: - Favourites import error
+
+enum FavouritesImportError: LocalizedError {
+    case noValidIDs
+    var errorDescription: String? {
+        "No valid HN item IDs found in the pasted text."
+    }
+}

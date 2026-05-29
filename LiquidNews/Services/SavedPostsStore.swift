@@ -273,6 +273,20 @@ final class SavedPostsStore {
 
     // MARK: - Export / Import
 
+    // MARK: Compact favourites export / import
+
+    /// Parses a compact `[id1,id2,id3]` or bare `id1,id2,id3` string into an array of integers.
+    /// Non-integer tokens are silently skipped. Throws if no valid IDs are found.
+    static func parseIDs(from string: String) throws -> [Int] {
+        var s = string.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("[") { s.removeFirst() }
+        if s.hasSuffix("]") { s.removeLast() }
+        let ids = s.split(separator: ",")
+            .compactMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+        guard !ids.isEmpty else { throw FavouritesImportError.noValidIDs }
+        return ids
+    }
+
     func exportData() throws -> Data {
         let datesStringKeyed = Dictionary(uniqueKeysWithValues:
             readLaterDates.map { (String($0.key), $0.value) }
@@ -298,6 +312,24 @@ final class SavedPostsStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted]
         return try encoder.encode(readLaterIDs.sorted())
+    }
+
+    func exportFavouritesCompact() -> String {
+        let ids = favouriteIDs.sorted()
+        return (try? String(data: JSONEncoder().encode(ids), encoding: .utf8)) ?? "[]"
+    }
+
+    func importFavourites(from string: String, replacing: Bool = false) throws {
+        let ids = try Self.parseIDs(from: string)
+        if replacing {
+            favouriteIDs = Set(ids)
+        } else {
+            favouriteIDs.formUnion(ids)
+        }
+        let arr = Array(favouriteIDs)
+        UserDefaults.standard.set(arr, forKey: favouritesKey)
+        kvStore.set(arr, forKey: favouritesKey)
+        syncToiCloud()
     }
 
     func exportHistory() throws -> Data {

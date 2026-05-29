@@ -34,6 +34,15 @@ struct SettingsListView: View {
     @State private var paymentsStore = StoreService.shared
     @State private var showThemePaywall = false
     @State private var showThemePicker = false
+    @State private var showingPasteFavourites = false
+    @State private var pastedFavouritesText = ""
+    @State private var pasteImportMode: ImportMode = .merge
+    @State private var pasteImportError: String?
+    @State private var showingPasteReplaceConfirm = false
+    @State private var showingImportSuccess = false
+    @State private var importSuccessMessage = ""
+
+    private enum ImportMode { case merge, replace }
 
     var body: some View {
         NavigationStack {
@@ -116,12 +125,29 @@ struct SettingsListView: View {
         ) {
             Button("Merge with existing data") {
                 if let data = pendingImportData {
+                    let prevFavs = store.favouriteIDs.count
+                    let prevRL = store.readLaterIDs.count
+                    let prevHist = store.readHistory.count
                     try? store.importData(data, replacing: false)
+                    importSuccessMessage = fileImportSummary(
+                        favs: store.favouriteIDs.count - prevFavs,
+                        rl: store.readLaterIDs.count - prevRL,
+                        hist: store.readHistory.count - prevHist,
+                        replacing: false
+                    )
+                    showingImportSuccess = true
                 }
             }
             Button("Replace all data", role: .destructive) {
                 if let data = pendingImportData {
                     try? store.importData(data, replacing: true)
+                    importSuccessMessage = fileImportSummary(
+                        favs: store.favouriteIDs.count,
+                        rl: store.readLaterIDs.count,
+                        hist: store.readHistory.count,
+                        replacing: true
+                    )
+                    showingImportSuccess = true
                 }
             }
             Button("Cancel", role: .cancel) {}
@@ -135,6 +161,11 @@ struct SettingsListView: View {
         } message: {
             Text(importError ?? "Unknown error.")
         }
+        .alert("Import Successful", isPresented: $showingImportSuccess) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importSuccessMessage)
+        }
         .confirmationDialog(
             "Clear all read history?",
             isPresented: $showingClearHistoryConfirm,
@@ -142,6 +173,102 @@ struct SettingsListView: View {
         ) {
             Button("Clear All History", role: .destructive) { store.clearHistory() }
             Button("Cancel", role: .cancel) {}
+        }
+        .sheet(isPresented: $showingPasteFavourites, onDismiss: {
+            pastedFavouritesText = ""
+            pasteImportError = nil
+            pasteImportMode = .merge
+        }) {
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 16) {
+                    Picker("Mode", selection: $pasteImportMode) {
+                        Text("Merge").tag(ImportMode.merge)
+                        Text("Replace").tag(ImportMode.replace)
+                    }
+                    .pickerStyle(.segmented)
+
+                    TextEditor(text: $pastedFavouritesText)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(minHeight: 120)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.secondary.opacity(0.3))
+                        )
+
+                    if let err = pasteImportError {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
+                    Text("Paste a compact list like [37140159,37158317] or bare IDs separated by commas.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding()
+                .navigationTitle("Paste Favourites IDs")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            showingPasteFavourites = false
+                            pastedFavouritesText = ""
+                            pasteImportError = nil
+                            pasteImportMode = .merge
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Import") {
+                            if pasteImportMode == .replace {
+                                // Validate first so we don't show confirm for empty input
+                                guard (try? SavedPostsStore.parseIDs(from: pastedFavouritesText)) != nil else {
+                                    pasteImportError = FavouritesImportError.noValidIDs.localizedDescription
+                                    return
+                                }
+                                showingPasteReplaceConfirm = true
+                            } else {
+                                do {
+                                    let prevCount = store.favouriteIDs.count
+                                    try store.importFavourites(from: pastedFavouritesText, replacing: false)
+                                    let added = store.favouriteIDs.count - prevCount
+                                    importSuccessMessage = added == 0
+                                        ? "All IDs were already in your favourites."
+                                        : "Added \(added) favourite\(added == 1 ? "" : "s")."
+                                    showingPasteFavourites = false
+                                    showingImportSuccess = true
+                                } catch {
+                                    pasteImportError = error.localizedDescription
+                                }
+                            }
+                        }
+                    }
+                }
+                .confirmationDialog(
+                    "Replace Favourites",
+                    isPresented: $showingPasteReplaceConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Replace", role: .destructive) {
+                        do {
+                            try store.importFavourites(from: pastedFavouritesText, replacing: true)
+                            let count = store.favouriteIDs.count
+                            importSuccessMessage = "Replaced favourites with \(count) ID\(count == 1 ? "" : "s")."
+                            showingPasteFavourites = false
+                            showingImportSuccess = true
+                        } catch {
+                            pasteImportError = error.localizedDescription
+                        }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will replace all your current favourites with the imported IDs. This cannot be undone.")
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(.glassCornerRadius)
         }
     }
 
@@ -1287,6 +1414,9 @@ struct SettingsListView: View {
                         triggerExport(
                             data: try? store.exportFavourites(), name: "liquidnews-favourites")
                     }
+                    Button("Favourites — Copy compact [\(store.favouriteIDs.count) IDs]") {
+                        UIPasteboard.general.string = store.exportFavouritesCompact()
+                    }
                     Button("Read Later — Copy \(store.readLaterIDs.count) IDs to clipboard") {
                         UIPasteboard.general.string = store.readLaterIDs.sorted()
                             .map(String.init).joined(separator: "\n")
@@ -1302,7 +1432,7 @@ struct SettingsListView: View {
                     }
                     Button("Cancel", role: .cancel) {}
                 } message: {
-                    Text("IDs are copied one per line. JSON files can be re-imported later.")
+                    Text("IDs are copied one per line or as a compact array. JSON files can be re-imported later.")
                 }
 
                 Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
@@ -1321,6 +1451,33 @@ struct SettingsListView: View {
                                 .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                                 .foregroundStyle(.primary)
                             Text("Restore from a previous export")
+                                .font(.system(size: subtitleFontSize))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                Button {
+                    pastedFavouritesText = ""
+                    pasteImportError = nil
+                    pasteImportMode = .merge
+                    showingPasteFavourites = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "list.number")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Paste Favourites IDs")
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text("Import a compact [id,id,id] list")
                                 .font(.system(size: subtitleFontSize))
                                 .foregroundStyle(.secondary)
                         }
@@ -1528,7 +1685,18 @@ struct SettingsListView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Export helper
+    // MARK: - Import / Export helpers
+
+    private func fileImportSummary(favs: Int, rl: Int, hist: Int, replacing: Bool) -> String {
+        if replacing {
+            return "\(favs) favourite\(favs == 1 ? "" : "s"), \(rl) read later, \(hist) history entr\(hist == 1 ? "y" : "ies") imported."
+        }
+        var parts: [String] = []
+        if favs > 0 { parts.append("\(favs) favourite\(favs == 1 ? "" : "s")") }
+        if rl > 0 { parts.append("\(rl) read later") }
+        if hist > 0 { parts.append("\(hist) history entr\(hist == 1 ? "y" : "ies")") }
+        return parts.isEmpty ? "Nothing new to import — all data already up to date." : "Added " + parts.joined(separator: ", ") + "."
+    }
 
     private func triggerExport(data: Data?, name: String) {
         guard let data else {

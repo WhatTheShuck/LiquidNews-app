@@ -10,6 +10,7 @@
 		0697A9632FC90614008402C7 /* LiquidNewsShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 0697A9592FC90614008402C7 /* LiquidNewsShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA000001000000000000004 /* StoreServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000002 /* StoreServiceTests.swift */; };
 		AA000001000000000000005 /* HNURLRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000003 /* HNURLRouterTests.swift */; };
+		AA000001000000000000010 /* FavouritesImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000011 /* FavouritesImportTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +50,7 @@
 		AA000001000000000000001 /* LiquidNewsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LiquidNewsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AA000001000000000000002 /* StoreServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreServiceTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000003 /* HNURLRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNURLRouterTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000011 /* FavouritesImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavouritesImportTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -137,6 +139,7 @@
 			children = (
 				AA000001000000000000002 /* StoreServiceTests.swift */,
 				AA000001000000000000003 /* HNURLRouterTests.swift */,
+				AA000001000000000000011 /* FavouritesImportTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -288,6 +291,7 @@
 			files = (
 				AA000001000000000000004 /* StoreServiceTests.swift in Sources */,
 				AA000001000000000000005 /* HNURLRouterTests.swift in Sources */,
+				AA000001000000000000010 /* FavouritesImportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
