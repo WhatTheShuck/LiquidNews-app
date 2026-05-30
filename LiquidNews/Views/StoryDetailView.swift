@@ -24,13 +24,15 @@ enum DetailSheet: Identifiable {
     case inAppSafari(URL)
     case share(URL)
     case hnStory(HNItem)
+    case hnComment(HNItem)
 
     var id: String {
         switch self {
-        case .nativeReader(let url):  return "native-reader-\(url.absoluteString)"
-        case .inAppSafari(let url):   return "in-app-safari-\(url.absoluteString)"
-        case .share(let url):         return "share-\(url.absoluteString)"
-        case .hnStory(let story):     return "hn-story-\(story.id)"
+        case .nativeReader(let url):   return "native-reader-\(url.absoluteString)"
+        case .inAppSafari(let url):    return "in-app-safari-\(url.absoluteString)"
+        case .share(let url):          return "share-\(url.absoluteString)"
+        case .hnStory(let story):      return "hn-story-\(story.id)"
+        case .hnComment(let comment):  return "hn-comment-\(comment.id)"
         }
     }
 }
@@ -96,7 +98,7 @@ struct StoryDetailView: View {
                         // card. A single container over the whole list caused blank-
                         // screen flicker during fast scrolling on long threads.
                         GlassEffectContainer {
-                            CommentView(comment: comment, depth: 0, opUsername: story.by)
+                            CommentView(comment: comment, depth: 0, opUsername: story.by, story: story)
                         }
                     }
                 }
@@ -119,8 +121,8 @@ struct StoryDetailView: View {
         .environment(\.openURL, OpenURLAction { url in
             if let id = HNURLRouter.itemID(from: url) {
                 Task { @MainActor in
-                    if let story = try? await HNAPIService.shared.item(id: id) {
-                        activeSheet = .hnStory(story)
+                    if let item = try? await HNAPIService.shared.item(id: id) {
+                        activeSheet = item.type == .comment ? .hnComment(item) : .hnStory(item)
                     }
                 }
                 return .handled
@@ -212,6 +214,18 @@ struct StoryDetailView: View {
                 NavigationStack { StoryDetailView(story: story) }
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(.glassCornerRadius)
+            case .hnComment(let comment):
+                NavigationStack {
+                    ThreadView(
+                        rootComment: comment,
+                        depth: 0,
+                        onShowStory: { fetchedStory in
+                            activeSheet = .hnStory(fetchedStory)
+                        }
+                    )
+                }
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(.glassCornerRadius)
             }
         }
         .sheet(isPresented: $showReply) {

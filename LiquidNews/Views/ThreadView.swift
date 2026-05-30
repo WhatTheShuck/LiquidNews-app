@@ -1,7 +1,7 @@
 // ThreadView.swift
 // Focused thread drill-down: shows a root comment with all its replies
 // loaded inline. Presented when the user taps "Continue thread" at the
-// depth threshold in the main comment list.
+// depth threshold in the main comment list, or opened directly via deep link.
 
 import SwiftUI
 
@@ -9,19 +9,37 @@ struct ThreadView: View {
     let rootComment: HNItem
     let depth: Int
     var opUsername: String? = nil
+    var onShowStory: ((HNItem) -> Void)? = nil
 
+    @State private var resolvedStory: HNItem?
+    @State private var isLoadingStory = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+
+    init(
+        rootComment: HNItem,
+        depth: Int,
+        opUsername: String? = nil,
+        story: HNItem? = nil,
+        onShowStory: ((HNItem) -> Void)? = nil
+    ) {
+        self.rootComment = rootComment
+        self.depth = depth
+        self.opUsername = opUsername
+        self.onShowStory = onShowStory
+        _resolvedStory = State(initialValue: story)
+    }
 
     var body: some View {
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 10) {
-                // Root comment shown at depth 0 in this focused view.
-                // Use the same maxDepth as the main view so "Continue thread"
-                // buttons still appear for very deep replies, letting the user
-                // drill down via further sheets rather than infinite nesting
-                // (which would collapse the available width to nothing).
-                CommentView(comment: rootComment, depth: 0, maxDepth: UserSettings.shared.maxAutoExpandDepth, opUsername: opUsername)
+                CommentView(
+                    comment: rootComment,
+                    depth: 0,
+                    maxDepth: UserSettings.shared.maxAutoExpandDepth,
+                    opUsername: opUsername,
+                    story: resolvedStory
+                )
             }
             .padding(.horizontal, 16)
             .padding(.top, 16)
@@ -40,10 +58,32 @@ struct ThreadView: View {
             }
 
             ToolbarItem(placement: .principal) {
-                Text("Thread")
+                Text(resolvedStory?.title ?? "Thread")
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                if isLoadingStory {
+                    ProgressView().scaleEffect(0.8)
+                } else if let story = resolvedStory, onShowStory != nil {
+                    Button {
+                        onShowStory?(story)
+                    } label: {
+                        Label("Story", systemImage: "doc.text")
+                    }
+                }
+            }
+        }
+        .task {
+            guard resolvedStory == nil, rootComment.type == .comment else { return }
+            isLoadingStory = true
+            do {
+                resolvedStory = try await HNAPIService.shared.rootStory(forItemID: rootComment.id)
+            } catch {}
+            isLoadingStory = false
         }
     }
 }

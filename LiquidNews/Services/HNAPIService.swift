@@ -258,6 +258,33 @@ final class HNAPIService {
         }
     }
 
+    // MARK: - Comment navigation
+
+    /// Walks the parent chain from `id` until reaching a non-comment item (story, job, poll).
+    /// Uses the item cache, so repeat calls within a session are free.
+    func rootStory(forItemID id: Int) async throws -> HNItem {
+        let start = try await item(id: id)
+        return try await HNAPIService.walkToRoot(from: start) { [weak self] parentID in
+            guard let self else { throw RootStoryError.noParent }
+            return try await self.item(id: parentID)
+        }
+    }
+
+    /// Walks the parent chain using an injected fetcher. Exposed as static for unit testing.
+    static func walkToRoot(
+        from item: HNItem,
+        fetch: (Int) async throws -> HNItem
+    ) async throws -> HNItem {
+        var current = item
+        while current.type == .comment {
+            guard let parentID = current.parent else {
+                throw RootStoryError.noParent
+            }
+            current = try await fetch(parentID)
+        }
+        return current
+    }
+
     // MARK: - Private
 
     private func fetchIDs(path: String) async throws -> [Int] {
@@ -273,4 +300,10 @@ final class HNAPIService {
         listCache[path] = CachedList(ids: ids, fetchedAt: Date())
         return ids
     }
+}
+
+// MARK: - Root story error
+
+enum RootStoryError: Error {
+    case noParent
 }

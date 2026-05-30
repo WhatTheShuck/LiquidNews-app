@@ -26,6 +26,7 @@ struct LiquidNewsApp: App {
         WindowGroup {
             ContentView()
                 .environment(deepLink)
+                .background(AppIconSyncer())
                 .onOpenURL { url in
                     deepLink.pendingItemID = itemID(from: url)
                 }
@@ -91,10 +92,12 @@ struct LiquidNewsApp: App {
     }
 
     /// Extracts an HN item ID from either scheme:
+    ///   liquidnews://item/42
     ///   liquidnews://story/42
     ///   https://news.ycombinator.com/item?id=42
     private func itemID(from url: URL) -> Int? {
-        if url.scheme == "liquidnews", url.host == "story",
+        if url.scheme == "liquidnews",
+           (url.host == "story" || url.host == "item"),
            let segment = url.pathComponents.dropFirst().first {
             return Int(segment)
         }

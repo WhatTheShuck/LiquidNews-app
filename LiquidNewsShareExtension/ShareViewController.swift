@@ -31,7 +31,7 @@ class ShareViewController: UIViewController {
                       sharedURL.path == "/item",
                       let idValue = URLComponents(url: sharedURL, resolvingAgainstBaseURL: false)?
                           .queryItems?.first(where: { $0.name == "id" })?.value,
-                      let appURL = URL(string: "liquidnews://story/\(idValue)") else {
+                      let appURL = URL(string: "liquidnews://item/\(idValue)") else {
                     DispatchQueue.main.async { self.finish() }
                     return
                 }

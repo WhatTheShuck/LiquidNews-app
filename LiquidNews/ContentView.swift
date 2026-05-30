@@ -28,6 +28,7 @@ struct ContentView: View {
     @State private var settings = UserSettings.shared
     @State private var store = SavedPostsStore.shared
     @State private var deepLinkedStory: HNItem?
+    @State private var deepLinkedComment: HNItem?
     @State private var deepLinkError = false
     @Environment(DeepLinkState.self) private var deepLink
     @Environment(\.colorScheme) private var colorScheme
@@ -105,10 +106,24 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
         }
+        .sheet(item: $deepLinkedComment) { comment in
+            NavigationStack {
+                ThreadView(
+                    rootComment: comment,
+                    depth: 0,
+                    onShowStory: { story in
+                        deepLinkedComment = nil
+                        deepLinkedStory = story
+                    }
+                )
+            }
+            .presentationDragIndicator(.visible)
+            .presentationCornerRadius(.glassCornerRadius)
+        }
         .onChange(of: deepLink.pendingItemID) { _, id in
             guard let id else { return }
             deepLink.pendingItemID = nil
-            Task { await openStory(id: id) }
+            Task { await openItem(id: id) }
         }
         .onChange(of: allEnabledOptional) { _, all in
             if let active = activeOverflowTab, !all.contains(active) {
@@ -225,10 +240,15 @@ struct ContentView: View {
 
     // MARK: - Deep linking
 
-    private func openStory(id: Int?) async {
+    private func openItem(id: Int?) async {
         guard let id else { return }
         do {
-            deepLinkedStory = try await HNAPIService.shared.item(id: id)
+            let item = try await HNAPIService.shared.item(id: id)
+            if item.type == .comment {
+                deepLinkedComment = item
+            } else {
+                deepLinkedStory = item
+            }
         } catch {
             deepLinkError = true
         }

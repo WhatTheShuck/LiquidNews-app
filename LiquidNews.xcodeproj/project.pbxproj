@@ -11,6 +11,8 @@
 		AA000001000000000000004 /* StoreServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000002 /* StoreServiceTests.swift */; };
 		AA000001000000000000005 /* HNURLRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000003 /* HNURLRouterTests.swift */; };
 		AA000001000000000000010 /* FavouritesImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000011 /* FavouritesImportTests.swift */; };
+		AA000001000000000000012 /* HNItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000013 /* HNItemTests.swift */; };
+		AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000014 /* HNAPIServiceTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +53,8 @@
 		AA000001000000000000002 /* StoreServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreServiceTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000003 /* HNURLRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNURLRouterTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000011 /* FavouritesImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavouritesImportTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000013 /* HNItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNItemTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000014 /* HNAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNAPIServiceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -140,6 +144,8 @@
 				AA000001000000000000002 /* StoreServiceTests.swift */,
 				AA000001000000000000003 /* HNURLRouterTests.swift */,
 				AA000001000000000000011 /* FavouritesImportTests.swift */,
+				AA000001000000000000013 /* HNItemTests.swift */,
+				AA000001000000000000014 /* HNAPIServiceTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -292,6 +298,8 @@
 				AA000001000000000000004 /* StoreServiceTests.swift in Sources */,
 				AA000001000000000000005 /* HNURLRouterTests.swift in Sources */,
 				AA000001000000000000010 /* FavouritesImportTests.swift in Sources */,
+				AA000001000000000000012 /* HNItemTests.swift in Sources */,
+				AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

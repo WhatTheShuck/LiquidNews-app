@@ -35,6 +35,41 @@ struct HNItem: Identifiable, Codable, Hashable {
     let deleted: Bool?
     let dead: Bool?
 
+    /// ID of the parent comment or story (present on comment items)
+    let parent: Int?
+
+    // MARK: - Custom init
+
+    init(
+        id: Int,
+        type: ItemType? = nil,
+        by: String? = nil,
+        time: TimeInterval? = nil,
+        title: String? = nil,
+        url: String? = nil,
+        score: Int? = nil,
+        descendants: Int? = nil,
+        text: String? = nil,
+        kids: [Int]? = nil,
+        deleted: Bool? = nil,
+        dead: Bool? = nil,
+        parent: Int? = nil
+    ) {
+        self.id = id
+        self.type = type
+        self.by = by
+        self.time = time
+        self.title = title
+        self.url = url
+        self.score = score
+        self.descendants = descendants
+        self.text = text
+        self.kids = kids
+        self.deleted = deleted
+        self.dead = dead
+        self.parent = parent
+    }
+
     // MARK: - Computed helpers
 
     /// Human-readable relative time, e.g. "3 hr. ago"

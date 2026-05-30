@@ -20,6 +20,7 @@ struct CommentView: View {
     var maxDepth: Int = UserSettings.shared.maxAutoExpandDepth
     /// Username of the story's original poster. Passed down from StoryDetailView.
     var opUsername: String? = nil
+    var story: HNItem? = nil
 
     @State private var isExpanded = true
     @State private var replies: [HNItem] = []
@@ -117,7 +118,7 @@ struct CommentView: View {
                                 ForEach(replies) { reply in
                                     CommentView(
                                         comment: reply, depth: depth + 1, maxDepth: maxDepth,
-                                        opUsername: opUsername)
+                                        opUsername: opUsername, story: story)
                                 }
                             }
                             .padding(.top, 4)
@@ -171,7 +172,7 @@ struct CommentView: View {
         }
         .sheet(item: $showThread) { thread in
             NavigationStack {
-                ThreadView(rootComment: thread, depth: depth + 1, opUsername: opUsername)
+                ThreadView(rootComment: thread, depth: depth + 1, opUsername: opUsername, story: story)
             }
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
