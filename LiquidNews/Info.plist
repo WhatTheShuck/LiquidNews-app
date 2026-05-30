@@ -25,8 +25,43 @@
         <dict>
             <key>AppIconAlt</key>
             <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIconAlt60x60</string>
+                </array>
                 <key>CFBundleIconName</key>
                 <string>AppIconAlt</string>
+            </dict>
+            <key>AppIconAltDark</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIconAltDark60x60</string>
+                </array>
+            </dict>
+        </dict>
+    </dict>
+    <key>CFBundleIcons~ipad</key>
+    <dict>
+        <key>CFBundleAlternateIcons</key>
+        <dict>
+            <key>AppIconAlt</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIconAlt60x60</string>
+                    <string>AppIconAlt76x76</string>
+                </array>
+                <key>CFBundleIconName</key>
+                <string>AppIconAlt</string>
+            </dict>
+            <key>AppIconAltDark</key>
+            <dict>
+                <key>CFBundleIconFiles</key>
+                <array>
+                    <string>AppIconAltDark60x60</string>
+                    <string>AppIconAltDark76x76</string>
+                </array>
             </dict>
         </dict>
     </dict>

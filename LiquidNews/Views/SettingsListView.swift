@@ -30,7 +30,7 @@ struct SettingsListView: View {
     @State private var pendingImportData: Data?
     @State private var showingClearHistoryConfirm = false
     @State private var navigateToHiddenPosts = false
-    @State private var selectedIconName: String? = UIApplication.shared.alternateIconName
+    @AppStorage(AppIconStorage.familyKey) private var iconFamilyRaw: String = AppIconFamily.default.rawValue
     @State private var paymentsStore = StoreService.shared
     @State private var showThemePaywall = false
     @State private var showThemePicker = false
@@ -1645,8 +1645,8 @@ struct SettingsListView: View {
             .padding(.bottom, 14)
 
             HStack(spacing: 24) {
-                iconChoice(label: "Droplet", iconName: nil, imageName: "AppIconPreview")
-                iconChoice(label: "Letter", iconName: "AppIconAlt", imageName: "AppIconAltPreview")
+                iconChoice(label: "Droplet", family: .default, imageName: "AppIconPreview")
+                iconChoice(label: "Letter", family: .letter, imageName: "AppIconAltPreview")
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 16)
@@ -1655,13 +1655,10 @@ struct SettingsListView: View {
     }
 
     @ViewBuilder
-    private func iconChoice(label: String, iconName: String?, imageName: String) -> some View {
-        let isSelected = selectedIconName == iconName
+    private func iconChoice(label: String, family: AppIconFamily, imageName: String) -> some View {
+        let isSelected = (AppIconFamily(rawValue: iconFamilyRaw) ?? .default) == family
         Button {
-            UIApplication.shared.setAlternateIconName(iconName) { error in
-                if let error { print("[AppIcon] setAlternateIconName failed: \(error)") }
-                selectedIconName = UIApplication.shared.alternateIconName
-            }
+            iconFamilyRaw = family.rawValue
         } label: {
             VStack(spacing: 10) {
                 Image(imageName)
