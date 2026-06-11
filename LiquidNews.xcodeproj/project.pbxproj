@@ -13,6 +13,7 @@
 		AA000001000000000000010 /* FavouritesImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000011 /* FavouritesImportTests.swift */; };
 		AA000001000000000000012 /* HNItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000013 /* HNItemTests.swift */; };
 		AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000014 /* HNAPIServiceTests.swift */; };
+		AA000001000000000000018 /* StoriesViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000019 /* StoriesViewModelTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -55,6 +56,7 @@
 		AA000001000000000000011 /* FavouritesImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FavouritesImportTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000013 /* HNItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNItemTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000014 /* HNAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNAPIServiceTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000019 /* StoriesViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoriesViewModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -146,6 +148,7 @@
 				AA000001000000000000011 /* FavouritesImportTests.swift */,
 				AA000001000000000000013 /* HNItemTests.swift */,
 				AA000001000000000000014 /* HNAPIServiceTests.swift */,
+				AA000001000000000000019 /* StoriesViewModelTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -300,6 +303,7 @@
 				AA000001000000000000010 /* FavouritesImportTests.swift in Sources */,
 				AA000001000000000000012 /* HNItemTests.swift in Sources */,
 				AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */,
+				AA000001000000000000018 /* StoriesViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

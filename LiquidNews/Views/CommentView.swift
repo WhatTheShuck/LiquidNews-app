@@ -58,7 +58,6 @@ struct CommentView: View {
         depth >= maxDepth
     }
 
-    private var isLoggedIn: Bool { auth.isLoggedIn }
     private var isMod: Bool { HNItem.moderators.contains(comment.by ?? "") }
     private var isOP: Bool { comment.by != nil && comment.by == opUsername }
     private var isCurrentUser: Bool {
@@ -165,7 +164,31 @@ struct CommentView: View {
             showActions = true
         }
         .confirmationDialog("", isPresented: $showActions, titleVisibility: .hidden) {
-            commentActions
+            CommentActions(
+                comment: comment,
+                effectiveMode: effectiveMode,
+                hasUpvoted: hasUpvoted,
+                onToggleUpvote: {
+                    Task {
+                        if hasUpvoted {
+                            try? await HNAuthService.shared.vote(itemId: comment.id, how: "un")
+                            hasUpvoted = false
+                        } else {
+                            try? await HNAuthService.shared.vote(itemId: comment.id, how: "up")
+                            hasUpvoted = true
+                        }
+                    }
+                },
+                onReply:                { showReply = true },
+                onSetTextOnly:          { localRenderMode = .textOnly },
+                onRestoreFullRendering: { localRenderMode = nil },
+                onFlag: {
+                    Task {
+                        do { try await HNAuthService.shared.flag(itemId: comment.id) }
+                        catch { actionError = error.localizedDescription }
+                    }
+                }
+            )
         }
         .task {
             await autoLoadIfNeeded()
@@ -196,67 +219,7 @@ struct CommentView: View {
 
     @ViewBuilder
     private func commentBody(for text: String) -> some View {
-        Group {
-            switch effectiveMode {
-            case .textOnly:
-                Text(text.htmlStripped)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary.opacity(0.88))
-                    .fixedSize(horizontal: false, vertical: true)
-            case .textWithLinks:
-                Text(text.htmlWithLinks)
-                    .font(.system(size: 14))
-                    .foregroundStyle(.primary.opacity(0.88))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .tint(AppTheme.accent)
-            case .rich:
-                CommentBodyView(html: text, tintColor: threadColor)
-            }
-        }
-    }
-
-    // MARK: - Long-press actions
-
-    @ViewBuilder
-    private var commentActions: some View {
-        if isLoggedIn {
-            Button(hasUpvoted ? "Unvote" : "Upvote") {
-                Task {
-                    if hasUpvoted {
-                        try? await HNAuthService.shared.vote(itemId: comment.id, how: "un")
-                        hasUpvoted = false
-                    } else {
-                        try? await HNAuthService.shared.vote(itemId: comment.id, how: "up")
-                        hasUpvoted = true
-                    }
-                }
-            }
-            Button("Reply") { showReply = true }
-        }
-
-        Button("Copy Text") {
-            UIPasteboard.general.string = comment.text?.htmlStripped ?? ""
-        }
-
-        let hnURL = URL(string: "https://news.ycombinator.com/item?id=\(comment.id)")!
-        ShareLink(item: hnURL)
-
-        if effectiveMode != .textOnly {
-            Button("View as Plain Text") { localRenderMode = .textOnly }
-        } else {
-            Button("Restore Full Rendering") { localRenderMode = nil }
-        }
-
-        if isLoggedIn {
-            Button("Flag", role: .destructive) {
-                Task {
-                    do { try await HNAuthService.shared.flag(itemId: comment.id) }
-                    catch { actionError = error.localizedDescription }
-                }
-            }
-        }
-
-        Button("Cancel", role: .cancel) {}
+        CommentBodyContent(text: text, mode: effectiveMode, tintColor: threadColor)
     }
 
     // MARK: - Continue thread
@@ -430,45 +393,29 @@ struct CommentView: View {
 
 // MARK: - Card background
 
-/// Applies glass at depth 0 only. Nesting glassEffect inside glassEffect causes the
-/// parent's material to re-sample out of sync with layout changes, producing glow flicker.
+/// Uniform background for all depths using `.ultraThinMaterial` + thread-colour tint.
+/// `.ultraThinMaterial` is a fixed UIBlurEffect — no live sampling — so there is no
+/// flicker or colour desync when many cards are on screen simultaneously. Depth 0 gets
+/// a slightly stronger tint and stroke to preserve root-comment prominence.
 private struct CommentCardBackground: ViewModifier {
     let depth: Int
     let cornerRadius: CGFloat
     let threadColor: Color
 
     func body(content: Content) -> some View {
-        if depth == 0 {
-            content
-                .glassCard(cornerRadius: cornerRadius, tint: threadColor)
-        } else {
-            content
-                .background(
+        content
+            .background(
+                ZStack {
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(threadColor.opacity(0.1))
-                )
-                .overlay(
+                        .fill(.ultraThinMaterial)
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(threadColor.opacity(0.25), lineWidth: 0.5)
-                )
-        }
-    }
-}
-
-// MARK: - Comment badge
-
-private struct CommentBadge: View {
-    let label: String
-    let color: Color
-
-    var body: some View {
-        Text(label)
-            .font(.system(size: 9, weight: .bold, design: .rounded))
-            .foregroundStyle(color)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.15)))
-            .overlay(Capsule().stroke(color.opacity(0.35), lineWidth: 0.5))
+                        .fill(threadColor.opacity(depth == 0 ? 0.18 : 0.12))
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5)
+            )
     }
 }
 

@@ -16,7 +16,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "0697A9422FC90508008402C7"
+               BlueprintIdentifier = "0697A9582FC90614008402C7"
                BuildableName = "LiquidNewsShareExtension.appex"
                BlueprintName = "LiquidNewsShareExtension"
                ReferencedContainer = "container:">

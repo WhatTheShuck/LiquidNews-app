@@ -55,29 +55,12 @@ final class StoriesViewModel {
         defer { isLoading = false }
 
         do {
-            let api = HNAPIService.shared
-            allIDs = try await {
-                switch category {
-                case .top:      return try await api.topStoryIDs()
-                case .new:      return try await api.newStoryIDs()
-                case .best:     return try await api.bestStoryIDs()
-                case .ask:      return try await api.askStoryIDs()
-                case .show:     return try await api.showStoryIDs()
-                case .jobs:     return try await api.jobStoryIDs()
-                case .classic:  return try await api.webStoryIDs(endpoint: "classic")
-                case .active:   return try await api.webStoryIDs(endpoint: "active")
-                case .shownew:  return try await api.webStoryIDs(endpoint: "shownew")
-                case .asknew:   return try await api.webStoryIDs(endpoint: "asknew")
-                case .noob:     return try await api.webStoryIDs(endpoint: "noobstories")
-                case .launches: return try await api.webStoryIDs(endpoint: "launches")
-                case .pool:     return try await api.webStoryIDs(endpoint: "pool")
-                }
-            }()
+            allIDs = try await Self.storyIDs(for: category)
             // Use the private helper that doesn't guard on isLoading,
             // because we intentionally call this while isLoading is true.
             await appendPage()
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 
@@ -90,12 +73,66 @@ final class StoriesViewModel {
         await appendPage()
     }
 
-    /// Pull-to-refresh.
+    /// Pull-to-refresh. Unlike `load`, this keeps the current stories on
+    /// screen while fetching: clearing them would swap the List out for the
+    /// skeleton view, and SwiftUI cancels the `.refreshable` task when the
+    /// List leaves the hierarchy — surfacing a spurious "cancelled" error.
+    /// New content replaces the old atomically on success.
     func refresh() async {
-        await load(category: selectedCategory)
+        // Nothing on screen to preserve (e.g. the first load failed),
+        // so a full resetting load is fine here.
+        guard !stories.isEmpty else {
+            await load(category: selectedCategory)
+            return
+        }
+
+        do {
+            let ids = try await Self.storyIDs(for: selectedCategory)
+            let end = min(pageSize, ids.count)
+            let newItems = try await HNAPIService.shared.items(ids: Array(ids[..<end]))
+            allIDs = ids
+            stories = newItems
+            loadedCount = end
+            errorMessage = nil
+        } catch {
+            report(error)
+        }
+    }
+
+    /// True for errors produced by cooperative task cancellation —
+    /// not real failures, so they should never be shown to the user.
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
+        return false
     }
 
     // MARK: - Private
+
+    /// Records an error for display unless it's a task cancellation.
+    private func report(_ error: Error) {
+        guard !Self.isCancellation(error) else { return }
+        errorMessage = error.localizedDescription
+    }
+
+    private static func storyIDs(for category: StoryCategory) async throws -> [Int] {
+        let api = HNAPIService.shared
+        switch category {
+        case .top:      return try await api.topStoryIDs()
+        case .new:      return try await api.newStoryIDs()
+        case .best:     return try await api.bestStoryIDs()
+        case .ask:      return try await api.askStoryIDs()
+        case .show:     return try await api.showStoryIDs()
+        case .jobs:     return try await api.jobStoryIDs()
+        case .classic:  return try await api.webStoryIDs(endpoint: "classic")
+        case .active:   return try await api.webStoryIDs(endpoint: "active")
+        case .shownew:  return try await api.webStoryIDs(endpoint: "shownew")
+        case .asknew:   return try await api.webStoryIDs(endpoint: "asknew")
+        case .noob:     return try await api.webStoryIDs(endpoint: "noobstories")
+        case .launches: return try await api.webStoryIDs(endpoint: "launches")
+        case .pool:     return try await api.webStoryIDs(endpoint: "pool")
+        }
+    }
 
     /// Fetches and appends the next slice of allIDs. No loading guards —
     /// callers are responsible for setting appropriate flags before calling.
@@ -109,7 +146,7 @@ final class StoriesViewModel {
             stories.append(contentsOf: newItems)
             loadedCount = end
         } catch {
-            errorMessage = error.localizedDescription
+            report(error)
         }
     }
 }

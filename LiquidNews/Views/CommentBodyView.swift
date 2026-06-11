@@ -363,3 +363,30 @@ private extension String {
         }
     }
 }
+
+// MARK: - Shared body renderer
+
+/// Three-mode comment body renderer. Used by `CommentView` and the
+/// self-post body in `StoryDetailView`.
+@ViewBuilder
+func CommentBodyContent(
+    text: String,
+    mode: CommentRenderMode,
+    tintColor: Color = AppTheme.accent
+) -> some View {
+    switch mode {
+    case .textOnly:
+        Text(text.htmlStripped)
+            .font(.system(size: 14))
+            .foregroundStyle(.primary.opacity(0.88))
+            .fixedSize(horizontal: false, vertical: true)
+    case .textWithLinks:
+        Text(text.htmlWithLinks)
+            .font(.system(size: 14))
+            .foregroundStyle(.primary.opacity(0.88))
+            .fixedSize(horizontal: false, vertical: true)
+            .tint(AppTheme.accent)
+    case .rich:
+        CommentBodyView(html: text, tintColor: tintColor)
+    }
+}

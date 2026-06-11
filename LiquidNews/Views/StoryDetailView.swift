@@ -93,13 +93,7 @@ struct StoryDetailView: View {
                         .glassCard()
                 } else {
                     ForEach(viewModel.comments) { comment in
-                        // Each comment gets its own GlassEffectContainer so the
-                        // glass rendering is spatially coordinated within that one
-                        // card. A single container over the whole list caused blank-
-                        // screen flicker during fast scrolling on long threads.
-                        GlassEffectContainer {
-                            CommentView(comment: comment, depth: 0, opUsername: story.by, story: story)
-                        }
+                        CommentView(comment: comment, depth: 0, opUsername: story.by, story: story)
                     }
                 }
             }

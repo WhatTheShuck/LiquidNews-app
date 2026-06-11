@@ -346,6 +346,7 @@ final class UserSettings {
         didSet { kvStore.set(commentRenderingStyle.rawValue, forKey: Keys.commentRenderingStyle) }
     }
 
+
     // MARK: - Tab bar
 
     /// Which optional tabs appear in the bottom pill. Feed is always shown and not stored here.
