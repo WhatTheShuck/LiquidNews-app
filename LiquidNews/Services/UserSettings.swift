@@ -449,6 +449,13 @@ final class UserSettings {
         didSet { kvStore.set(codeWrapLines, forKey: Keys.codeWrapLines) }
     }
 
+    /// When true, comment cards use a live Liquid Glass surface instead of the fixed
+    /// ultraThinMaterial blur. Defaults to false — glass on every nested card can
+    /// cause visual artifacts and performance issues on busy threads.
+    var glassComments: Bool {
+        didSet { kvStore.set(glassComments, forKey: Keys.glassComments) }
+    }
+
     // MARK: - Read Later
 
     /// When true, a count badge appears on the Read Later tab.
@@ -529,6 +536,7 @@ final class UserSettings {
         static let readerShowImagesByDefault    = "LN_readerShowImagesByDefault"
         static let safariReaderMode             = "LN_safariReaderMode"
         static let codeWrapLines                = "LN_codeWrapLines"
+        static let glassComments                = "LN_glassComments"
         static let showReadLaterBadge           = "LN_showReadLaterBadge"
         static let selectedAppTheme             = "LN_selectedAppTheme"
         static let customAccentHex              = "LN_customAccentHex"
@@ -633,6 +641,8 @@ final class UserSettings {
                 safariReaderMode = (kvStore.object(forKey: key) as? Bool) ?? true
             case Keys.codeWrapLines:
                 codeWrapLines = kvStore.bool(forKey: key)
+            case Keys.glassComments:
+                glassComments = kvStore.bool(forKey: key)
             case Keys.showReadLaterBadge:
                 // kvStore.bool(forKey:) returns false for absent keys; this setting defaults to true
                 showReadLaterBadge = (kvStore.object(forKey: key) as? Bool) ?? true
@@ -729,6 +739,7 @@ final class UserSettings {
         // kvStore.bool(forKey:) returns false for absent keys; these settings default to true
         safariReaderMode = (kvStore.object(forKey: Keys.safariReaderMode) as? Bool) ?? true
         codeWrapLines = kvStore.bool(forKey: Keys.codeWrapLines)
+        glassComments = kvStore.bool(forKey: Keys.glassComments)
 
         showReadLaterBadge = (kvStore.object(forKey: Keys.showReadLaterBadge) as? Bool) ?? true
 

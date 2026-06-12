@@ -158,7 +158,9 @@ struct CommentView: View {
             }
         }
         .padding(14)
-        .modifier(CommentCardBackground(depth: depth, cornerRadius: 18, threadColor: threadColor))
+        .modifier(CommentCardBackground(
+            depth: depth, cornerRadius: 18, threadColor: threadColor,
+            glass: settings.glassComments))
         .onLongPressGesture(minimumDuration: 0.4) {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             showActions = true
@@ -393,29 +395,45 @@ struct CommentView: View {
 
 // MARK: - Card background
 
-/// Uniform background for all depths using `.ultraThinMaterial` + thread-colour tint.
-/// `.ultraThinMaterial` is a fixed UIBlurEffect — no live sampling — so there is no
-/// flicker or colour desync when many cards are on screen simultaneously. Depth 0 gets
-/// a slightly stronger tint and stroke to preserve root-comment prominence.
+/// Uniform background for all depths: thread-colour tint behind the content over
+/// either `.ultraThinMaterial` (default) or a live Liquid Glass surface, per the
+/// user's "Glass comments" setting. `.ultraThinMaterial` is a fixed UIBlurEffect —
+/// no live sampling — so there is no flicker or colour desync when many cards are
+/// on screen simultaneously; glass live-samples and can glitch on busy threads.
+/// Depth 0 gets a slightly stronger tint and stroke for root-comment prominence.
 private struct CommentCardBackground: ViewModifier {
     let depth: Int
     let cornerRadius: CGFloat
     let threadColor: Color
+    let glass: Bool
 
     func body(content: Content) -> some View {
-        content
-            .background(
-                ZStack {
+        if glass {
+            content
+                .background(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(.ultraThinMaterial)
+                        .fill(threadColor.opacity(depth == 0 ? 0.12 : 0.08))
+                )
+                .glassEffect(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(threadColor.opacity(depth == 0 ? 0.18 : 0.12))
-                }
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5)
-            )
+                        .stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5)
+                )
+        } else {
+            content
+                .background(
+                    ZStack {
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(.ultraThinMaterial)
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(threadColor.opacity(depth == 0 ? 0.12 : 0.08))
+                    }
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5)
+                )
+        }
     }
 }
 

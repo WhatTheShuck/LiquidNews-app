@@ -831,6 +831,29 @@ struct SettingsListView: View {
                         .tint(AppTheme.accent)
                 }
                 .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Glass comment cards
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles.rectangle.stack")
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Glass comments")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text("Liquid Glass comment cards. May cause visual artifacts, glitches, or slow scrolling on busy threads.")
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Toggle("", isOn: $settings.glassComments)
+                        .labelsHidden()
+                        .tint(AppTheme.accent)
+                }
+                .padding(16)
             }
         }
         .glassCard()
