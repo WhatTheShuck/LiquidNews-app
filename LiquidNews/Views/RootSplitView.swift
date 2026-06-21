@@ -16,11 +16,9 @@ struct RootSplitView: View {
         NavigationSplitView {
             SidebarView(model: model)
         } content: {
-            NavigationStack {
-                contentColumn
-            }
-            // Presence of the model is the iPad routing signal for list views.
-            .environment(\.iPadNavModel, model)
+            contentColumn
+                // Presence of the model is the iPad routing signal for list views.
+                .environment(\.iPadNavModel, model)
         } detail: {
             NavigationStack {
                 DetailColumnView(model: model)
@@ -39,10 +37,14 @@ struct RootSplitView: View {
     @ViewBuilder
     private var contentColumn: some View {
         switch model.destination {
-        case .tab(let tab): listView(for: tab)
+        // List views and AccountView need an enclosing NavigationStack for their
+        // titles/toolbars. SettingsListView already wraps itself in one, and
+        // SearchView is a self-contained ZStack — wrapping either would double
+        // the navigation bar in the content column.
+        case .tab(let tab): NavigationStack { listView(for: tab) }
         case .search:       SearchView()
         case .settings:     SettingsListView()
-        case .account:      AccountView()
+        case .account:      NavigationStack { AccountView() }
         }
     }
 
@@ -64,15 +66,14 @@ struct RootSplitView: View {
         guard let id else { return }
         do {
             let item = try await HNAPIService.shared.item(id: id)
-            if item.type == .comment {
-                // Fetch the parent story so the detail column can show context,
-                // mirroring TabRootView's comment→story swap. If unavailable,
-                // fall back to showing the item itself as comments.
-                model.select(item, mode: .comments)
-            } else {
-                model.destination = .tab(.feed)
-                model.select(item, mode: .comments)
-            }
+            // Route into the Feed tab's detail column. DetailColumnView only
+            // renders a story when the destination is a browsing tab, so a deep
+            // link arriving while Settings/Account/Search is selected must switch
+            // back to a tab. v1 shows a comment item directly in .comments mode;
+            // reproducing TabRootView's ThreadView comment→story swap is out of
+            // scope here.
+            model.destination = .tab(.feed)
+            model.select(item, mode: .comments)
         } catch {
             deepLinkError = true
         }
