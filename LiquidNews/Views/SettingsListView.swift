@@ -8,6 +8,7 @@ struct SettingsListView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @ScaledMetric(relativeTo: .body)    private var rowFontSize:      CGFloat = 15
     @ScaledMetric(relativeTo: .caption) private var subtitleFontSize: CGFloat = 12
@@ -69,8 +70,10 @@ struct SettingsListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close", systemImage: "xmark") { dismiss() }
+                if horizontalSizeClass == .compact {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close", systemImage: "xmark") { dismiss() }
+                    }
                 }
             }
             .navigationDestination(isPresented: $navigateToAccount) {
