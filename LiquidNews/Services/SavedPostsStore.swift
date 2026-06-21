@@ -558,4 +558,65 @@ final class SavedPostsStore {
             try? data.write(to: url, options: .atomic)
         }
     }
+
+    // MARK: - Debug
+
+#if DEBUG
+    /// Debug-only: wipes every iCloud and local store so the app behaves like a
+    /// fresh install. Built to recover an account whose key-value store / iCloud
+    /// container got into a bad state during the dev → App Store transition.
+    ///
+    /// Clears, in order:
+    ///   1. ALL keys in NSUbiquitousKeyValueStore (favourites, read-later, and
+    ///      every UserSettings preference — they share the default KV store).
+    ///   2. The iCloud ubiquitous-container sync file (`Documents/userdata.json`).
+    ///   3. The on-disk hidden-posts / read-history JSON snapshots.
+    ///   4. The local UserDefaults mirrors so they don't re-seed the KV store.
+    ///   5. In-memory state, so the UI empties immediately.
+    ///
+    /// The `LN_kv_migrated` flag is intentionally left set, so UserSettings does
+    /// NOT re-copy stale UserDefaults values back into the cleared KV store.
+    /// Relaunch the app afterwards for a fully clean slate.
+    /// - Returns: A short human-readable summary of what was removed.
+    @discardableResult
+    func debugWipeAllStorage() -> String {
+        // 1. Remove every key from the iCloud key-value store.
+        let kvKeys = Array(kvStore.dictionaryRepresentation.keys)
+        for key in kvKeys { kvStore.removeObject(forKey: key) }
+        kvStore.synchronize()
+
+        // 2. Delete the iCloud ubiquitous container sync file.
+        var iCloudFileRemoved = false
+        if let url = iCloudDataURL {
+            iCloudFileRemoved = (try? FileManager.default.removeItem(at: url)) != nil
+        }
+
+        // 3. Delete the on-disk JSON snapshots.
+        try? FileManager.default.removeItem(at: Self.hiddenFileURL)
+        try? FileManager.default.removeItem(at: Self.historyFileURL)
+
+        // 4. Remove the local UserDefaults mirrors (NOT the migration flag).
+        let ud = UserDefaults.standard
+        for key in [favouritesKey, readLaterKey, readLaterDatesKey, pinsKey] {
+            ud.removeObject(forKey: key)
+        }
+
+        // 5. Reset in-memory state so the UI updates without a relaunch.
+        favouriteIDs   = []
+        readLaterIDs   = []
+        readLaterDates = [:]
+        hiddenPosts    = []
+        hiddenIDs      = []
+        readHistory    = []
+        readIDs        = []
+        pinnedIDs      = []
+
+        return """
+        Cleared \(kvKeys.count) iCloud KV key(s).
+        iCloud sync file: \(iCloudFileRemoved ? "deleted" : "not present").
+        Local snapshots & defaults cleared.
+        Relaunch the app to finish.
+        """
+    }
+#endif
 }
