@@ -8,7 +8,7 @@ struct SettingsListView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.iPadNavModel) private var navModel
 
     @ScaledMetric(relativeTo: .body)    private var rowFontSize:      CGFloat = 15
     @ScaledMetric(relativeTo: .caption) private var subtitleFontSize: CGFloat = 12
@@ -70,7 +70,7 @@ struct SettingsListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
-                if horizontalSizeClass == .compact {
+                if navModel == nil {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Close", systemImage: "xmark") { dismiss() }
                     }

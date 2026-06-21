@@ -55,7 +55,6 @@ struct StoriesListView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.iPadNavModel) private var navModel
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     // 0 = picker fully visible, 1 = picker fully hidden.
     // Driven directly from scroll offset so the animation tracks finger speed.
     // Snapped to 0 or 1 with a spring once scrolling stops.
@@ -160,9 +159,9 @@ struct StoriesListView: View {
                 }
             }
 
-            // These entry points are sidebar destinations on iPad/Mac; keep
-            // them only in compact width (iPhone) where there is no sidebar.
-            if horizontalSizeClass == .compact {
+            // On iPad these are sidebar destinations (navModel present); keep
+            // them only on iPhone where navModel is nil.
+            if navModel == nil {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingSearch = true
