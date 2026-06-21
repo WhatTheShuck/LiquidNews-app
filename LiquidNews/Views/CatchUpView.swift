@@ -27,6 +27,7 @@ struct CatchUpView: View {
     @State private var controlsProgress: Double = 0
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.iPadNavModel) private var navModel
 
     private let store = SavedPostsStore.shared
 
@@ -245,6 +246,16 @@ struct CatchUpView: View {
     // MARK: - Stories list
 
     private func performAction(_ action: StoryAction, story: HNItem) {
+        // iPad split view: route navigation actions into the detail column.
+        // Side-effect actions (favourite/saveLater/hide/none) fall through to
+        // the existing switch so swipe actions keep working unchanged.
+        if let navModel, let mode = DetailMode.forSelection(action: action, hasURL: story.url != nil) {
+            if action == .openSafari, let urlString = story.url, let url = URL(string: urlString) {
+                openURL(url)
+            }
+            navModel.select(story, mode: mode)
+            return
+        }
         switch action {
         case .openComments:
             selectedStory = story

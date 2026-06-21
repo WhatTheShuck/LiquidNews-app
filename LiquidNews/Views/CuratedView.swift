@@ -33,6 +33,7 @@ struct CuratedView: View {
     @State private var safariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
     @Environment(\.openURL) private var openURL
+    @Environment(\.iPadNavModel) private var navModel
     private let store = SavedPostsStore.shared
     /// True when the user has dismissed the banner for the current load cycle only.
     @State private var bannerHiddenThisLoad = false
@@ -234,6 +235,18 @@ struct CuratedView: View {
     // MARK: - Swipe actions
 
     private func performAction(_ action: StoryAction, entry: CuratedEntry) {
+        // iPad split view: route navigation actions into the detail column.
+        // Curated entries carry an HN item id; fetch the story, then select it.
+        if let navModel, let mode = DetailMode.forSelection(action: action, hasURL: true) {
+            if action == .openSafari { openURL(entry.url) }
+            recordReadAndMaybeHide(entry)
+            Task {
+                guard let id = entry.hnItemID,
+                      let story = try? await HNAPIService.shared.item(id: id) else { return }
+                navModel.select(story, mode: mode)
+            }
+            return
+        }
         switch action {
         case .openComments:
             // StoryDetailView.task handles recordRead + auto-hide for this path.

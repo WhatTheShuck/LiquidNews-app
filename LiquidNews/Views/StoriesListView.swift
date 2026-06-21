@@ -54,6 +54,7 @@ struct StoriesListView: View {
     @State private var showingAccount = false
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.iPadNavModel) private var navModel
     // 0 = picker fully visible, 1 = picker fully hidden.
     // Driven directly from scroll offset so the animation tracks finger speed.
     // Snapped to 0 or 1 with a spring once scrolling stops.
@@ -349,6 +350,16 @@ struct StoriesListView: View {
     private let store = SavedPostsStore.shared
 
     private func performAction(_ action: StoryAction, story: HNItem) {
+        // iPad split view: route navigation actions into the detail column.
+        // Side-effect actions (favourite/saveLater/hide/none) fall through to
+        // the existing switch so swipe actions keep working unchanged.
+        if let navModel, let mode = DetailMode.forSelection(action: action, hasURL: story.url != nil) {
+            if action == .openSafari, let urlString = story.url, let url = URL(string: urlString) {
+                openURL(url)
+            }
+            navModel.select(story, mode: mode)
+            return
+        }
         switch action {
         case .openComments:
             selectedStory = story
