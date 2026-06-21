@@ -9,6 +9,7 @@ struct HistoryView: View {
     @State private var selectedStory: HNItem?
     @State private var showingClearConfirm = false
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.iPadNavModel) private var navModel
 
     private let store = SavedPostsStore.shared
 
@@ -70,7 +71,7 @@ struct HistoryView: View {
             ForEach(store.readHistory) { entry in
                 Button {
                     // Re-open from snapshot data — we don't re-fetch from API
-                    selectedStory = HNItem(
+                    let item = HNItem(
                         id:          entry.id,
                         type:        .story,
                         by:          entry.by,
@@ -84,6 +85,11 @@ struct HistoryView: View {
                         deleted:     nil,
                         dead:        nil
                     )
+                    if let navModel {
+                        navModel.select(item, mode: .comments)
+                    } else {
+                        selectedStory = item
+                    }
                 } label: {
                     HistoryRowView(entry: entry)
                         .contentShape(Rectangle())
