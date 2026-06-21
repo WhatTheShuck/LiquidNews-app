@@ -9,6 +9,7 @@ struct ReadLaterView: View {
     @State private var selectedStory: HNItem?
     @State private var settings = UserSettings.shared
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.iPadNavModel) private var navModel
 
     private let store = SavedPostsStore.shared
 
@@ -78,7 +79,11 @@ struct ReadLaterView: View {
         List {
             ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
                 Button {
-                    selectedStory = story
+                    if let navModel {
+                        navModel.select(story, mode: .comments)
+                    } else {
+                        selectedStory = story
+                    }
                 } label: {
                     StoryRowView(story: story, rank: index + 1)
                         .contentShape(Rectangle())
