@@ -390,12 +390,6 @@ final class UserSettings {
         didSet { kvStore.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
     }
 
-    /// Feed plus the user's enabled optional tabs in configured order. Drives the
-    /// iPad adaptable TabView's top-level tab set.
-    var orderedEnabledTabs: [AppTab] {
-        AppTab.orderedEnabled(order: tabOrder, enabled: enabledOptionalTabs)
-    }
-
     // MARK: - Feed categories
 
     /// Display order of all known feed categories (enabled and disabled).

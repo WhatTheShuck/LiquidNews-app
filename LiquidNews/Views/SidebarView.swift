@@ -1,7 +1,8 @@
 // SidebarView.swift
 // The sidebar (leading column) of the iPad/Mac split view. Lists Search, every
 // enabled tab in the user's configured order (Feed always first, no overflow
-// limit), then Settings and Account. Selection drives model.destination.
+// limit), then Settings. Selection drives model.destination. (Account is not a
+// top-level row — it's reached via Settings → Account.)
 
 import SwiftUI
 
@@ -42,8 +43,6 @@ struct SidebarView: View {
             Section {
                 Label("Settings", systemImage: "gearshape")
                     .tag(SidebarDestination.settings)
-                Label("Account", systemImage: "person.crop.circle")
-                    .tag(SidebarDestination.account)
             }
         }
         .navigationTitle("LiquidNews")

@@ -374,7 +374,6 @@ struct ArticleReaderView: View {
     @State private var isPreparingReport = false
     @State private var readerLinkSafariURL: IdentifiableURL?
     @State private var readerLinkReaderURL: IdentifiableURL?
-    @State private var fallbackSafariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
     @State private var wisdomQuote: String
     @State private var linkedHNStory: HNItem?
@@ -411,7 +410,21 @@ struct ArticleReaderView: View {
             }
     }
 
+    /// Switches between the reader and its Safari fallback. When extraction fails we
+    /// render Safari *in place of* the reader rather than presenting it over the top —
+    /// otherwise the blank, scene-attached WKWebView stays visible behind the sheet.
     private var readerContent: some View {
+        Group {
+            if isFailed {
+                SafariView(url: url, onFinish: closeReader)
+                    .ignoresSafeArea()
+            } else {
+                readerBody
+            }
+        }
+    }
+
+    private var readerBody: some View {
         ZStack {
             // WKWebView is always present and scene-attached
             ReaderWebView(url: url, state: readerState)
@@ -443,7 +456,7 @@ struct ArticleReaderView: View {
             if chromeStyle == .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close", systemImage: "xmark") {
-                        if let onClose { onClose() } else { dismiss() }
+                        closeReader()
                     }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -501,9 +514,6 @@ struct ArticleReaderView: View {
         .onChange(of: readerState.isSuccess) { _, success in
             if success { readerState.applyPreferences(preferences) }
         }
-        .onChange(of: isFailed) { _, failed in
-            if failed { fallbackSafariURL = IdentifiableURL(url) }
-        }
         .onAppear {
             updateReaderLinkInterception()
         }
@@ -544,9 +554,6 @@ struct ArticleReaderView: View {
                 ArticleReaderView(url: item.url)
             }
         }
-        .sheet(item: $fallbackSafariURL, onDismiss: { dismiss() }) { item in
-            SafariView(url: item.url)
-        }
         .sheet(isPresented: $showReaderOptions) {
             ReaderOptionsSheet(preferences: preferences)
                 .presentationDetents([.height(StoreService.shared.isThemesUnlocked ? 380 : 300)])
@@ -556,6 +563,12 @@ struct ArticleReaderView: View {
     }
 
     // MARK: - Helpers
+
+    /// Dismisses the reader, honouring an explicit `onClose` (used where the
+    /// environment `dismiss` is a no-op, e.g. an iPad split-view detail column).
+    private func closeReader() {
+        if let onClose { onClose() } else { dismiss() }
+    }
 
     private var showOverlay: Bool {
         switch readerState.phase {
@@ -699,7 +712,7 @@ struct ArticleReaderView: View {
     private var floatingControls: some View {
         HStack(alignment: .top) {
             ReaderToolbarButton(icon: "xmark", enabled: true) {
-                if let onClose { onClose() } else { dismiss() }
+                closeReader()
             }
             .glassEffect(in: Circle())
 

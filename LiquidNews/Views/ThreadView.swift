@@ -10,6 +10,10 @@ struct ThreadView: View {
     let depth: Int
     var opUsername: String? = nil
     var onShowStory: ((HNItem) -> Void)? = nil
+    /// Optional explicit close action. Used where the environment `dismiss` is a
+    /// no-op, e.g. an iPad split-view detail column. When nil, the ✕ button falls
+    /// back to `dismiss()` (the iPhone sheet case).
+    var onClose: (() -> Void)? = nil
 
     @State private var resolvedStory: HNItem?
     @State private var isLoadingStory = false
@@ -21,11 +25,13 @@ struct ThreadView: View {
         depth: Int,
         opUsername: String? = nil,
         story: HNItem? = nil,
+        onClose: (() -> Void)? = nil,
         onShowStory: ((HNItem) -> Void)? = nil
     ) {
         self.rootComment = rootComment
         self.depth = depth
         self.opUsername = opUsername
+        self.onClose = onClose
         self.onShowStory = onShowStory
         _resolvedStory = State(initialValue: story)
     }
@@ -53,7 +59,7 @@ struct ThreadView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close", systemImage: "xmark") {
-                    dismiss()
+                    if let onClose { onClose() } else { dismiss() }
                 }
             }
 

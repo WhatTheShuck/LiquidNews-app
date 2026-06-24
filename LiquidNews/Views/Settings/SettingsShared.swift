@@ -39,6 +39,13 @@ struct SettingsDetailScaffold<Content: View>: View {
     @ViewBuilder var content: Content
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
+    // Non-nil only inside the iPad/Mac split view. There, settings is a persistent
+    // column rather than a pushed sheet, so the leading chevron reads oddly — swap it
+    // for an explicit ✕ that pops the category back to the settings list.
+    @Environment(\.iPadNavModel) private var iPadNavModel
+
+    private var isSplitColumn: Bool { iPadNavModel != nil }
 
     var body: some View {
         ScrollView(.vertical) {
@@ -54,5 +61,16 @@ struct SettingsDetailScaffold<Content: View>: View {
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
+        // On iPad, replace the system back chevron with a ✕ that clears the category
+        // (dismiss() pops this page off the settings column's NavigationStack, back to
+        // the list). On iPhone the category is a push, so keep the native back arrow.
+        .navigationBarBackButtonHidden(isSplitColumn)
+        .toolbar {
+            if isSplitColumn {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                }
+            }
+        }
     }
 }

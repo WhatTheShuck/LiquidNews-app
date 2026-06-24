@@ -1,7 +1,7 @@
 // RootSplitView.swift
 // The iPad/Mac three-column layout (regular width). Sidebar selects a
 // destination; the content column shows that destination's list (or Settings/
-// Account/Search); selecting a story drives the detail column via iPadNavModel.
+// Search); selecting a story drives the detail column via iPadNavModel.
 // Deep links route into the model instead of presenting sheets.
 
 import SwiftUI
@@ -18,6 +18,15 @@ struct RootSplitView: View {
             SidebarView(model: model)
         } content: {
             contentColumn
+                // Rebuild the content column from scratch whenever the sidebar
+                // selection changes. Settings categories push onto SettingsListView's
+                // own NavigationStack (which lives here, in the content column);
+                // without a fresh identity per destination, that pushed page stays
+                // wedged in place when you pick another sidebar row — you can't leave
+                // it, and the wedged stack blocks the detail column from opening a
+                // story. Keying on the destination tears the pushed stack down so each
+                // sidebar selection starts clean.
+                .id(model.destination)
                 // Presence of the model is the iPad routing signal for list views.
                 .environment(\.iPadNavModel, model)
         } detail: {
@@ -36,6 +45,14 @@ struct RootSplitView: View {
         .preferredColorScheme(settings.selectedAppTheme == .classic ? .light : settings.appColorScheme.resolved)
         .onChange(of: model.isReaderSideBySideVisible(layout: settings.iPadReaderLayout)) { _, active in
             withAnimation { columnVisibility = active ? .detailOnly : .all }
+        }
+        // Changing the sidebar selection clears the screen: drop any open story so
+        // the detail column resets to its placeholder (rather than re-showing the
+        // previous selection when you return to a browsing tab) and so the split
+        // un-collapses from a side-by-side reader. The content column itself is rebuilt
+        // via `.id(model.destination)` above.
+        .onChange(of: model.destination) { _, _ in
+            model.closeStory()
         }
         .onChange(of: deepLink.pendingItemID) { _, id in
             guard let id else { return }
@@ -59,14 +76,16 @@ struct RootSplitView: View {
     @ViewBuilder
     private var contentColumn: some View {
         switch model.destination {
-        // List views and AccountView need an enclosing NavigationStack for their
-        // titles/toolbars. SettingsListView already wraps itself in one, and
-        // SearchView is a self-contained ZStack — wrapping either would double
-        // the navigation bar in the content column.
+        // List views need an enclosing NavigationStack for their titles/toolbars.
+        // SettingsListView already wraps itself in one, and SearchView is a
+        // self-contained ZStack — wrapping either would double the navigation bar
+        // in the content column. (Account is reached via Settings → Account, so it
+        // is not a top-level content destination here.)
         case .tab(let tab): NavigationStack { listView(for: tab) }
-        case .search:       SearchView()
-        case .settings:     SettingsListView()
-        case .account:      NavigationStack { AccountView() }
+        // Search/Settings here are split-view columns, not sheets — suppress their
+        // dismiss affordances (Cancel / Close), which would be dead chrome.
+        case .search:       SearchView(showsCancel: false)
+        case .settings:     SettingsListView(showsCloseButton: false)
         }
     }
 
@@ -91,11 +110,13 @@ struct RootSplitView: View {
             // Route into the Feed tab's detail column. DetailColumnView only
             // renders a story when the destination is a browsing tab, so a deep
             // link arriving while Settings/Account/Search is selected must switch
-            // back to a tab. v1 shows a comment item directly in .comments mode;
-            // reproducing TabRootView's ThreadView comment→story swap is out of
-            // scope here.
+            // back to a tab.
             model.destination = .tab(.feed)
-            model.select(item, mode: .comments)
+            // Match iPhone's deep-link behavior (TabRootView.openItem): a comment
+            // opens in a focused ThreadView with a swap to its parent story, while
+            // a story opens straight into comments. `.thread` carries the comment
+            // as `selectedStory`; DetailColumnView renders ThreadView for it.
+            model.select(item, mode: item.type == .comment ? .thread : .comments)
         } catch {
             deepLinkError = true
         }

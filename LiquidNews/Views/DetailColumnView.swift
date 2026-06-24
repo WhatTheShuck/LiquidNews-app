@@ -27,16 +27,6 @@ struct DetailColumnView: View {
         Group {
             if let story = storyToShow {
                 content(for: story)
-                    .toolbar {
-                        // Only the "back to Comments" button, and only while the
-                        // reader has taken over the column (replace layout). The
-                        // reverse "Aa → Reader" button is intentionally gone: the
-                        // story header's "Read Article" button is the way into the
-                        // reader, so a duplicate toolbar entry just added noise.
-                        if !isSideBySide && model.detailMode == .reader {
-                            backToCommentsToolbar(for: story)
-                        }
-                    }
                     // Side by side, each pane carries its own glass control strip, so
                     // the shared detail nav bar (and its system "show columns" button)
                     // is hidden to avoid a second, full-width row of controls.
@@ -75,10 +65,25 @@ struct DetailColumnView: View {
         // `.replace` reader and in-app browser take over the whole detail column.
         case .reader where !isSideBySide:
             if let url = storyURL {
-                ArticleReaderView(url: url)   // replace path — nav-bar chrome
+                // Replace path — nav-bar chrome. Its ✕ would otherwise call the
+                // environment `dismiss`, a no-op inside the detail column. Route it
+                // back to comments instead, matching the side-by-side reader pane's
+                // ✕ so the icon means the same thing in both layouts.
+                ArticleReaderView(url: url, onClose: backToComments)
             } else {
                 StoryDetailView(story: story, onClose: closeArticle)
             }
+        // A deep-linked comment: show the focused thread with a swap to its parent
+        // story (mirrors iPhone's TabRootView ThreadView → StoryDetailView flow).
+        case .thread:
+            ThreadView(
+                rootComment: story,
+                depth: 0,
+                onClose: closeArticle,
+                onShowStory: { resolved in
+                    withAnimation(.smooth) { model.select(resolved, mode: .comments) }
+                }
+            )
         case .browser:
             if let url = storyURL {
                 SafariView(url: url).ignoresSafeArea()
@@ -184,17 +189,11 @@ struct DetailColumnView: View {
         .animation(.easeOut(duration: 0.15), value: isResizing)
     }
 
-    /// "Back to Comments" button, shown only in the replace layout while reading,
-    /// where the reader fills the column and its own Close is a no-op.
-    @ToolbarContentBuilder
-    private func backToCommentsToolbar(for story: HNItem) -> some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                withAnimation(.smooth) { model.detailMode = .comments }
-            } label: {
-                Label("Comments", systemImage: "bubble.left")
-            }
-        }
+    /// Returns the detail column to the comments pane. Used as the replace-layout
+    /// reader's ✕ action, where the environment `dismiss` is a no-op — mirroring the
+    /// side-by-side reader pane's ✕, so the icon means the same thing in both layouts.
+    private func backToComments() {
+        withAnimation(.smooth) { model.detailMode = .comments }
     }
 
     private var placeholder: some View {

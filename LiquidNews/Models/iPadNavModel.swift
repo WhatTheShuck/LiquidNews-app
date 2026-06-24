@@ -12,7 +12,6 @@ enum SidebarDestination: Hashable {
     case tab(AppTab)
     case search
     case settings
-    case account
 }
 
 // MARK: - Detail column mode
@@ -22,6 +21,7 @@ enum DetailMode: Hashable {
     case comments   // StoryDetailView
     case reader     // ArticleReaderView
     case browser    // in-app SafariView
+    case thread     // ThreadView — a deep-linked comment, with a swap to its story
 
     /// Maps a navigation `StoryAction` to the detail mode for a freshly selected
     /// story. Returns `nil` for non-navigation actions (favourite/saveLater/hide/

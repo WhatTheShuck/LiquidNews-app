@@ -122,11 +122,16 @@ struct StoriesListView: View {
                 // category menu enters in the second half (0.5→1). This creates
                 // a staggered crossfade that tracks scroll speed directly.
                 ZStack {
-                    Text("LiquidNews")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .opacity(max(0, 1 - pickerProgress * 2))
-                        .scaleEffect(1 - pickerProgress * 0.25)
+                    // iPhone only: on iPad the sidebar header already shows
+                    // "LiquidNews", so a second copy in the content column's nav bar
+                    // is redundant. The scroll-in category menu below is kept on both.
+                    if navModel == nil {
+                        Text("LiquidNews")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .opacity(max(0, 1 - pickerProgress * 2))
+                            .scaleEffect(1 - pickerProgress * 0.25)
+                    }
 
                     Menu {
                         ForEach(enabledCategories) { category in

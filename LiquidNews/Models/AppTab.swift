@@ -41,11 +41,4 @@ enum AppTab: String, CaseIterable, Identifiable {
 
     /// The five tabs the user can add or remove.
     static var optional: [AppTab] { allCases.filter { !$0.isRequired } }
-
-    /// Feed first, then the given optional tabs in `order`, filtered to those in
-    /// `enabled`. The single source of truth for top-level tab ordering — used by
-    /// the iPad adaptable TabView and the compact TabRootView.
-    static func orderedEnabled(order: [AppTab], enabled: Set<AppTab>) -> [AppTab] {
-        [.feed] + order.filter { $0 != .feed && enabled.contains($0) }
-    }
 }

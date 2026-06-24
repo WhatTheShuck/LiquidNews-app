@@ -9,6 +9,11 @@ struct SettingsListView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    // Custom environment values don't reliably survive a NavigationLink push, so the
+    // pushed category pages can't read this from the environment themselves. Capture
+    // it here (at the column root, where it IS present) and re-inject it into each
+    // pushed destination so SettingsDetailScaffold can show its ✕ on iPad.
+    @Environment(\.iPadNavModel) private var iPadNavModel
 
     /// True when presented as a sheet (iPhone) — shows a Close button. False when
     /// hosted as the iPad Settings tab, where there is nothing to dismiss.
@@ -50,6 +55,7 @@ struct SettingsListView: View {
     private var accountCard: some View {
         NavigationLink {
             AccountView()
+                .environment(\.iPadNavModel, iPadNavModel)
         } label: {
             HStack(spacing: 12) {
                 Image(
@@ -158,6 +164,7 @@ struct SettingsListView: View {
     ) -> some View {
         NavigationLink {
             destination()
+                .environment(\.iPadNavModel, iPadNavModel)
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: icon)
