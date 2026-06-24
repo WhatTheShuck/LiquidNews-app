@@ -348,10 +348,20 @@ final class ReaderState {
     }
 }
 
+// MARK: - Chrome style
+
+/// How the reader exposes its controls.
+enum ReaderChromeStyle {
+    case toolbar    // nav-bar buttons — iPhone sheet and the iPad replace path
+    case floating   // glass-circle buttons overlaid on the pane — side-by-side
+}
+
 // MARK: - View
 
 struct ArticleReaderView: View {
     let url: URL
+    let chromeStyle: ReaderChromeStyle
+    private let onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
     @State private var readerState = ReaderState()
     @State private var preferences: ReaderPreferences
@@ -361,13 +371,17 @@ struct ArticleReaderView: View {
     @State private var readerLinkReaderURL: IdentifiableURL?
     @State private var fallbackSafariURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
+    @State private var wisdomQuote: String
     @State private var linkedHNStory: HNItem?
 
-    init(url: URL) {
+    init(url: URL, chromeStyle: ReaderChromeStyle = .toolbar, onClose: (() -> Void)? = nil) {
         self.url = url
+        self.chromeStyle = chromeStyle
+        self.onClose = onClose
         let prefs = ReaderPreferences()
         prefs.showImages = UserSettings.shared.readerShowImagesByDefault
         _preferences = State(initialValue: prefs)
+        _wisdomQuote = State(initialValue: WordsOfWisdom.random)
     }
 
     var body: some View {
@@ -418,46 +432,53 @@ struct ArticleReaderView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close", systemImage: "xmark") { dismiss() }
+            if chromeStyle == .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        showReaderOptions = true
+                    } label: {
+                        Image(systemName: "textformat.size")
+                    }
+                    .disabled(!readerState.isSuccess)
+
+                    Menu {
+                        Button {
+                            preferences.showImages.toggle()
+                        } label: {
+                            Label(
+                                preferences.showImages ? "Hide Images" : "Show Images",
+                                systemImage: preferences.showImages ? "photo.fill" : "photo"
+                            )
+                        }
+
+                        Divider()
+
+                        Button {
+                            Task { await reportReaderIssue() }
+                        } label: {
+                            Label("Report Reader Issue", systemImage: "exclamationmark.bubble")
+                        }
+                        .disabled(isPreparingReport)
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .disabled(!readerState.isSuccess)
+
+                    Button {
+                        readerState.reloadArticle()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(!readerState.isSuccess)
+                }
             }
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    showReaderOptions = true
-                } label: {
-                    Image(systemName: "textformat.size")
-                }
-                .disabled(!readerState.isSuccess)
-
-                Menu {
-                    Button {
-                        preferences.showImages.toggle()
-                    } label: {
-                        Label(
-                            preferences.showImages ? "Hide Images" : "Show Images",
-                            systemImage: preferences.showImages ? "photo.fill" : "photo"
-                        )
-                    }
-
-                    Divider()
-
-                    Button {
-                        Task { await reportReaderIssue() }
-                    } label: {
-                        Label("Report Reader Issue", systemImage: "exclamationmark.bubble")
-                    }
-                    .disabled(isPreparingReport)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .disabled(!readerState.isSuccess)
-
-                Button {
-                    readerState.reloadArticle()
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(!readerState.isSuccess)
+        }
+        .overlay(alignment: .top) {
+            if chromeStyle == .floating {
+                floatingControls
             }
         }
         // Re-apply preferences whenever they change or after a reload
@@ -613,15 +634,26 @@ struct ArticleReaderView: View {
             Color(red: 0.06, green: 0.06, blue: 0.10)
                 .ignoresSafeArea()
 
+            // Release builds get a polished, on-brand skeleton animation only.
+            // Debug builds additionally surface the phase label and extraction log.
             VStack(spacing: 20) {
-                ProgressView()
-                    .tint(.white.opacity(0.5))
+                ReaderLoadingAnimation()
 
+                if settings.wordsOfWisdom && !wisdomQuote.isEmpty {
+                    Text("\u{201C}\(wisdomQuote)\u{201D}")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .italic()
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                        .transition(.opacity)
+                }
+
+                #if DEBUG
                 Text(phaseLabel)
                     .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
 
-                #if DEBUG
                 if !readerState.log.isEmpty {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 4) {
@@ -649,6 +681,138 @@ struct ArticleReaderView: View {
         case .extracting: return "Extracting with Readability…"
         case .success, .failed: return ""
         }
+    }
+
+    // MARK: - Floating controls
+
+    @ViewBuilder
+    private var floatingControls: some View {
+        HStack(alignment: .top) {
+            ReaderToolbarButton(icon: "xmark", enabled: true) {
+                if let onClose { onClose() } else { dismiss() }
+            }
+            .glassEffect(in: Circle())
+
+            Spacer()
+
+            HStack(spacing: 8) {
+                ReaderToolbarButton(icon: "textformat.size", enabled: readerState.isSuccess) {
+                    showReaderOptions = true
+                }
+                .glassEffect(in: Circle())
+
+                ReaderToolbarButton(icon: "arrow.clockwise", enabled: readerState.isSuccess) {
+                    readerState.reloadArticle()
+                }
+                .glassEffect(in: Circle())
+
+                Menu {
+                    Button {
+                        preferences.showImages.toggle()
+                    } label: {
+                        Label(
+                            preferences.showImages ? "Hide Images" : "Show Images",
+                            systemImage: preferences.showImages ? "photo.fill" : "photo"
+                        )
+                    }
+                    Divider()
+                    Button {
+                        Task { await reportReaderIssue() }
+                    } label: {
+                        Label("Report Reader Issue", systemImage: "exclamationmark.bubble")
+                    }
+                    .disabled(isPreparingReport)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .glassEffect(in: Circle())
+                .disabled(!readerState.isSuccess)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
+    }
+}
+
+// MARK: - Loading animation
+//
+// A shimmering article-skeleton placeholder shown while the reader extracts.
+// It previews the shape of an article (site label → title → body lines) with an
+// accent-coloured highlight sweeping diagonally across it, so the wait reads as
+// "laying out your article" rather than a generic spinner. On-brand and
+// intentionally lightweight — pure SwiftUI shapes, one repeating animation.
+private struct ReaderLoadingAnimation: View {
+    /// Drives the highlight sweep. Animates from off-screen-left to off-screen-right.
+    @State private var sweep: CGFloat = -1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var accent: Color { AppTheme.accent }
+
+    /// Relative widths (0–1) of the faux body lines.
+    private let lineWidths: [CGFloat] = [1.0, 0.92, 0.97, 0.78, 0.95, 0.6]
+
+    var body: some View {
+        skeleton
+            .frame(maxWidth: 300)
+            .overlay { if !reduceMotion { highlight } }
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.linear(duration: 1.6).repeatForever(autoreverses: false)) {
+                    sweep = 2
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel("Loading article")
+    }
+
+    /// The faint document outline — also reused as the mask for the highlight,
+    /// so the sweep only paints over the bars, never the gaps.
+    private var skeleton: some View {
+        VStack(alignment: .leading, spacing: 13) {
+            bar(0.32, height: 9, color: accent.opacity(0.55))   // site label
+
+            VStack(alignment: .leading, spacing: 9) {           // title
+                bar(0.85, height: 17, color: .white.opacity(0.16))
+                bar(0.62, height: 17, color: .white.opacity(0.16))
+            }
+            .padding(.top, 5)
+
+            VStack(alignment: .leading, spacing: 10) {          // body
+                ForEach(lineWidths.indices, id: \.self) { i in
+                    bar(lineWidths[i], height: 8, color: .white.opacity(0.10))
+                }
+            }
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var highlight: some View {
+        GeometryReader { geo in
+            LinearGradient(
+                colors: [.clear, accent.opacity(0.7), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: geo.size.width * 0.55)
+            .blur(radius: 8)
+            .offset(x: sweep * geo.size.width)
+        }
+        .mask(skeleton)
+        .allowsHitTesting(false)
+    }
+
+    private func bar(_ widthFraction: CGFloat, height: CGFloat, color: Color) -> some View {
+        GeometryReader { geo in
+            Capsule()
+                .fill(color)
+                .frame(width: geo.size.width * widthFraction, height: height)
+        }
+        .frame(height: height)
     }
 }
 

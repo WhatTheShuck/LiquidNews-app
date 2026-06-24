@@ -15,6 +15,12 @@ struct AccountView: View {
     @State private var store = StoreService.shared
     @State private var showPaywall = false
     @State private var showTrialExpiredNudge = false
+    #if DEBUG
+    @State private var savedPosts = SavedPostsStore.shared
+    @State private var showWipeiCloudConfirm = false
+    @State private var wipeResultMessage: String?
+    @State private var showWipeResult = false
+    #endif
     @FocusState private var focusedField: LoginField?
 
     // Login form state
@@ -355,10 +361,37 @@ struct AccountView: View {
                 Divider().overlay(AppTheme.glassBorder)
                 Button("Reset Trial (not started)") { store.debugResetTrial() }
                     .padding(14)
+                Divider().overlay(AppTheme.glassBorder)
+                Button(role: .destructive) {
+                    showWipeiCloudConfirm = true
+                } label: {
+                    Text("Wipe iCloud + Local Storage")
+                        .frame(maxWidth: .infinity)
+                        .padding(14)
+                }
+                .foregroundStyle(.red)
             }
             .font(.system(size: 14, design: .rounded))
             .foregroundStyle(AppTheme.accent)
             .glassCard()
+        }
+        .confirmationDialog(
+            "Wipe all storage?",
+            isPresented: $showWipeiCloudConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Wipe Everything", role: .destructive) {
+                wipeResultMessage = savedPosts.debugWipeAllStorage()
+                showWipeResult = true
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Clears the iCloud key-value store, the iCloud sync file, and all local favourites / read-later / history / settings. Use this to recover the cooked dev→Store account. Relaunch afterwards.")
+        }
+        .alert("Storage Wiped", isPresented: $showWipeResult) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(wipeResultMessage ?? "")
         }
     }
     #endif

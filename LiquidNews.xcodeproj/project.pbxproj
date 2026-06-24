@@ -14,6 +14,10 @@
 		AA000001000000000000012 /* HNItemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000013 /* HNItemTests.swift */; };
 		AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000014 /* HNAPIServiceTests.swift */; };
 		AA000001000000000000018 /* StoriesViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000019 /* StoriesViewModelTests.swift */; };
+		AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000021 /* WordsOfWisdomTests.swift */; };
+		AA000002000000000000020 /* OrderedEnabledTabsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000002000000000000021 /* OrderedEnabledTabsTests.swift */; };
+		AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001A /* DetailModeMappingTests.swift */; };
+		AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001C /* IPadReaderLayoutTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +61,10 @@
 		AA000001000000000000013 /* HNItemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNItemTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000014 /* HNAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNAPIServiceTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000019 /* StoriesViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoriesViewModelTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000021 /* WordsOfWisdomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsOfWisdomTests.swift; sourceTree = "<group>"; };
+		AA000002000000000000021 /* OrderedEnabledTabsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrderedEnabledTabsTests.swift; sourceTree = "<group>"; };
+		AA00000100000000000001A /* DetailModeMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailModeMappingTests.swift; sourceTree = "<group>"; };
+		AA00000100000000000001C /* IPadReaderLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadReaderLayoutTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -149,6 +157,10 @@
 				AA000001000000000000013 /* HNItemTests.swift */,
 				AA000001000000000000014 /* HNAPIServiceTests.swift */,
 				AA000001000000000000019 /* StoriesViewModelTests.swift */,
+				AA000001000000000000021 /* WordsOfWisdomTests.swift */,
+				AA000002000000000000021 /* OrderedEnabledTabsTests.swift */,
+				AA00000100000000000001A /* DetailModeMappingTests.swift */,
+				AA00000100000000000001C /* IPadReaderLayoutTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -304,6 +316,10 @@
 				AA000001000000000000012 /* HNItemTests.swift in Sources */,
 				AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */,
 				AA000001000000000000018 /* StoriesViewModelTests.swift in Sources */,
+				AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */,
+				AA000002000000000000020 /* OrderedEnabledTabsTests.swift in Sources */,
+				AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */,
+				AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

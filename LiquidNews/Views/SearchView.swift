@@ -22,6 +22,10 @@ struct SearchView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
+    /// True when presented as a sheet (iPhone) — shows the Cancel button. False
+    /// when hosted as the iPad Search tab, where there is nothing to dismiss.
+    var showsCancel: Bool = true
+
     var body: some View {
         ZStack {
             AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
@@ -110,10 +114,12 @@ struct SearchView: View {
             .padding(.vertical, 10)
             .glassEffect(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            Button("Cancel") { dismiss() }
-                .foregroundStyle(AppTheme.accent)
-                .fontWeight(.medium)
-                .transition(.move(edge: .trailing).combined(with: .opacity))
+            if showsCancel {
+                Button("Cancel") { dismiss() }
+                    .foregroundStyle(AppTheme.accent)
+                    .fontWeight(.medium)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 20)

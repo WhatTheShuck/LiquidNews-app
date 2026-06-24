@@ -41,6 +41,10 @@ enum DetailSheet: Identifiable {
 
 struct StoryDetailView: View {
     let story: HNItem
+    /// Custom close action for non-modal hosts (the iPad detail column, which has
+    /// no sheet to dismiss). When nil, the X button falls back to `dismiss()`,
+    /// which is correct for sheet and iPhone presentations.
+    let onClose: (() -> Void)?
 
     @ScaledMetric(relativeTo: .title2)   private var titleSize:         CGFloat = 20
     @ScaledMetric(relativeTo: .headline) private var sectionHeaderSize: CGFloat = 17
@@ -57,6 +61,7 @@ struct StoryDetailView: View {
     @State private var selectedRelatedStory: HNItem?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.iPadNavModel) private var iPadNavModel
 
     private var saved: SavedPostsStore { .shared }
     @State private var auth = HNAuthService.shared
@@ -66,8 +71,9 @@ struct StoryDetailView: View {
     @State private var localScore: Int
     @Environment(\.colorScheme) private var colorScheme
 
-    init(story: HNItem) {
+    init(story: HNItem, onClose: (() -> Void)? = nil) {
         self.story = story
+        self.onClose = onClose
         _viewModel = State(initialValue: StoryDetailViewModel(story: story))
         _localScore = State(initialValue: story.score ?? 0)
     }
@@ -144,7 +150,7 @@ struct StoryDetailView: View {
             // .cancellationAction gets the system "close" glass group treatment.
             ToolbarItem(placement: .cancellationAction) {
                 Button("Close", systemImage: "xmark") {
-                    dismiss()
+                    if let onClose { onClose() } else { dismiss() }
                 }
             }
 
@@ -193,6 +199,7 @@ struct StoryDetailView: View {
             NavigationStack { StoryDetailView(story: relatedStory) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
@@ -200,14 +207,18 @@ struct StoryDetailView: View {
                 NavigationStack { ArticleReaderView(url: url) }
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(.glassCornerRadius)
+                    .iPadPageSheet()
             case .inAppSafari(let url):
                 SafariView(url: url)
+                    .iPadPageSheet()
             case .share(let url):
                 ShareSheet(items: [url])
+                    .iPadPageSheet()
             case .hnStory(let story):
                 NavigationStack { StoryDetailView(story: story) }
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(.glassCornerRadius)
+                    .iPadPageSheet()
             case .hnComment(let comment):
                 NavigationStack {
                     ThreadView(
@@ -220,12 +231,14 @@ struct StoryDetailView: View {
                 }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
             }
         }
         .sheet(isPresented: $showReply) {
             NavigationStack { ComposeReplyView(parentId: story.id) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
         }
         .alert("Action Failed", isPresented: Binding(
             get: { actionError != nil },
@@ -278,10 +291,22 @@ struct StoryDetailView: View {
                 // One-off override sub-menu — lets the user choose a different
                 // mode without changing their default setting.
                 Menu {
-                    Button { activeSheet = .nativeReader(url) } label: {
+                    Button {
+                        if let model = iPadNavModel {
+                            withAnimation(.smooth) { model.select(story, mode: .reader) }
+                        } else {
+                            activeSheet = .nativeReader(url)
+                        }
+                    } label: {
                         Label("Open in Reader", systemImage: "textformat")
                     }
-                    Button { activeSheet = .inAppSafari(url) } label: {
+                    Button {
+                        if let model = iPadNavModel {
+                            withAnimation(.smooth) { model.select(story, mode: .browser) }
+                        } else {
+                            activeSheet = .inAppSafari(url)
+                        }
+                    } label: {
                         Label("Open in In-App Safari", systemImage: "safari")
                     }
                     Button { openURL(url) } label: {
@@ -356,8 +381,14 @@ struct StoryDetailView: View {
 
     // MARK: - Helpers
 
-    /// Opens an article URL using the user's default link open mode.
+    /// Opens an article URL using the user's default link open mode. On iPad
+    /// (model present) navigation modes route through the detail column; `.safari`
+    /// always opens externally. On iPhone (model absent) the sheet path is used.
     private func openArticle(_ url: URL) {
+        if let model = iPadNavModel, let mode = DetailMode.forLinkOpen(settings.defaultLinkOpen) {
+            withAnimation(.smooth) { model.select(story, mode: mode) }
+            return
+        }
         switch settings.defaultLinkOpen {
         case .reader:      activeSheet = .nativeReader(url)
         case .inAppSafari: activeSheet = .inAppSafari(url)

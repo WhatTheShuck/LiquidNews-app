@@ -46,11 +46,27 @@ final class StoreServiceTests: XCTestCase {
         XCTAssertFalse(StoreService.themesUnlocked(purchasedIDs: ["com.liquidnews.premium.account"]))
     }
 
-    func test_donating_withDonationProduct() {
-        XCTAssertTrue(StoreService.donating(purchasedIDs: ["com.liquidnews.donation.monthly"]))
+    // MARK: - Bundle purchasability
+
+    func test_bundlePurchasable_whenOwningNothing() {
+        XCTAssertTrue(StoreService.bundlePurchasable(purchasedIDs: []))
     }
 
-    func test_notDonating_withoutDonation() {
-        XCTAssertFalse(StoreService.donating(purchasedIDs: []))
+    func test_bundleNotPurchasable_whenOwningAccountOnly() {
+        XCTAssertFalse(StoreService.bundlePurchasable(purchasedIDs: ["com.liquidnews.premium.account"]))
+    }
+
+    func test_bundleNotPurchasable_whenOwningThemesOnly() {
+        XCTAssertFalse(StoreService.bundlePurchasable(purchasedIDs: ["com.liquidnews.premium.themes"]))
+    }
+
+    func test_bundleNotPurchasable_whenOwningBundle() {
+        XCTAssertFalse(StoreService.bundlePurchasable(purchasedIDs: ["com.liquidnews.premium.bundle"]))
+    }
+
+    func test_bundleNotPurchasable_whenOwningBothIndividualProducts() {
+        XCTAssertFalse(StoreService.bundlePurchasable(
+            purchasedIDs: ["com.liquidnews.premium.account", "com.liquidnews.premium.themes"]
+        ))
     }
 }

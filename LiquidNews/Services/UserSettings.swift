@@ -274,6 +274,36 @@ enum StoryAction: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - iPad reader layout
+
+enum IPadReaderLayout: String, CaseIterable, Identifiable, SettingsSegmentOption {
+    case sideBySide
+    case replace
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .sideBySide: return "Side by Side"
+        case .replace:    return "Replace"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .sideBySide: return "Show the article beside its comments"
+        case .replace:    return "Article replaces the comments column"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .sideBySide: return "rectangle.split.2x1"
+        case .replace:    return "rectangle"
+        }
+    }
+}
+
 // MARK: - App color scheme override
 
 enum AppColorScheme: String, CaseIterable, Identifiable {
@@ -358,6 +388,12 @@ final class UserSettings {
     /// whether each is visible is controlled by `enabledOptionalTabs`.
     var tabOrder: [AppTab] {
         didSet { kvStore.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
+    }
+
+    /// Feed plus the user's enabled optional tabs in configured order. Drives the
+    /// iPad adaptable TabView's top-level tab set.
+    var orderedEnabledTabs: [AppTab] {
+        AppTab.orderedEnabled(order: tabOrder, enabled: enabledOptionalTabs)
     }
 
     // MARK: - Feed categories
@@ -456,6 +492,18 @@ final class UserSettings {
         didSet { kvStore.set(glassComments, forKey: Keys.glassComments) }
     }
 
+    /// When true, a random goofy quote is shown on the reader loading screen.
+    var wordsOfWisdom: Bool {
+        didSet { kvStore.set(wordsOfWisdom, forKey: Keys.wordsOfWisdom) }
+    }
+
+    /// How the reader presents on iPad (regular width). `.sideBySide` shows the
+    /// article beside its comments; `.replace` swaps the detail column to the reader.
+    /// Ignored on iPhone (compact), which always uses the reader sheet.
+    var iPadReaderLayout: IPadReaderLayout {
+        didSet { kvStore.set(iPadReaderLayout.rawValue, forKey: Keys.iPadReaderLayout) }
+    }
+
     // MARK: - Read Later
 
     /// When true, a count badge appears on the Read Later tab.
@@ -537,6 +585,8 @@ final class UserSettings {
         static let safariReaderMode             = "LN_safariReaderMode"
         static let codeWrapLines                = "LN_codeWrapLines"
         static let glassComments                = "LN_glassComments"
+        static let wordsOfWisdom                = "LN_wordsOfWisdom"
+        static let iPadReaderLayout             = "LN_iPadReaderLayout"
         static let showReadLaterBadge           = "LN_showReadLaterBadge"
         static let selectedAppTheme             = "LN_selectedAppTheme"
         static let customAccentHex              = "LN_customAccentHex"
@@ -643,6 +693,10 @@ final class UserSettings {
                 codeWrapLines = kvStore.bool(forKey: key)
             case Keys.glassComments:
                 glassComments = kvStore.bool(forKey: key)
+            case Keys.wordsOfWisdom:
+                wordsOfWisdom = kvStore.bool(forKey: key)
+            case Keys.iPadReaderLayout:
+                iPadReaderLayout = IPadReaderLayout(rawValue: kvStore.string(forKey: key) ?? "") ?? .sideBySide
             case Keys.showReadLaterBadge:
                 // kvStore.bool(forKey:) returns false for absent keys; this setting defaults to true
                 showReadLaterBadge = (kvStore.object(forKey: key) as? Bool) ?? true
@@ -740,6 +794,10 @@ final class UserSettings {
         safariReaderMode = (kvStore.object(forKey: Keys.safariReaderMode) as? Bool) ?? true
         codeWrapLines = kvStore.bool(forKey: Keys.codeWrapLines)
         glassComments = kvStore.bool(forKey: Keys.glassComments)
+        wordsOfWisdom = kvStore.bool(forKey: Keys.wordsOfWisdom)
+
+        let rawIPadReaderLayout = kvStore.string(forKey: Keys.iPadReaderLayout) ?? IPadReaderLayout.sideBySide.rawValue
+        iPadReaderLayout = IPadReaderLayout(rawValue: rawIPadReaderLayout) ?? .sideBySide
 
         showReadLaterBadge = (kvStore.object(forKey: Keys.showReadLaterBadge) as? Bool) ?? true
 

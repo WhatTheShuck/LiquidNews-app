@@ -51,7 +51,6 @@ struct StoriesListView: View {
     @State private var safariURL: IdentifiableURL?
     @State private var showingSearch = false
     @State private var showingSettings = false
-    @State private var showingAccount = false
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.iPadNavModel) private var navModel
@@ -170,10 +169,10 @@ struct StoriesListView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        settingsActionMenu
+                    Button {
+                        showingSettings = true
                     } label: {
-                        Label("More", systemImage: "ellipsis")
+                        Label("Settings", systemImage: "gearshape")
                     }
                 }
             }
@@ -206,9 +205,6 @@ struct StoriesListView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsListView()
-        }
-        .sheet(isPresented: $showingAccount) {
-            NavigationStack { AccountView() }
         }
         .task {
             await viewModel.load(category: enabledCategories.first ?? .top)
@@ -328,24 +324,6 @@ struct StoriesListView: View {
             return CGFloat(displayedChips.count / 2 - index) * 90 * CGFloat(pickerProgress)
         }
         return (pickerRowWidth / 2 - center) * CGFloat(pickerProgress)
-    }
-
-    // MARK: - Settings menu content
-
-    @ViewBuilder
-    private var settingsActionMenu: some View {
-        Section {
-            Button {
-                showingSettings = true
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-            }
-            Button {
-                showingAccount = true
-            } label: {
-                Label("Account", systemImage: "person.crop.circle")
-            }
-        }
     }
 
     // MARK: - Stories list

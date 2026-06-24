@@ -11,9 +11,10 @@ struct RootSplitView: View {
     @State private var deepLinkError = false
     @Environment(DeepLinkState.self) private var deepLink
     @State private var settings = UserSettings.shared
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView(model: model)
         } content: {
             contentColumn
@@ -23,13 +24,34 @@ struct RootSplitView: View {
             NavigationStack {
                 DetailColumnView(model: model)
             }
+            // StoryDetailView / ArticleReaderView seed their own @State from the
+            // story/url in init, and @State is only honored once per view
+            // identity. Giving the detail stack a distinct identity per selected
+            // story (and mode) makes SwiftUI rebuild it fresh on each selection,
+            // so the comments and reader content track the chosen story instead
+            // of staying on the first one shown.
+            .id(detailColumnIdentity)
+            .environment(\.iPadNavModel, model)
         }
         .preferredColorScheme(settings.selectedAppTheme == .classic ? .light : settings.appColorScheme.resolved)
+        .onChange(of: model.isReaderSideBySideVisible(layout: settings.iPadReaderLayout)) { _, active in
+            withAnimation { columnVisibility = active ? .detailOnly : .all }
+        }
         .onChange(of: deepLink.pendingItemID) { _, id in
             guard let id else { return }
             deepLink.pendingItemID = nil
             Task { await openItem(id: id) }
         }
+    }
+
+    /// Identity for the detail stack. Changes whenever the selected story or its
+    /// presentation mode changes (constant while nothing is selected), so the
+    /// detail view is rebuilt fresh per selection.
+    private var detailColumnIdentity: String {
+        guard case .tab = model.destination, let story = model.selectedStory else {
+            return "none"
+        }
+        return "\(story.id)-\(model.detailMode)"
     }
 
     // MARK: - Content column routing

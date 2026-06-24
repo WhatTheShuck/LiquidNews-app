@@ -30,7 +30,6 @@ struct PremiumPaywallView: View {
             VStack(spacing: 20) {
                 header
                 mainProductsSection
-                donationSection
                 restoreButton
             }
             .padding(.horizontal, 16)
@@ -75,7 +74,7 @@ struct PremiumPaywallView: View {
             Text("LiquidNews Premium")
                 .font(.system(size: titleSize, weight: .bold, design: .rounded))
                 .foregroundStyle(.primary)
-            Text("Unlock premium features, or donate monthly to get everything.")
+            Text("Unlock premium features with a one-time purchase.")
                 .font(.system(size: captionSize))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -108,69 +107,14 @@ struct PremiumPaywallView: View {
                 icon: "star.fill",
                 title: "Bundle — Best Value",
                 description: "Account + Themes at a discount",
-                isOwned: store.isAccountUnlocked && store.isThemesUnlocked
+                isOwned: store.isAccountUnlocked && store.isThemesUnlocked,
+                // Owning either component already makes the Bundle a double-charge,
+                // so it's offered but ineligible until they own nothing.
+                isUnavailable: !store.isBundlePurchasable
+                    && !(store.isAccountUnlocked && store.isThemesUnlocked)
             )
         }
         .glassCard()
-    }
-
-    // MARK: - Donation
-
-    private struct DonationTier {
-        let id: String
-        let title: String
-        let description: String
-    }
-
-    private let donationTiers: [DonationTier] = [
-        DonationTier(
-            id: StoreService.ProductID.donationLurker, title: "Lurker", description: "Still counts"),
-        DonationTier(
-            id: StoreService.ProductID.donationCommenter, title: "Commenter",
-            description: "Has opinions about tabs vs spaces"),
-        DonationTier(
-            id: StoreService.ProductID.donationPowerUser, title: "Power User",
-            description: "Checks HN before coffee"),
-        DonationTier(
-            id: StoreService.ProductID.donationYCAlum, title: "YC Alum",
-            description: "Probably has an exit"),
-        DonationTier(
-            id: StoreService.ProductID.donationPartner, title: "Partner",
-            description: "Writes the cheques"),
-    ]
-
-    private var donationSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Support the App")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .tracking(0.5)
-                .textCase(.uppercase)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-
-            Text("No subscriptions here — Account and Themes are one-time purchases, pay once and keep them forever. If you'd like to chip in beyond that, any donation goes directly to keeping LiquidNews going. Every little bit genuinely helps, and there's absolutely no pressure. As a thank-you, active donors also unlock all premium features while subscribed.")
-                .font(.system(size: captionSize))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
-
-            VStack(spacing: 0) {
-                ForEach(Array(donationTiers.enumerated()), id: \.element.id) { index, tier in
-                    ProductRowView(
-                        id: tier.id,
-                        icon: "heart.fill",
-                        title: tier.title,
-                        description: tier.description,
-                        isOwned: store.purchasedProductIDs.contains(tier.id)
-                    )
-                    if index < donationTiers.count - 1 {
-                        Divider().overlay(AppTheme.glassBorder).padding(.horizontal, 16)
-                    }
-                }
-            }
-            .glassCard()
-        }
     }
 
     // MARK: - Restore
@@ -194,7 +138,7 @@ struct PremiumPaywallView: View {
             purchaseError = err
             return
         }
-        let hasAny = store.isAccountUnlocked || store.isThemesUnlocked || store.isDonating
+        let hasAny = store.isAccountUnlocked || store.isThemesUnlocked
         restoreMessage =
             hasAny
             ? "Your purchases have been restored."
@@ -211,6 +155,7 @@ private struct ProductRowView: View {
     let title: String
     let description: String
     let isOwned: Bool
+    var isUnavailable: Bool = false
 
     @State private var store = StoreService.shared
     @State private var isPurchasing = false
@@ -244,6 +189,10 @@ private struct ProductRowView: View {
                 if isOwned {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundStyle(.green)
+                } else if isUnavailable {
+                    Text("Unavailable")
+                        .font(.system(size: captionSize, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
                 } else if isPurchasing {
                     ProgressView().scaleEffect(0.8)
                 } else if let product = store.product(for: id) {
@@ -259,9 +208,10 @@ private struct ProductRowView: View {
             }
             .padding(16)
             .contentShape(Rectangle())
+            .opacity(isUnavailable ? 0.5 : 1)
         }
         .buttonStyle(.plain)
-        .disabled(isOwned)
+        .disabled(isOwned || isUnavailable)
         .alert(
             "Purchase Failed",
             isPresented: Binding(

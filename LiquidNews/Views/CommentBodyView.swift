@@ -145,6 +145,7 @@ struct CommentBodyView: View {
         a         { color: #FF6B14; text-decoration: none; }
         code      { font-family: Menlo, 'SF Mono', monospace; font-size: 12.5px; }
         b, strong { font-weight: 600; color: \(boldColor); }
+        
         i, em     { font-style: italic; }
         </style></head><body>\(processed)</body></html>
         """

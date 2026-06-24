@@ -37,14 +37,7 @@ final class StoreService {
         static let themes   = "com.liquidnews.premium.themes"
         static let bundle   = "com.liquidnews.premium.bundle"
 
-        static let donationLurker      = "com.liquidnews.donation.monthly"
-        static let donationCommenter   = "com.liquidnews.donation.monthly.commenter"
-        static let donationPowerUser   = "com.liquidnews.donation.monthly.poweruser"
-        static let donationYCAlum      = "com.liquidnews.donation.monthly.ycalum"
-        static let donationPartner     = "com.liquidnews.donation.monthly.partner"
-
-        static let donations: [String] = [donationLurker, donationCommenter, donationPowerUser, donationYCAlum, donationPartner]
-        static let all: [String] = [account, themes, bundle] + donations
+        static let all: [String] = [account, themes, bundle]
     }
 
     // MARK: - Published state
@@ -64,8 +57,9 @@ final class StoreService {
         Self.themesUnlocked(purchasedIDs: purchasedProductIDs)
     }
 
-    var isDonating: Bool {
-        Self.donating(purchasedIDs: purchasedProductIDs)
+    /// True only when the Bundle is still a valid purchase (user owns neither component).
+    var isBundlePurchasable: Bool {
+        Self.bundlePurchasable(purchasedIDs: purchasedProductIDs)
     }
 
     // MARK: - Trial
@@ -135,18 +129,20 @@ final class StoreService {
 
     static func accountUnlocked(purchasedIDs: Set<String>) -> Bool {
         purchasedIDs.contains(ProductID.account) ||
-        purchasedIDs.contains(ProductID.bundle) ||
-        donating(purchasedIDs: purchasedIDs)
+        purchasedIDs.contains(ProductID.bundle)
     }
 
     static func themesUnlocked(purchasedIDs: Set<String>) -> Bool {
         purchasedIDs.contains(ProductID.themes) ||
-        purchasedIDs.contains(ProductID.bundle) ||
-        donating(purchasedIDs: purchasedIDs)
+        purchasedIDs.contains(ProductID.bundle)
     }
 
-    static func donating(purchasedIDs: Set<String>) -> Bool {
-        ProductID.donations.contains { purchasedIDs.contains($0) }
+    /// The Bundle is a standalone non-consumable with no App Store auto-discount,
+    /// so it must only be offered to users who own neither component. Owning either
+    /// individual product (or the Bundle itself) makes a Bundle purchase a double-charge.
+    static func bundlePurchasable(purchasedIDs: Set<String>) -> Bool {
+        !accountUnlocked(purchasedIDs: purchasedIDs) &&
+        !themesUnlocked(purchasedIDs: purchasedIDs)
     }
 
     // MARK: - Products

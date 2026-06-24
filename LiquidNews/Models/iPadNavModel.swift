@@ -38,6 +38,17 @@ enum DetailMode: Hashable {
         case .favourite, .saveLater, .hide, .none: return nil
         }
     }
+
+    /// Maps the user's default link-open mode to the detail-column mode when a
+    /// story is opened via "Read Article" on iPad. `.safari` opens externally,
+    /// so it returns `nil` and the caller should fall back to opening the URL.
+    static func forLinkOpen(_ mode: LinkOpenMode) -> DetailMode? {
+        switch mode {
+        case .reader:      return .reader
+        case .inAppSafari: return .browser
+        case .safari:      return nil
+        }
+    }
 }
 
 // MARK: - Navigation model
@@ -52,6 +63,23 @@ final class iPadNavModel {
     func select(_ story: HNItem, mode: DetailMode) {
         selectedStory = story
         detailMode = mode
+    }
+
+    /// Whether the detail column should show comments and the reader side by side.
+    /// True only while reading (`detailMode == .reader`) under the `.sideBySide`
+    /// layout. In `.replace` the reader takes over the whole column, so this is
+    /// false; for `.comments` and `.browser` it is always false.
+    func isReaderSideBySide(layout: IPadReaderLayout) -> Bool {
+        detailMode == .reader && layout == .sideBySide
+    }
+
+    /// Whether the side-by-side reader is actually visible in the detail column —
+    /// i.e. reading side by side AND a browsing tab is the active destination.
+    /// `DetailColumnView` only renders a story (and thus the side-by-side pane) for
+    /// `.tab` destinations, so the split view should only stay collapsed then.
+    func isReaderSideBySideVisible(layout: IPadReaderLayout) -> Bool {
+        guard case .tab = destination else { return false }
+        return isReaderSideBySide(layout: layout)
     }
 }
 
