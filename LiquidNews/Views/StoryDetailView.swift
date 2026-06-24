@@ -45,6 +45,11 @@ struct StoryDetailView: View {
     /// no sheet to dismiss). When nil, the X button falls back to `dismiss()`,
     /// which is correct for sheet and iPhone presentations.
     let onClose: (() -> Void)?
+    /// When true (the iPad side-by-side comments pane), the view hosts its own glass
+    /// control strip via a top safe-area inset instead of a nav-bar toolbar. This
+    /// keeps the controls confined to this pane rather than hoisting into the shared
+    /// split-view detail bar alongside the reader's controls.
+    let inlineControls: Bool
 
     @ScaledMetric(relativeTo: .title2)   private var titleSize:         CGFloat = 20
     @ScaledMetric(relativeTo: .headline) private var sectionHeaderSize: CGFloat = 17
@@ -71,9 +76,10 @@ struct StoryDetailView: View {
     @State private var localScore: Int
     @Environment(\.colorScheme) private var colorScheme
 
-    init(story: HNItem, onClose: (() -> Void)? = nil) {
+    init(story: HNItem, onClose: (() -> Void)? = nil, inlineControls: Bool = false) {
         self.story = story
         self.onClose = onClose
+        self.inlineControls = inlineControls
         _viewModel = State(initialValue: StoryDetailViewModel(story: story))
         _localScore = State(initialValue: story.score ?? 0)
     }
@@ -146,36 +152,40 @@ struct StoryDetailView: View {
         // on top of the system material, causing the dark band in image 1).
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            // ── Leading: close ──
-            // .cancellationAction gets the system "close" glass group treatment.
-            ToolbarItem(placement: .cancellationAction) {
-                Button("Close", systemImage: "xmark") {
-                    if let onClose { onClose() } else { dismiss() }
-                }
-            }
-
-            // ── Trailing: refresh ──
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    Task {
-                        async let comments: () = viewModel.loadComments()
-                        async let related: () = loadRelatedStories()
-                        _ = await (comments, related)
+            // Suppressed in the side-by-side comments pane, which uses its own glass
+            // strip (see `inlineControlBar`) so its controls don't hoist into the
+            // shared detail bar next to the reader's.
+            if !inlineControls {
+                // ── Leading: close ──
+                // .cancellationAction gets the system "close" glass group treatment.
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close", systemImage: "xmark") {
+                        if let onClose { onClose() } else { dismiss() }
                     }
-                } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
                 }
-                .disabled(viewModel.isLoading || isLoadingRelated)
-            }
 
-            // ── Trailing: overflow menu ──
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    storyActionsMenu
-                } label: {
-                    Label("More", systemImage: "ellipsis")
+                // ── Trailing: refresh ──
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        refreshContent()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(viewModel.isLoading || isLoadingRelated)
+                }
+
+                // ── Trailing: overflow menu ──
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        storyActionsMenu
+                    } label: {
+                        Label("More", systemImage: "ellipsis")
+                    }
                 }
             }
+        }
+        .safeAreaInset(edge: .top) {
+            if inlineControls { inlineControlBar }
         }
         .task {
             let store = SavedPostsStore.shared
@@ -247,6 +257,52 @@ struct StoryDetailView: View {
             Button("OK", role: .cancel) { actionError = nil }
         } message: {
             Text(actionError ?? "")
+        }
+    }
+
+    // MARK: - Inline control strip (iPad side-by-side)
+
+    /// Glass control strip pinned to the top of the comments pane when reading side
+    /// by side: close (returns to the list), refresh, and the full actions menu —
+    /// the same actions as the nav-bar toolbar, kept inside this pane.
+    private var inlineControlBar: some View {
+        HStack(spacing: 10) {
+            GlassControlButton(systemName: "xmark") {
+                if let onClose { onClose() } else { dismiss() }
+            }
+
+            Spacer()
+
+            GlassControlButton(
+                systemName: "arrow.clockwise",
+                enabled: !(viewModel.isLoading || isLoadingRelated)
+            ) {
+                refreshContent()
+            }
+
+            Menu {
+                storyActionsMenu
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(.primary)
+                    .frame(width: 42, height: 42)
+                    .contentShape(Circle())
+            }
+            .glassEffect(in: Circle())
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
+    }
+
+    /// Reloads comments and related discussions together. Shared by the nav-bar
+    /// refresh button and the inline control strip.
+    private func refreshContent() {
+        Task {
+            async let comments: () = viewModel.loadComments()
+            async let related: () = loadRelatedStories()
+            _ = await (comments, related)
         }
     }
 
@@ -602,6 +658,29 @@ struct StoryDetailView: View {
             .foregroundStyle(.primary)
             .padding(.horizontal, 2)
             .padding(.top, 4)
+    }
+}
+
+// MARK: - Glass control button
+
+/// A circular glass icon button used in the side-by-side comments control strip.
+/// Matches the reader pane's floating controls for a consistent split-view feel.
+private struct GlassControlButton: View {
+    let systemName: String
+    var enabled: Bool = true
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 17, weight: .medium))
+                .foregroundStyle(enabled ? Color.primary : Color.primary.opacity(0.3))
+                .frame(width: 42, height: 42)
+                .contentShape(Circle())
+        }
+        .disabled(!enabled)
+        .buttonStyle(.plain)
+        .glassEffect(in: Circle())
     }
 }
 

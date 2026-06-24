@@ -65,6 +65,17 @@ final class iPadNavModel {
         detailMode = mode
     }
 
+    /// Closes the current article entirely: clears the selection AND resets the
+    /// detail mode to `.comments`. Resetting the mode is essential — while reading
+    /// side by side the layout collapses to `.detailOnly`, and that only reverts to
+    /// `.all` (revealing the list again) once `isReaderSideBySideVisible` becomes
+    /// false. Clearing `selectedStory` alone leaves `detailMode == .reader`, so the
+    /// split stays collapsed on an empty placeholder.
+    func closeStory() {
+        selectedStory = nil
+        detailMode = .comments
+    }
+
     /// Whether the detail column should show comments and the reader side by side.
     /// True only while reading (`detailMode == .reader`) under the `.sideBySide`
     /// layout. In `.replace` the reader takes over the whole column, so this is

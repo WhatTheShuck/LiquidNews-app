@@ -43,6 +43,29 @@ final class DetailModeMappingTests: XCTestCase {
         XCTAssertEqual(model.detailMode, .reader)
     }
 
+    func test_closeStory_clearsSelectionAndResetsMode() {
+        let model = iPadNavModel()
+        let story = HNItem(id: 7, type: .story, title: "t", url: "https://example.com")
+        model.select(story, mode: .reader)
+        model.closeStory()
+        XCTAssertNil(model.selectedStory)
+        XCTAssertEqual(model.detailMode, .comments)
+    }
+
+    // Regression: closing the article from the comments pane while reading side by
+    // side must un-collapse the split. The split only reopens when
+    // isReaderSideBySideVisible flips to false, which requires the mode reset — not
+    // just clearing the selection.
+    func test_closeStory_whileReadingSideBySide_makesSplitVisibleAgain() {
+        let model = iPadNavModel()
+        model.destination = .tab(.feed)
+        let story = HNItem(id: 7, type: .story, title: "t", url: "https://example.com")
+        model.select(story, mode: .reader)
+        XCTAssertTrue(model.isReaderSideBySideVisible(layout: .sideBySide))
+        model.closeStory()
+        XCTAssertFalse(model.isReaderSideBySideVisible(layout: .sideBySide))
+    }
+
     func test_isReaderSideBySide_trueWhenReaderAndSideBySideLayout() {
         let model = iPadNavModel()
         model.detailMode = .reader

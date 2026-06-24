@@ -168,6 +168,10 @@ final class ReaderPreferences {
     var textColor: Color?
     /// Custom heading color override. nil = use theme default.
     var headingColor: Color?
+    /// Extra top padding (in points) added to the article body so its content
+    /// clears an overlaid control strip. Used by the side-by-side floating chrome,
+    /// where the glass buttons sit above the page rather than in a nav bar.
+    var topInset: Double = 0
 
     static let minFontSize: Double = 14
     static let maxFontSize: Double = 26
@@ -192,6 +196,7 @@ final class ReaderPreferences {
             root.style.setProperty('--code-bg', '\(theme.codeBg)');
             root.style.setProperty('--font', "\(fontFamily.cssFamily)");
             document.body.style.backgroundColor = '\(theme.background)';
+            document.body.style.paddingTop = '\(28 + Int(topInset))px';
             document.body.className = \(showImagesJS) ? '' : 'no-images';
 
             if (\(showImagesJS)) {
@@ -380,6 +385,9 @@ struct ArticleReaderView: View {
         self.onClose = onClose
         let prefs = ReaderPreferences()
         prefs.showImages = UserSettings.shared.readerShowImagesByDefault
+        // Floating chrome overlays glass buttons on the page; pad the article down
+        // so its title/first paragraph start below them instead of underneath.
+        prefs.topInset = chromeStyle == .floating ? 64 : 0
         _preferences = State(initialValue: prefs)
         _wisdomQuote = State(initialValue: WordsOfWisdom.random)
     }
@@ -434,7 +442,9 @@ struct ArticleReaderView: View {
         .toolbar {
             if chromeStyle == .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close", systemImage: "xmark") { dismiss() }
+                    Button("Close", systemImage: "xmark") {
+                        if let onClose { onClose() } else { dismiss() }
+                    }
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {
