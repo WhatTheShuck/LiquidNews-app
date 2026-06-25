@@ -42,6 +42,13 @@ enum HNURLRouter {
     // this router is called from static context with no SwiftUI view hierarchy.
     @MainActor
     static func presentShareSheet(for url: URL) {
+        presentShareSheet(activityItems: [url])
+    }
+
+    /// Presents a system share sheet for arbitrary activity items (URLs, images, files)
+    /// from the top-most view controller. Used by the reader's HN links and Imgur images.
+    @MainActor
+    static func presentShareSheet(activityItems: [Any]) {
         guard let windowScene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.activationState == .foregroundActive }),
@@ -51,7 +58,16 @@ enum HNURLRouter {
         var top = root
         while let presented = top.presentedViewController { top = presented }
 
-        let activity = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        let activity = UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        // iPad presents the activity sheet as a popover and raises an exception without
+        // an anchor. We're invoked from a static context (menu / non-SwiftUI) with no
+        // natural source view, so anchor a centered, arrow-less popover to the top VC.
+        if let popover = activity.popoverPresentationController {
+            popover.sourceView = top.view
+            popover.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.midY,
+                                        width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
         top.present(activity, animated: true)
     }
 }

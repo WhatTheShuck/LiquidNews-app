@@ -197,7 +197,11 @@ final class ReaderPreferences {
             root.style.setProperty('--font', "\(fontFamily.cssFamily)");
             document.body.style.backgroundColor = '\(theme.background)';
             document.body.style.paddingTop = '\(28 + Int(topInset))px';
-            document.body.className = \(showImagesJS) ? '' : 'no-images';
+            // Image pages (Imgur galleries) keep their images regardless of the global
+            // toggle; only article pages honour the no-images class.
+            if (!document.body.classList.contains('image-page')) {
+                document.body.classList.toggle('no-images', !\(showImagesJS));
+            }
 
             if (\(showImagesJS)) {
                 // Resolve lazy-loaded images — many sites use data-src / data-lazy-src
@@ -322,6 +326,20 @@ final class ReaderState {
     /// Set by the coordinator when the user picks an action from the HN long-press menu; cleared by ArticleReaderView.
     var pendingHNAction: PendingHNAction? = nil
 
+    /// Request to present the full-screen Quick Look image viewer. Set by the
+    /// coordinator once gallery images have downloaded to temp files; cleared by
+    /// ArticleReaderView's fullScreenCover on dismiss.
+    struct ImagePreviewRequest: Identifiable, Equatable {
+        let id = UUID()
+        let fileURLs: [URL]
+        let startIndex: Int
+    }
+    var pendingImagePreview: ImagePreviewRequest? = nil
+
+    /// True while gallery images are downloading after an image tap, so the view can
+    /// show a brief loading overlay instead of a blank wait.
+    var isPreparingImagePreview: Bool = false
+
     /// KVO-updated: true when the WKWebView's back/forward list has a prior entry.
     var canGoBack: Bool = false
 
@@ -407,7 +425,6 @@ struct ArticleReaderView: View {
                 NavigationStack { StoryDetailView(story: story) }
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(.glassCornerRadius)
-                    .iPadPageSheet()
             }
     }
 
@@ -435,6 +452,15 @@ struct ArticleReaderView: View {
             if showOverlay {
                 loadingOverlay
                     .transition(.opacity)
+            }
+
+            // Brief overlay while a tapped image's gallery downloads before Quick Look.
+            if readerState.isPreparingImagePreview {
+                ZStack {
+                    Color.black.opacity(0.35).ignoresSafeArea()
+                    ProgressView().tint(.white)
+                }
+                .transition(.opacity)
             }
         }
         .animation(.easeOut(duration: 0.3), value: showOverlay)
@@ -549,19 +575,21 @@ struct ArticleReaderView: View {
         }
         .sheet(item: $readerLinkSafariURL) { item in
             SafariView(url: item.url)
-                .iPadPageSheet()
         }
         .sheet(item: $readerLinkReaderURL) { item in
             NavigationStack {
                 ArticleReaderView(url: item.url)
             }
-            .iPadPageSheet()
         }
         .sheet(isPresented: $showReaderOptions) {
             ReaderOptionsSheet(preferences: preferences)
                 .presentationDetents([.height(StoreService.shared.isThemesUnlocked ? 380 : 300)])
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+        }
+        .fullScreenCover(item: $readerState.pendingImagePreview) { request in
+            QuickLookPreview(fileURLs: request.fileURLs, startIndex: request.startIndex)
+                .ignoresSafeArea()
         }
     }
 
@@ -913,6 +941,13 @@ extension ReaderWebView {
         private(set) var hasExtracted = false
         /// True after the reader HTML has been loaded (second navigation).
         private(set) var readerHTMLLoaded = false
+        /// True while the reader is showing an Imgur gallery (set in loadImgur, cleared
+        /// in reset). Gates image tap/long-press routing so normal articles are never hijacked.
+        private var isImgurGallery = false
+        /// The gallery's ordered image URLs — the membership gate for tap/menu routing.
+        private var galleryImages: [URL] = []
+        /// The original Imgur post URL, for the "Open on Imgur" action.
+        private var galleryPageURL: URL?
 
         init(url: URL, state: ReaderState) {
             self.url = url
@@ -927,8 +962,13 @@ extension ReaderWebView {
             loadGeneration += 1
             hasExtracted = false
             readerHTMLLoaded = false
+            isImgurGallery = false
+            galleryImages = []
+            galleryPageURL = nil
             Task { @MainActor [weak self] in
                 self?.state.userHasNavigatedInline = false
+                self?.state.pendingImagePreview = nil
+                self?.state.isPreparingImagePreview = false
             }
         }
 
@@ -951,6 +991,29 @@ extension ReaderWebView {
             let loadURL  = targetURL ?? url
             let gen      = loadGeneration          // capture before going async
 
+            // Imgur image pages resolve to a gallery directly — before the extraction
+            // content-rule-lists are added below, so the gallery's <img> tags are
+            // never blocked. A resolver miss falls through to the normal flow.
+            if ImgurResolver.handles(loadURL) {
+                Task { [weak self] in
+                    guard let content = await ImgurResolver.resolve(loadURL) else {
+                        await MainActor.run { [weak self] in
+                            guard let self, self.loadGeneration == gen else { return }
+                            self.loadStandard(wv, loadURL: loadURL, gen: gen)
+                        }
+                        return
+                    }
+                    await MainActor.run { [weak self] in
+                        guard let self, self.loadGeneration == gen else { return }
+                        self.loadImgur(wv, url: loadURL, content: content)
+                    }
+                }
+                return
+            }
+            loadStandard(wv, loadURL: loadURL, gen: gen)
+        }
+
+        private func loadStandard(_ wv: WKWebView, loadURL: URL, gen: Int) {
             Task {
                 async let rulesTask = ExtractionRuleCache.shared.get()
                 async let htmlTask  = fetchHTML(from: loadURL)
@@ -1089,6 +1152,17 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
+        // Imgur gallery image tap → full-screen Quick Look. Gate on membership in the
+        // gallery's own images so normal articles with an imgur link are never hijacked.
+        if navigationAction.navigationType == .linkActivated,
+           let url = navigationAction.request.url,
+           isImgurGallery,
+           galleryImages.contains(url) {
+            decisionHandler(.cancel)
+            presentImagePreview(tapped: url)   // nonisolated; kicks its own @MainActor Task
+            return
+        }
+
         // HN thread links are always intercepted regardless of the interceptLinks setting
         if navigationAction.navigationType == .linkActivated,
            let url = navigationAction.request.url,
@@ -1126,6 +1200,35 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
     ) {
         guard let url = elementInfo.linkURL else {
             completionHandler(nil)
+            return
+        }
+
+        // Imgur gallery image → per-image action menu (membership-gated).
+        if isImgurGallery, galleryImages.contains(url) {
+            let config = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+
+                let save = UIAction(title: "Save to Photos",
+                                    image: UIImage(systemName: "square.and.arrow.down")) { [weak self] _ in
+                    self?.saveImageToPhotos(url)
+                }
+                let share = UIAction(title: "Share…",
+                                     image: UIImage(systemName: "square.and.arrow.up")) { [weak self] _ in
+                    self?.shareImage(url)
+                }
+                let copy = UIAction(title: "Copy Image",
+                                    image: UIImage(systemName: "doc.on.doc")) { [weak self] _ in
+                    self?.copyImage(url)
+                }
+                let openImgur = UIAction(title: "Open on Imgur",
+                                         image: UIImage(systemName: "safari")) { [weak self] _ in
+                    guard let self, let page = self.galleryPageURL else { return }
+                    DispatchQueue.main.async { self.state.pendingDirectLink = .inAppSafari(page) }
+                }
+
+                return UIMenu(title: "", children: [save, share, copy, openImgur])
+            }
+            completionHandler(config)
             return
         }
 
@@ -1194,6 +1297,97 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
         }
 
         completionHandler(config)
+    }
+
+    // MARK: - Imgur gallery
+
+    /// Loads an Imgur gallery directly, bypassing Readability and the length gate.
+    /// Clears content-rule-lists so the <img> tags are not blocked, marks extraction
+    /// done, then loadHTMLString with baseURL = the Imgur page URL so reloadAction's
+    /// wv.url capture matches the normal path. The existing phase-2 didFinish lifts
+    /// the overlay and sets .success.
+    @MainActor
+    private func loadImgur(_ wv: WKWebView, url pageURL: URL, content: ImgurContent) {
+        state.addLog("🖼️ Imgur — \(content.images.count) image(s)")
+        isImgurGallery = true
+        galleryImages = content.images
+        galleryPageURL = pageURL
+        wv.configuration.userContentController.removeAllContentRuleLists()
+        hasExtracted = true   // skip phase-1 Readability; next didFinish is phase 2
+        let html = ReaderHTMLBuilder.gallery(content: content, baseURL: pageURL)
+        wv.loadHTMLString(html, baseURL: pageURL)
+    }
+
+    /// Downloads the gallery to temp files, then presents Quick Look opened on the
+    /// tapped image. Generation-guarded so a download finishing after navigation away
+    /// cannot present over the wrong page.
+    private func presentImagePreview(tapped url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let gen = self.loadGeneration
+            let images = self.galleryImages
+            self.state.isPreparingImagePreview = true
+            let files = await ImgurImageActions.localFiles(for: images)
+            guard self.loadGeneration == gen else { return }
+            self.state.isPreparingImagePreview = false
+            // Locate the tapped image's downloaded file to compute the start index,
+            // adjusted for any dropped failures. If the tapped image failed, don't present.
+            guard
+                let tappedFile = await ImgurImageActions.localFile(for: url),
+                let startIndex = files.firstIndex(of: tappedFile)
+            else {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                return
+            }
+            guard self.loadGeneration == gen, !files.isEmpty else { return }
+            self.state.pendingImagePreview = ReaderState.ImagePreviewRequest(
+                fileURLs: files, startIndex: startIndex)
+        }
+    }
+
+    private func saveImageToPhotos(_ url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let gen = self.loadGeneration
+            guard let image = await ImgurImageActions.image(for: url) else {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                return
+            }
+            guard self.loadGeneration == gen else { return }
+            let ok = await ImgurImageActions.saveToPhotos(image)
+            if ok {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            } else {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+            }
+        }
+    }
+
+    private func copyImage(_ url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let gen = self.loadGeneration
+            guard let image = await ImgurImageActions.image(for: url) else {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                return
+            }
+            guard self.loadGeneration == gen else { return }
+            UIPasteboard.general.image = image
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        }
+    }
+
+    private func shareImage(_ url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let gen = self.loadGeneration
+            guard let file = await ImgurImageActions.localFile(for: url) else {
+                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                return
+            }
+            guard self.loadGeneration == gen else { return }
+            HNURLRouter.presentShareSheet(activityItems: [file])
+        }
     }
 
     // MARK: - Extraction
@@ -1266,9 +1460,9 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
         // relative image/link hrefs in the extracted content resolve correctly.
         // Falls back to the coordinator's stored URL if webView.url is nil.
         let resolvedBase = webView.url ?? url
-        let html = Self.buildHTML(title: title, byline: byline,
-                                  siteName: siteName, content: content,
-                                  baseURL: resolvedBase)
+        let html = ReaderHTMLBuilder.article(title: title, byline: byline,
+                                            siteName: siteName, content: content,
+                                            baseURL: resolvedBase)
         // Remove extraction-phase blocking rules before loading the reader HTML.
         // The rules were applied only to speed up the initial fetch — keeping them
         // active in Phase 2 would prevent images from ever loading, even when the
@@ -1332,123 +1526,6 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
         """
     }
 
-    // MARK: - HTML template
-
-    private static func buildHTML(title: String, byline: String?,
-                                   siteName: String?, content: String,
-                                   baseURL: URL) -> String {
-        func esc(_ s: String) -> String {
-            s.replacingOccurrences(of: "&", with: "&amp;")
-             .replacingOccurrences(of: "<", with: "&lt;")
-             .replacingOccurrences(of: ">", with: "&gt;")
-             .replacingOccurrences(of: "\"", with: "&quot;")
-        }
-
-        return """
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
-        <style>\(readerCSS)</style>
-        </head>
-        <body class="no-images">
-        <div class="header">
-            \(siteName.map { "<p class='site'>\(esc($0))</p>" } ?? "")
-            <h1>\(esc(title))</h1>
-            \(byline.map { "<p class='byline'>\(esc($0))</p>" } ?? "")
-        </div>
-        <div class="content">
-        \(content)
-        </div>
-        </body>
-        </html>
-        """
-    }
-
-    // MARK: - CSS
-    // Colours match AppTheme: accent = rgb(255,107,20), bg = indigo-to-near-black.
-    // CSS custom properties (--bg, --text, --dim, --heading, --border, --code-bg, --font)
-    // are overridden live via JS when the user changes preferences in the reader toolbar.
-    private static let readerCSS = """
-    :root {
-        --bg:      #0f0f1a;
-        --text:    #e8e8ee;
-        --dim:     #8888aa;
-        --heading: #ffffff;
-        --accent:  #ff6b14;
-        --border:  rgba(255,255,255,0.10);
-        --code-bg: rgba(255,255,255,0.06);
-        --font:    -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-        --mono:    'SF Mono', ui-monospace, Menlo, monospace;
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html { background: var(--bg); font-size: 18px; }
-    body {
-        max-width: 680px; margin: 0 auto; padding: 28px 20px 100px;
-        font-family: var(--font); font-size: 1rem; line-height: 1.78;
-        color: var(--text); background: var(--bg);
-        -webkit-font-smoothing: antialiased;
-        word-wrap: break-word; overflow-wrap: break-word;
-    }
-    .header {
-        margin-bottom: 28px; padding-bottom: 20px;
-        border-bottom: 1px solid var(--border);
-    }
-    .site {
-        font-size: 0.7rem; font-weight: 600; letter-spacing: 0.09em;
-        text-transform: uppercase; color: var(--accent); margin-bottom: 10px;
-    }
-    .header h1 {
-        font-size: 1.65rem; font-weight: 700; line-height: 1.25;
-        color: var(--heading); margin: 0 0 10px;
-    }
-    .byline { font-size: 0.82rem; color: var(--dim); margin-top: 8px; }
-    .content p { margin: 0.9em 0; }
-    .content > p:first-child { margin-top: 0; }
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--heading); font-weight: 700; line-height: 1.3; margin: 1.8em 0 0.5em;
-    }
-    h2 { font-size: 1.3rem; } h3 { font-size: 1.1rem; }
-    h4, h5, h6 { font-size: 1rem; color: var(--text); }
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    img, video {
-        max-width: 100%; height: auto; display: block;
-        border-radius: 10px; margin: 1.2em auto;
-    }
-    figure { margin: 1.4em 0; text-align: center; }
-    figcaption { font-size: 0.78rem; color: var(--dim); margin-top: 6px; font-style: italic; }
-    pre {
-        background: var(--code-bg); border: 1px solid var(--border);
-        border-radius: 10px; padding: 16px 18px; overflow-x: auto;
-        margin: 1.2em 0; font-size: 0.84rem; line-height: 1.55;
-    }
-    code {
-        font-family: var(--mono); font-size: 0.875em;
-        background: var(--code-bg); padding: 2px 6px; border-radius: 5px; color: var(--text);
-    }
-    pre code { background: transparent; padding: 0; font-size: inherit; color: inherit; }
-    blockquote {
-        border-left: 3px solid var(--accent); margin: 1.2em 0;
-        padding: 8px 18px; color: var(--dim); font-style: italic;
-        background: var(--code-bg); border-radius: 0 8px 8px 0;
-    }
-    blockquote p { margin: 0.4em 0; }
-    ul, ol { padding-left: 1.6em; margin: 0.9em 0; }
-    li { margin: 0.3em 0; }
-    hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
-    table {
-        border-collapse: collapse; width: 100%; margin: 1.2em 0;
-        font-size: 0.9rem; display: block; overflow-x: auto;
-    }
-    th, td { padding: 8px 14px; border: 1px solid var(--border); text-align: left; }
-    th { background: var(--code-bg); color: var(--heading); font-weight: 600; }
-    /* Images are hidden by default; JS removes this class when the user toggles them on */
-    .no-images img,
-    .no-images video,
-    .no-images figure { display: none !important; }
-    """
 }
 
 // MARK: - Reader options sheet

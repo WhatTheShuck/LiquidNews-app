@@ -4,6 +4,8 @@
 <dict>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>LiquidNews saves images from Imgur posts to your photo library when you choose Save.</string>
     <key>NSUserActivityTypes</key>
     <array>
         <string>com.liquidnews.openStory</string>

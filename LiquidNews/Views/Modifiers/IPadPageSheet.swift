@@ -3,12 +3,11 @@
 // Gated on the device idiom (not horizontalSizeClass) because an iPad form sheet
 // reports a *compact* horizontal size class, which would defeat a size-class gate.
 //
-// `presentationSizing(.page)` alone isn't enough here: these sheets are presented
-// from StoryDetailView, which on iPad lives inside the NavigationSplitView detail
-// column — and those columns report a *compact* horizontal size class. iPadOS 18+
-// silently downgrades `.page` to `.form` sizing whenever the presenting context is
-// compact, so the sheet came up as a small centered card. Overriding the size class
-// to `.regular` on the presentation removes that downgrade and lets `.page` apply.
+// NOTE: `presentationSizing(.page)` is only honoured when the *presenting* context
+// has a regular horizontal size class. These sheets are presented from inside the
+// NavigationSplitView detail column, which injects a spurious *compact* size class
+// into its environment — that's corrected back to .regular in DetailColumnView so
+// `.page` actually takes effect here. (See DetailColumnView's size-class override.)
 
 import SwiftUI
 import UIKit
@@ -16,9 +15,7 @@ import UIKit
 private struct IPadPageSheet: ViewModifier {
     func body(content: Content) -> some View {
         if UIDevice.current.userInterfaceIdiom == .pad {
-            content
-                .presentationSizing(.page)
-                .environment(\.horizontalSizeClass, .regular)
+            content.presentationSizing(.page)
         } else {
             content
         }

@@ -49,6 +49,7 @@ struct HiddenPostsView: View {
             NavigationStack { StoryDetailView(story: story) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
         }
     }
 
