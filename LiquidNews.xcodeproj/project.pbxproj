@@ -17,10 +17,13 @@
 		AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001A /* DetailModeMappingTests.swift */; };
 		AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001C /* IPadReaderLayoutTests.swift */; };
 		AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000021 /* WordsOfWisdomTests.swift */; };
-		AA000001000000000000023 /* RecentStoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000022 /* RecentStoryStoreTests.swift */; };
-		AA000001000000000000025 /* ResumeModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000024 /* ResumeModeTests.swift */; };
-		AA000001000000000000027 /* ResumeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000026 /* ResumeCoordinatorTests.swift */; };
-		AA000001000000000000029 /* StoryActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000028 /* StoryActivityTests.swift */; };
+		AA000001000000000000F02 /* ImgurResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F01 /* ImgurResolverTests.swift */; };
+		AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F03 /* ReaderPreferencesTests.swift */; };
+		AA000001000000000000F12 /* RecentStoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F11 /* RecentStoryStoreTests.swift */; };
+		AA000001000000000000F14 /* ResumeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F13 /* ResumeCoordinatorTests.swift */; };
+		AA000001000000000000F16 /* ResumeModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F15 /* ResumeModeTests.swift */; };
+		AA000001000000000000F18 /* DeviceKindTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F17 /* DeviceKindTests.swift */; };
+		AA000001000000000000F1A /* ResumeResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F19 /* ResumeResolverTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,10 +70,13 @@
 		AA00000100000000000001A /* DetailModeMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailModeMappingTests.swift; sourceTree = "<group>"; };
 		AA00000100000000000001C /* IPadReaderLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadReaderLayoutTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000021 /* WordsOfWisdomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsOfWisdomTests.swift; sourceTree = "<group>"; };
-		AA000001000000000000022 /* RecentStoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentStoryStoreTests.swift; sourceTree = "<group>"; };
-		AA000001000000000000024 /* ResumeModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeModeTests.swift; sourceTree = "<group>"; };
-		AA000001000000000000026 /* ResumeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeCoordinatorTests.swift; sourceTree = "<group>"; };
-		AA000001000000000000028 /* StoryActivityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryActivityTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F01 /* ImgurResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurResolverTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F03 /* ReaderPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPreferencesTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F11 /* RecentStoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentStoryStoreTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F13 /* ResumeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeCoordinatorTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F15 /* ResumeModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeModeTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F17 /* DeviceKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceKindTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F19 /* ResumeResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeResolverTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -159,6 +165,8 @@
 			children = (
 				AA000001000000000000002 /* StoreServiceTests.swift */,
 				AA000001000000000000003 /* HNURLRouterTests.swift */,
+				AA000001000000000000F01 /* ImgurResolverTests.swift */,
+				AA000001000000000000F03 /* ReaderPreferencesTests.swift */,
 				AA000001000000000000011 /* FavouritesImportTests.swift */,
 				AA000001000000000000013 /* HNItemTests.swift */,
 				AA000001000000000000014 /* HNAPIServiceTests.swift */,
@@ -166,10 +174,11 @@
 				AA000001000000000000021 /* WordsOfWisdomTests.swift */,
 				AA00000100000000000001A /* DetailModeMappingTests.swift */,
 				AA00000100000000000001C /* IPadReaderLayoutTests.swift */,
-				AA000001000000000000022 /* RecentStoryStoreTests.swift */,
-				AA000001000000000000024 /* ResumeModeTests.swift */,
-				AA000001000000000000026 /* ResumeCoordinatorTests.swift */,
-				AA000001000000000000028 /* StoryActivityTests.swift */,
+				AA000001000000000000F11 /* RecentStoryStoreTests.swift */,
+				AA000001000000000000F13 /* ResumeCoordinatorTests.swift */,
+				AA000001000000000000F15 /* ResumeModeTests.swift */,
+				AA000001000000000000F17 /* DeviceKindTests.swift */,
+				AA000001000000000000F19 /* ResumeResolverTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -321,6 +330,8 @@
 			files = (
 				AA000001000000000000004 /* StoreServiceTests.swift in Sources */,
 				AA000001000000000000005 /* HNURLRouterTests.swift in Sources */,
+				AA000001000000000000F02 /* ImgurResolverTests.swift in Sources */,
+				AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */,
 				AA000001000000000000010 /* FavouritesImportTests.swift in Sources */,
 				AA000001000000000000012 /* HNItemTests.swift in Sources */,
 				AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */,
@@ -328,10 +339,11 @@
 				AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */,
 				AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */,
 				AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */,
-				AA000001000000000000023 /* RecentStoryStoreTests.swift in Sources */,
-				AA000001000000000000025 /* ResumeModeTests.swift in Sources */,
-				AA000001000000000000027 /* ResumeCoordinatorTests.swift in Sources */,
-				AA000001000000000000029 /* StoryActivityTests.swift in Sources */,
+				AA000001000000000000F12 /* RecentStoryStoreTests.swift in Sources */,
+				AA000001000000000000F14 /* ResumeCoordinatorTests.swift in Sources */,
+				AA000001000000000000F16 /* ResumeModeTests.swift in Sources */,
+				AA000001000000000000F18 /* DeviceKindTests.swift in Sources */,
+				AA000001000000000000F1A /* ResumeResolverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

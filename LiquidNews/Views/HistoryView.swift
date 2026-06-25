@@ -85,6 +85,7 @@ struct HistoryView: View {
                         deleted:     nil,
                         dead:        nil
                     )
+                    RecentStoryStore.shared.record(item)
                     if let navModel {
                         navModel.select(item, mode: .comments)
                     } else {

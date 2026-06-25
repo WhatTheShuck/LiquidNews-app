@@ -58,6 +58,8 @@ struct StoriesListView: View {
     @Environment(DeepLinkState.self) private var deepLink
     /// Non-nil when a resume banner should be shown for this cold launch.
     @State private var resumeBanner: RecentStory?
+    /// User dismissed the resume banner for this session.
+    @State private var resumeDismissed = false
     // 0 = picker fully visible, 1 = picker fully hidden.
     // Driven directly from scroll offset so the animation tracks finger speed.
     // Snapped to 0 or 1 with a spring once scrolling stops.
@@ -394,43 +396,40 @@ struct StoriesListView: View {
         }
     }
 
-    /// Dismissable "resume where you left off" banner. Tapping it re-opens the
-    /// story through the existing deep-link path; the ✕ dismisses it for this launch.
-    private func resumeBannerRow(_ story: RecentStory) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "arrow.clockwise.circle.fill")
-                .font(.system(size: 22))
-                .foregroundStyle(AppTheme.accent)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Resume")
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.secondary)
-                Text(story.title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 8)
-            Button {
-                withAnimation(.smooth) { resumeBanner = nil }
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
+    // MARK: - Resume banner
+
+    /// The primary (local) entry and optional other-device hint to show, or nil
+    /// when no banner should appear. Primary is always this device's last story;
+    /// the hint is the most recent fresh, unread, distinct other-device story.
+    private var resumeContent: (primary: ResumeEntry, hint: ResumeEntry?)? {
+        guard !resumeDismissed, let banner = resumeBanner else { return nil }
+        let store = RecentStoryStore.shared
+        let primary = ResumeResolver.entry(from: banner, isThisDevice: true)
+        let hint = ResumeResolver.hint(
+            local: banner,
+            cloud: store.cloudStories,
+            thisInstallID: store.installID,
+            now: .now
+        )
+        return (primary, hint)
+    }
+
+    @ViewBuilder
+    private var resumeBannerView: some View {
+        if let content = resumeContent {
+            ResumeBannerView(
+                primary: content.primary,
+                hint: content.hint,
+                onOpen: { id in
+                    deepLink.pendingItemID = id
+                    withAnimation(.smooth) { resumeDismissed = true }
+                },
+                onDismiss: {
+                    withAnimation(.smooth) { resumeDismissed = true }
+                }
+            )
+            .transition(.move(edge: .top).combined(with: .opacity))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .glassCard()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            deepLink.pendingItemID = story.id
-            withAnimation(.smooth) { resumeBanner = nil }
-        }
-        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     @ViewBuilder
@@ -473,8 +472,8 @@ struct StoriesListView: View {
 
     private var storiesList: some View {
         List {
-            if let banner = resumeBanner {
-                resumeBannerRow(banner)
+            if resumeContent != nil {
+                resumeBannerView
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
