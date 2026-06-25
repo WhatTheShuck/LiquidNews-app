@@ -29,6 +29,11 @@ struct RootSplitView: View {
                 .id(model.destination)
                 // Presence of the model is the iPad routing signal for list views.
                 .environment(\.iPadNavModel, model)
+                // Search (and Settings → Hidden Posts) present story sheets straight
+                // from this column, so it needs the same regular-size-class fix the
+                // detail column applies — otherwise those sheets come up as small
+                // form sheets. (See RegularSizeClass.swift / DetailColumnView.)
+                .forceRegularSizeClassForPresentations()
         } detail: {
             NavigationStack {
                 DetailColumnView(model: model)

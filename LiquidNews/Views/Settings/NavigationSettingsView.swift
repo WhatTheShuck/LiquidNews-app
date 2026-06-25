@@ -77,9 +77,74 @@ struct NavigationSettingsView: View {
                         .tint(AppTheme.accent)
                 }
                 .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Resume last story (read only at launch)
+                HStack(spacing: 12) {
+                    Image(systemName: settings.resumeMode.systemImage)
+                        .font(.system(size: 16))
+                        .foregroundStyle(AppTheme.accent)
+                        .frame(width: 30)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Resume Last Story")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Text(settings.resumeMode.subtitle)
+                            .font(.system(size: subtitleFontSize))
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 10)
+
+                resumeModePicker
             }
             .glassCard()
         }
+    }
+
+    /// Segmented row of icon+label buttons for the resume mode, matching the
+    /// app's settings style (same look as ReadingSettingsView's picker).
+    private var resumeModePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(ResumeMode.allCases.enumerated()), id: \.offset) { index, mode in
+                Button {
+                    settings.resumeMode = mode
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: mode.systemImage)
+                            .font(.system(size: 14, weight: .medium))
+                        Text(mode.label)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(
+                        settings.resumeMode == mode ? AppTheme.accent.opacity(0.2) : Color.clear
+                    )
+                    .foregroundStyle(
+                        settings.resumeMode == mode ? AppTheme.accent : Color.secondary
+                    )
+                }
+                .buttonStyle(.plain)
+
+                if index != ResumeMode.allCases.count - 1 {
+                    Divider()
+                        .frame(height: 32)
+                        .overlay(AppTheme.glassBorder)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(AppTheme.glassBorder, lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
     }
 }
 

@@ -202,6 +202,9 @@ struct StoryDetailView: View {
             async let related: () = loadRelatedStories()
             _ = await (comments, related)
         }
+        .userActivity(StoryActivity.activityType, isActive: iPadNavModel == nil) { activity in
+            StoryActivity.update(activity, with: story)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .replyPosted)) { _ in
             Task { await viewModel.loadComments(bustCache: true) }
         }

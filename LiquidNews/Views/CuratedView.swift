@@ -75,6 +75,7 @@ struct CuratedView: View {
             NavigationStack { StoryDetailView(story: story) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
         }
         .sheet(item: $readerURL) { item in
             NavigationStack { ArticleReaderView(url: item.url) }

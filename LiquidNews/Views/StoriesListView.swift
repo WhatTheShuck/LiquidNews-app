@@ -54,6 +54,10 @@ struct StoriesListView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.iPadNavModel) private var navModel
+    @Environment(ResumeCoordinator.self) private var resumeCoordinator
+    @Environment(DeepLinkState.self) private var deepLink
+    /// Non-nil when a resume banner should be shown for this cold launch.
+    @State private var resumeBanner: RecentStory?
     // 0 = picker fully visible, 1 = picker fully hidden.
     // Driven directly from scroll offset so the animation tracks finger speed.
     // Snapped to 0 or 1 with a spring once scrolling stops.
@@ -214,6 +218,7 @@ struct StoriesListView: View {
         .task {
             await viewModel.load(category: enabledCategories.first ?? .top)
         }
+        .task { evaluateResume() }
         // If the selected category gets disabled in settings, switch to the first enabled one.
         .onChange(of: enabledCategories) { _, categories in
             if !categories.contains(viewModel.selectedCategory), let first = categories.first {
@@ -336,6 +341,12 @@ struct StoriesListView: View {
     private let store = SavedPostsStore.shared
 
     private func performAction(_ action: StoryAction, story: HNItem) {
+        // Record "where you left off" for navigation/open actions only. A non-nil
+        // DetailMode.forSelection result is exactly the open actions (comments/
+        // reader/browser/safari) and nil for favourite/saveLater/hide/none.
+        if DetailMode.forSelection(action: action, hasURL: story.url != nil) != nil {
+            RecentStoryStore.shared.record(story)
+        }
         // iPad split view: route navigation actions into the detail column.
         // Side-effect actions (favourite/saveLater/hide/none) fall through to
         // the existing switch so swipe actions keep working unchanged.
@@ -366,6 +377,60 @@ struct StoriesListView: View {
         case .none:
             break
         }
+    }
+
+    /// Runs the launch resume decision exactly once (the coordinator latches
+    /// `launchResumeHandled`, so repeat calls are safe no-ops). On `.banner` we
+    /// show the dismissable row; on `.autoOpen` we drive the existing open path.
+    private func evaluateResume() {
+        switch resumeCoordinator.decide(mode: settings.resumeMode,
+                                        lastStory: RecentStoryStore.shared.lastStory) {
+        case .none:
+            break
+        case .banner(let story):
+            resumeBanner = story
+        case .autoOpen(let id):
+            deepLink.pendingItemID = id
+        }
+    }
+
+    /// Dismissable "resume where you left off" banner. Tapping it re-opens the
+    /// story through the existing deep-link path; the ✕ dismisses it for this launch.
+    private func resumeBannerRow(_ story: RecentStory) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.clockwise.circle.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(AppTheme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Resume")
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                Text(story.title)
+                    .font(.system(size: 14, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            Button {
+                withAnimation(.smooth) { resumeBanner = nil }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .glassCard()
+        .contentShape(Rectangle())
+        .onTapGesture {
+            deepLink.pendingItemID = story.id
+            withAnimation(.smooth) { resumeBanner = nil }
+        }
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     @ViewBuilder
@@ -408,6 +473,12 @@ struct StoriesListView: View {
 
     private var storiesList: some View {
         List {
+            if let banner = resumeBanner {
+                resumeBannerRow(banner)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+            }
             ForEach(Array(visibleStories.enumerated()), id: \.element.id) { index, story in
                 Button {
                     performAction(settings.tapAction, story: story)

@@ -116,13 +116,6 @@ final class DetailModeMappingTests: XCTestCase {
         XCTAssertFalse(model.isReaderSideBySideVisible(layout: .sideBySide))
     }
 
-    func test_isReaderSideBySideVisible_falseOnAccountDestination() {
-        let model = iPadNavModel()
-        model.destination = .account
-        model.detailMode = .reader
-        XCTAssertFalse(model.isReaderSideBySideVisible(layout: .sideBySide))
-    }
-
     func test_isReaderSideBySideVisible_falseWhenReplaceLayoutOnTab() {
         let model = iPadNavModel()
         model.destination = .tab(.feed)

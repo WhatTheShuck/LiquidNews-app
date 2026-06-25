@@ -407,6 +407,7 @@ struct ArticleReaderView: View {
                 NavigationStack { StoryDetailView(story: story) }
                     .presentationDragIndicator(.visible)
                     .presentationCornerRadius(.glassCornerRadius)
+                    .iPadPageSheet()
             }
     }
 
@@ -548,11 +549,13 @@ struct ArticleReaderView: View {
         }
         .sheet(item: $readerLinkSafariURL) { item in
             SafariView(url: item.url)
+                .iPadPageSheet()
         }
         .sheet(item: $readerLinkReaderURL) { item in
             NavigationStack {
                 ArticleReaderView(url: item.url)
             }
+            .iPadPageSheet()
         }
         .sheet(isPresented: $showReaderOptions) {
             ReaderOptionsSheet(preferences: preferences)

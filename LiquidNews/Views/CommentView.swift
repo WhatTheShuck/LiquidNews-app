@@ -201,11 +201,13 @@ struct CommentView: View {
             }
             .presentationDragIndicator(.visible)
             .presentationCornerRadius(.glassCornerRadius)
+            .iPadPageSheet()
         }
         .sheet(isPresented: $showReply) {
             NavigationStack { ComposeReplyView(parentId: comment.id) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
         }
         .alert("Action Failed", isPresented: Binding(
             get: { actionError != nil },

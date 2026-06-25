@@ -17,6 +17,10 @@
 		AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001A /* DetailModeMappingTests.swift */; };
 		AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001C /* IPadReaderLayoutTests.swift */; };
 		AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000021 /* WordsOfWisdomTests.swift */; };
+		AA000001000000000000023 /* RecentStoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000022 /* RecentStoryStoreTests.swift */; };
+		AA000001000000000000025 /* ResumeModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000024 /* ResumeModeTests.swift */; };
+		AA000001000000000000027 /* ResumeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000026 /* ResumeCoordinatorTests.swift */; };
+		AA000001000000000000029 /* StoryActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000028 /* StoryActivityTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -63,6 +67,10 @@
 		AA00000100000000000001A /* DetailModeMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailModeMappingTests.swift; sourceTree = "<group>"; };
 		AA00000100000000000001C /* IPadReaderLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadReaderLayoutTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000021 /* WordsOfWisdomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsOfWisdomTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000022 /* RecentStoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentStoryStoreTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000024 /* ResumeModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeModeTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000026 /* ResumeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeCoordinatorTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000028 /* StoryActivityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoryActivityTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -158,6 +166,10 @@
 				AA000001000000000000021 /* WordsOfWisdomTests.swift */,
 				AA00000100000000000001A /* DetailModeMappingTests.swift */,
 				AA00000100000000000001C /* IPadReaderLayoutTests.swift */,
+				AA000001000000000000022 /* RecentStoryStoreTests.swift */,
+				AA000001000000000000024 /* ResumeModeTests.swift */,
+				AA000001000000000000026 /* ResumeCoordinatorTests.swift */,
+				AA000001000000000000028 /* StoryActivityTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -316,6 +328,10 @@
 				AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */,
 				AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */,
 				AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */,
+				AA000001000000000000023 /* RecentStoryStoreTests.swift in Sources */,
+				AA000001000000000000025 /* ResumeModeTests.swift in Sources */,
+				AA000001000000000000027 /* ResumeCoordinatorTests.swift in Sources */,
+				AA000001000000000000029 /* StoryActivityTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

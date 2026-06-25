@@ -304,6 +304,40 @@ enum IPadReaderLayout: String, CaseIterable, Identifiable, SettingsSegmentOption
     }
 }
 
+// MARK: - Resume last story
+
+enum ResumeMode: String, CaseIterable, Identifiable {
+    case off     // never resume
+    case prompt  // show a dismissable banner (default)
+    case auto    // reopen immediately on launch
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off:    "Off"
+        case .prompt: "Ask"
+        case .auto:   "Reopen"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .off:    "Never resume your last story"
+        case .prompt: "Offer to resume your last story on launch"
+        case .auto:   "Reopen your last story automatically on launch"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .off:    "xmark"
+        case .prompt: "questionmark.circle"
+        case .auto:   "arrow.clockwise"
+        }
+    }
+}
+
 // MARK: - App color scheme override
 
 enum AppColorScheme: String, CaseIterable, Identifiable {
@@ -528,6 +562,14 @@ final class UserSettings {
         didSet { kvStore.set(appColorScheme.rawValue, forKey: Keys.appColorScheme) }
     }
 
+    // MARK: - Resume last story
+
+    /// How the app resumes the last opened story on cold launch. Only read at
+    /// launch — changing it has no live effect this session.
+    var resumeMode: ResumeMode {
+        didSet { kvStore.set(resumeMode.rawValue, forKey: Keys.resumeMode) }
+    }
+
     // MARK: - Curated sources
 
     /// When true, the "loading may take a moment" banner is permanently hidden.
@@ -585,6 +627,7 @@ final class UserSettings {
         static let selectedAppTheme             = "LN_selectedAppTheme"
         static let customAccentHex              = "LN_customAccentHex"
         static let appColorScheme               = "LN_appColorScheme"
+        static let resumeMode                   = "LN_resumeMode"
     }
 
     /// Runs once on upgrade: copies existing UserDefaults values into the KV store
@@ -609,6 +652,7 @@ final class UserSettings {
             Keys.hiddenPostsExpiry, Keys.readBehaviour,
             Keys.readerShowImagesByDefault, Keys.safariReaderMode, Keys.codeWrapLines, Keys.showReadLaterBadge,
             Keys.selectedAppTheme, Keys.customAccentHex, Keys.appColorScheme,
+            Keys.resumeMode,
         ]
         for key in allKeys {
             if kvStore.object(forKey: key) == nil, let value = ud.object(forKey: key) {
@@ -700,6 +744,8 @@ final class UserSettings {
                 customAccentHex = kvStore.string(forKey: key).flatMap { $0.isEmpty ? nil : $0 }
             case Keys.appColorScheme:
                 appColorScheme = AppColorScheme(rawValue: kvStore.string(forKey: key) ?? "") ?? .system
+            case Keys.resumeMode:
+                resumeMode = ResumeMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .prompt
             default:
                 break
             }
@@ -802,6 +848,9 @@ final class UserSettings {
 
         let rawColorScheme = kvStore.string(forKey: Keys.appColorScheme) ?? AppColorScheme.system.rawValue
         appColorScheme = AppColorScheme(rawValue: rawColorScheme) ?? .system
+
+        let rawResumeMode = kvStore.string(forKey: Keys.resumeMode) ?? ResumeMode.prompt.rawValue
+        resumeMode = ResumeMode(rawValue: rawResumeMode) ?? .prompt
 
         // Listen for changes pushed from other devices
         NotificationCenter.default.addObserver(

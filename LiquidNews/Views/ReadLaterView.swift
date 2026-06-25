@@ -79,6 +79,7 @@ struct ReadLaterView: View {
         List {
             ForEach(Array(viewModel.stories.enumerated()), id: \.element.id) { index, story in
                 Button {
+                    RecentStoryStore.shared.record(story)
                     if let navModel {
                         navModel.select(story, mode: .comments)
                     } else {

@@ -14,6 +14,7 @@ extension LinkOpenMode: SettingsSegmentOption {}
 extension CommentLinkMode: SettingsSegmentOption {}
 extension ReaderLinkMode: SettingsSegmentOption {}
 extension HNLinkMode: SettingsSegmentOption {}
+extension ResumeMode: SettingsSegmentOption {}
 
 /// Uppercased caption header used at the top of a settings card.
 /// Detail pages with a single card rely on the navigation title instead and

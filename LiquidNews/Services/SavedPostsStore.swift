@@ -263,6 +263,8 @@ final class SavedPostsStore {
         readHistory = []
         readIDs = []
         saveHistory()
+        // "Where you left off" is part of reading history — clear it too.
+        RecentStoryStore.shared.clear()
     }
 
     func clearHistory(before date: Date) {

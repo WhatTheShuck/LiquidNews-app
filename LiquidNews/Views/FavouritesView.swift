@@ -64,6 +64,9 @@ struct FavouritesView: View {
     // MARK: - Actions
 
     private func performAction(_ action: StoryAction, story: HNItem) {
+        if DetailMode.forSelection(action: action, hasURL: story.url != nil) != nil {
+            RecentStoryStore.shared.record(story)
+        }
         // iPad split view: route navigation actions into the detail column.
         // Side-effect actions (favourite/saveLater/hide/none) fall through to
         // the existing switch so swipe actions keep working unchanged.

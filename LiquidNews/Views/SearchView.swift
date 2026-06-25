@@ -77,6 +77,7 @@ struct SearchView: View {
             NavigationStack { StoryDetailView(story: story) }
                 .presentationDragIndicator(.visible)
                 .presentationCornerRadius(.glassCornerRadius)
+                .iPadPageSheet()
         }
     }
 
@@ -201,7 +202,10 @@ struct SearchView: View {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 12) {
                     ForEach(Array(viewModel.results.enumerated()), id: \.element.id) { index, story in
-                        Button { selectedStory = story } label: {
+                        Button {
+                            RecentStoryStore.shared.record(story)
+                            selectedStory = story
+                        } label: {
                             StoryRowView(story: story, rank: index + 1)
                                 .contentShape(Rectangle())
                         }

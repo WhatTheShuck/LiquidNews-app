@@ -35,6 +35,22 @@ struct DetailColumnView: View {
                 placeholder
             }
         }
+        // NavigationSplitView gives this column a UIViewController with a *compact*
+        // traitCollection even though the window is regular (this column only ever
+        // exists in the regular-width split — see ContentView). UIKit sizes sheets
+        // from that controller's real traits, downgrading `.page` to small `.form`
+        // — and a SwiftUI `.environment` override can't change a controller's traits.
+        // Override them at the UIKit level so StoryDetailView's `.iPadPageSheet()`
+        // presentations size as page sheets. (See RegularSizeClass.swift.)
+        .forceRegularSizeClassForPresentations()
+        .userActivity(
+            StoryActivity.activityType,
+            isActive: storyToShow != nil
+        ) { activity in
+            if let story = storyToShow {
+                StoryActivity.update(activity, with: story)
+            }
+        }
     }
 
     /// Only show a story when a browsing tab is the active destination.

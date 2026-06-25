@@ -16,6 +16,7 @@ class DeepLinkState {
 struct LiquidNewsApp: App {
 
     @State private var deepLink = DeepLinkState()
+    @State private var resumeCoordinator = ResumeCoordinator()
     @State private var store = StoreService.shared
     @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
@@ -26,9 +27,20 @@ struct LiquidNewsApp: App {
         WindowGroup {
             ContentView()
                 .environment(deepLink)
+                .environment(resumeCoordinator)
                 .background(AppIconSyncer())
                 .onOpenURL { url in
-                    deepLink.pendingItemID = itemID(from: url)
+                    guard let id = itemID(from: url) else { return }
+                    // Durable signal so a real deep link suppresses the resume
+                    // banner/auto-open this launch (the transient pendingItemID is
+                    // nilled the instant it's consumed — see ResumeCoordinator).
+                    resumeCoordinator.markDeepLinkConsumed()
+                    deepLink.pendingItemID = id
+                }
+                .onContinueUserActivity(StoryActivity.activityType) { activity in
+                    guard let id = StoryActivity.itemID(from: activity) else { return }
+                    resumeCoordinator.markDeepLinkConsumed()
+                    deepLink.pendingItemID = id
                 }
                 .task {
                     SavedPostsStore.shared.applyHiddenPostsExpiry(
