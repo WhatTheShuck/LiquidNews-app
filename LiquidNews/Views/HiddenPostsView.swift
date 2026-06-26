@@ -161,10 +161,7 @@ private struct HiddenPostRowView: View {
                             .foregroundStyle(.tertiary)
                     }
                     Spacer()
-                    Text(entry.hiddenAt, style: .relative)
-                        .font(AppTheme.captionFont(11))
-                        .foregroundStyle(.quaternary)
-                    + Text(" ago")
+                    Text("\(entry.hiddenAt, style: .relative) ago")
                         .font(AppTheme.captionFont(11))
                         .foregroundStyle(.quaternary)
                 }

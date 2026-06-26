@@ -24,7 +24,7 @@ enum NewsletterError: LocalizedError {
 
 // MARK: - Service
 
-final class HackerNewsletterService: @unchecked Sendable {
+nonisolated final class HackerNewsletterService: @unchecked Sendable {
 
     static let shared = HackerNewsletterService()
     private init() {}
@@ -93,7 +93,7 @@ final class HackerNewsletterService: @unchecked Sendable {
 // through the document. We accumulate text in `currentText` and assign it to
 // the right field when the element closes.
 
-final class HNLRSSParser: NSObject, XMLParserDelegate {
+nonisolated final class HNLRSSParser: NSObject, XMLParserDelegate {
 
     /// A single parsed RSS item. Codable so CuratedStore can persist it to disk
     /// and do lazy per-page HTML parsing across app sessions without re-fetching.
@@ -171,7 +171,7 @@ final class HNLRSSParser: NSObject, XMLParserDelegate {
 // Classifieds/sponsored entries have a visible "sponsored" badge and
 // utm_term=classifieds in their URL — we drop both.
 
-enum NewsletterHTMLParser {
+nonisolated enum NewsletterHTMLParser {
 
     // The article link always contains utm_source=hackernewsletter and a
     // title attribute with "Votes: X Comments: Y" — this combination uniquely

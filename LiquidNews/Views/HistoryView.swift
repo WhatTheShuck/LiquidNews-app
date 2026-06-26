@@ -160,10 +160,7 @@ private struct HistoryRowView: View {
                     MetaBadge(icon: "person", value: by)
                 }
                 Spacer()
-                Text(entry.readAt, style: .relative)
-                    .font(AppTheme.captionFont(11))
-                    .foregroundStyle(.tertiary)
-                + Text(" ago")
+                Text("\(entry.readAt, style: .relative) ago")
                     .font(AppTheme.captionFont(11))
                     .foregroundStyle(.tertiary)
             }

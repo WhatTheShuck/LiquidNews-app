@@ -1406,7 +1406,7 @@ extension ReaderWebView.Coordinator: WKNavigationDelegate {
         // Apply any domain-specific preprocessing (strip selectors, content focus, etc.)
         let currentURL = webView.url ?? url
         let siteRule   = SiteRules.match(url: currentURL)
-        if let rule = siteRule {
+        if siteRule != nil {
             state.addLog("📐 Applying site rule for \(currentURL.host ?? "?")")
         }
 

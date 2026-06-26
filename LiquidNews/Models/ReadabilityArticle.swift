@@ -3,7 +3,7 @@
 
 import Foundation
 
-struct ReadabilityArticle {
+nonisolated struct ReadabilityArticle: Codable, Sendable {
     /// Page / article title. Falls back to document.title if og:title is absent.
     let title: String
     /// Author name(s), if discoverable in the page.

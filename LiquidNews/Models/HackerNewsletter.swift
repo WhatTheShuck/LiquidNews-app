@@ -5,7 +5,7 @@ import Foundation
 
 // MARK: - Issue
 
-struct NewsletterIssue: Identifiable {
+nonisolated struct NewsletterIssue: Identifiable {
     let id: String          // RSS guid
     let issueNumber: Int
     let title: String
@@ -16,7 +16,7 @@ struct NewsletterIssue: Identifiable {
 
 // MARK: - Entry
 
-struct NewsletterEntry: Identifiable, Hashable {
+nonisolated struct NewsletterEntry: Identifiable, Hashable {
     let id: UUID
     let title: String
     let articleURL: URL
@@ -51,7 +51,7 @@ struct NewsletterEntry: Identifiable, Hashable {
 
 // MARK: - Section
 
-enum NewsletterSection: String, CaseIterable {
+nonisolated enum NewsletterSection: String, CaseIterable {
     case favorites   = "fav"
     case askHN       = "ask_hn"
     case showHN      = "show_hn"

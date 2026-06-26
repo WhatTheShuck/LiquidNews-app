@@ -146,7 +146,7 @@ final class CuratedStore {
 
         let item = rssItems[nextRSSPage]
         let issue = await Task.detached(priority: .userInitiated) {
-            await HackerNewsletterService.shared.parseIssue(from: item)
+            HackerNewsletterService.shared.parseIssue(from: item)
         }.value
 
         let newEntries = issue.entries.compactMap {

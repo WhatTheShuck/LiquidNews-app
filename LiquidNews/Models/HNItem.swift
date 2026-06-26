@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct HNItem: Identifiable, Codable, Hashable {
+nonisolated struct HNItem: Identifiable, Codable, Hashable, Sendable {
 
     // MARK: - Properties
 
