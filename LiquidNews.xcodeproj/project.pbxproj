@@ -18,14 +18,19 @@
 		AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001C /* IPadReaderLayoutTests.swift */; };
 		AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000021 /* WordsOfWisdomTests.swift */; };
 		AA000001000000000000F02 /* ImgurResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F01 /* ImgurResolverTests.swift */; };
+		AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F03 /* ReaderPreferencesTests.swift */; };
 		AA000001000000000000F06 /* ImgurImageActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F05 /* ImgurImageActionsTests.swift */; };
 		AA000001000000000000F08 /* ReaderHTMLBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F07 /* ReaderHTMLBuilderTests.swift */; };
-		AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F03 /* ReaderPreferencesTests.swift */; };
 		AA000001000000000000F12 /* RecentStoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F11 /* RecentStoryStoreTests.swift */; };
 		AA000001000000000000F14 /* ResumeCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F13 /* ResumeCoordinatorTests.swift */; };
 		AA000001000000000000F16 /* ResumeModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F15 /* ResumeModeTests.swift */; };
 		AA000001000000000000F18 /* DeviceKindTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F17 /* DeviceKindTests.swift */; };
 		AA000001000000000000F1A /* ResumeResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F19 /* ResumeResolverTests.swift */; };
+		AA000001000000000000F21 /* CacheIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F20 /* CacheIndexTests.swift */; };
+		AA000001000000000000F23 /* DiskCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F22 /* DiskCacheTests.swift */; };
+		AA000001000000000000F25 /* HNCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F24 /* HNCacheTests.swift */; };
+		AA000001000000000000F27 /* CacheReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F26 /* CacheReconcilerTests.swift */; };
+		AA000001000000000000F29 /* OfflineDownloadCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F28 /* OfflineDownloadCoordinatorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,14 +78,19 @@
 		AA00000100000000000001C /* IPadReaderLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadReaderLayoutTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000021 /* WordsOfWisdomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsOfWisdomTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F01 /* ImgurResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurResolverTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F03 /* ReaderPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPreferencesTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F05 /* ImgurImageActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurImageActionsTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F07 /* ReaderHTMLBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderHTMLBuilderTests.swift; sourceTree = "<group>"; };
-		AA000001000000000000F03 /* ReaderPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPreferencesTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F11 /* RecentStoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentStoryStoreTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F13 /* ResumeCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeCoordinatorTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F15 /* ResumeModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeModeTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F17 /* DeviceKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceKindTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F19 /* ResumeResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResumeResolverTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F20 /* CacheIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheIndexTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F22 /* DiskCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiskCacheTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F24 /* HNCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNCacheTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F26 /* CacheReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheReconcilerTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F28 /* OfflineDownloadCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineDownloadCoordinatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -170,6 +180,11 @@
 				AA000001000000000000002 /* StoreServiceTests.swift */,
 				AA000001000000000000003 /* HNURLRouterTests.swift */,
 				AA000001000000000000F01 /* ImgurResolverTests.swift */,
+				AA000001000000000000F20 /* CacheIndexTests.swift */,
+				AA000001000000000000F22 /* DiskCacheTests.swift */,
+				AA000001000000000000F24 /* HNCacheTests.swift */,
+				AA000001000000000000F26 /* CacheReconcilerTests.swift */,
+				AA000001000000000000F28 /* OfflineDownloadCoordinatorTests.swift */,
 				AA000001000000000000F05 /* ImgurImageActionsTests.swift */,
 				AA000001000000000000F07 /* ReaderHTMLBuilderTests.swift */,
 				AA000001000000000000F03 /* ReaderPreferencesTests.swift */,
@@ -337,6 +352,11 @@
 				AA000001000000000000004 /* StoreServiceTests.swift in Sources */,
 				AA000001000000000000005 /* HNURLRouterTests.swift in Sources */,
 				AA000001000000000000F02 /* ImgurResolverTests.swift in Sources */,
+				AA000001000000000000F21 /* CacheIndexTests.swift in Sources */,
+				AA000001000000000000F23 /* DiskCacheTests.swift in Sources */,
+				AA000001000000000000F25 /* HNCacheTests.swift in Sources */,
+				AA000001000000000000F27 /* CacheReconcilerTests.swift in Sources */,
+				AA000001000000000000F29 /* OfflineDownloadCoordinatorTests.swift in Sources */,
 				AA000001000000000000F06 /* ImgurImageActionsTests.swift in Sources */,
 				AA000001000000000000F08 /* ReaderHTMLBuilderTests.swift in Sources */,
 				AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */,

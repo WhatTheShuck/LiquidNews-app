@@ -46,11 +46,13 @@ struct StoriesListView: View {
 
     @State private var viewModel: StoriesViewModel
     @State private var settings = UserSettings.shared
+    @State private var networkMonitor = NetworkMonitor.shared
     @State private var selectedStory: HNItem?
     @State private var readerURL: IdentifiableURL?
     @State private var safariURL: IdentifiableURL?
     @State private var showingSearch = false
     @State private var showingSettings = false
+    @State private var showPrepareForOffline = false
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.iPadNavModel) private var navModel
@@ -116,10 +118,17 @@ struct StoriesListView: View {
                 storiesList
             }
         }
+        .animation(.default, value: networkMonitor.isOnline)
         .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
+            // Compact offline pill — a quiet status cue tucked at the leading edge of
+            // the nav bar (only present while offline), instead of a full-width banner.
+            ToolbarItem(placement: .topBarLeading) {
+                OfflineIndicator()
+            }
+
             // ── Principal: "LiquidNews" title fades/scales out as the category
             // picker slides away, replaced by a compact category menu so the
             // user can still switch feeds while scrolled down.
@@ -166,6 +175,18 @@ struct StoriesListView: View {
                     }
                     .opacity(max(0, pickerProgress * 2 - 1))
                     .scaleEffect(0.75 + pickerProgress * 0.25)
+                }
+            }
+
+            // Frequent Flyer shortcut: shown on both iPhone and iPad (the feed column
+            // owns its toolbar on iPad), gated only by the opt-in setting.
+            if settings.frequentFlyerEnabled {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showPrepareForOffline = true
+                    } label: {
+                        Label("Prepare for Offline", systemImage: "airplane.circle")
+                    }
                 }
             }
 
@@ -216,6 +237,9 @@ struct StoriesListView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsListView()
+        }
+        .sheet(isPresented: $showPrepareForOffline) {
+            PrepareForOfflineSheet()
         }
         .task {
             await viewModel.load(category: enabledCategories.first ?? .top)

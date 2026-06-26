@@ -43,9 +43,12 @@ struct LiquidNewsApp: App {
                     deepLink.pendingItemID = id
                 }
                 .task {
+                    // Start the shared path monitor at launch (it begins observing in init).
+                    _ = NetworkMonitor.shared
                     SavedPostsStore.shared.applyHiddenPostsExpiry(
                         UserSettings.shared.hiddenPostsExpiry
                     )
+                    await BackgroundPrefetcher.runIfEnabled()
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
@@ -54,6 +57,7 @@ struct LiquidNewsApp: App {
                             await store.updatePurchasedProducts()
                             enforceTrials()
                         }
+                        Task { await BackgroundPrefetcher.runIfEnabled() }
                     }
                 }
                 .alert("Trial Ended", isPresented: $showThemeNudge) {

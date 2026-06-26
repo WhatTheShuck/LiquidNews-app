@@ -593,6 +593,42 @@ final class UserSettings {
         }
     }
 
+    // MARK: - Cache & offline
+
+    /// Cache size cap in megabytes. Mirrored into DiskCache on change.
+    var cacheSizeCapMB: Int {
+        didSet {
+            kvStore.set(cacheSizeCapMB, forKey: Keys.cacheSizeCapMB)
+            Task { await DiskCache.shared.setSizeCap(cacheSizeCapMB * 1024 * 1024) }
+        }
+    }
+
+    /// When true, enabled feeds are refreshed + their items prefetched on launch/foreground (WiFi only).
+    var backgroundFeedPrefetch: Bool {
+        didSet { kvStore.set(backgroundFeedPrefetch, forKey: Keys.backgroundFeedPrefetch) }
+    }
+
+    /// Sub-toggle: also extract + cache article bodies during background prefetch (heavier).
+    var backgroundPrefetchArticles: Bool {
+        didSet { kvStore.set(backgroundPrefetchArticles, forKey: Keys.backgroundPrefetchArticles) }
+    }
+
+    /// Remembered feed selection for the "Prepare for offline" sheet.
+    var offlineDownloadCategories: [StoryCategory] {
+        didSet { kvStore.set(offlineDownloadCategories.map(\.rawValue), forKey: Keys.offlineDownloadCategories) }
+    }
+
+    /// Remembered download depth (stories per feed) for "Prepare for offline".
+    var offlineDownloadDepth: Int {
+        didSet { kvStore.set(offlineDownloadDepth, forKey: Keys.offlineDownloadDepth) }
+    }
+
+    /// "Frequent Flyer": surfaces a one-tap airplane shortcut in the feed toolbar that
+    /// opens Prepare-for-offline, for travellers who download often.
+    var frequentFlyerEnabled: Bool {
+        didSet { kvStore.set(frequentFlyerEnabled, forKey: Keys.frequentFlyerEnabled) }
+    }
+
     // MARK: - Init
 
     private enum Keys {
@@ -628,6 +664,12 @@ final class UserSettings {
         static let customAccentHex              = "LN_customAccentHex"
         static let appColorScheme               = "LN_appColorScheme"
         static let resumeMode                   = "LN_resumeMode"
+        static let cacheSizeCapMB             = "LN_cacheSizeCapMB"
+        static let backgroundFeedPrefetch     = "LN_backgroundFeedPrefetch"
+        static let backgroundPrefetchArticles = "LN_backgroundPrefetchArticles"
+        static let offlineDownloadCategories  = "LN_offlineDownloadCategories"
+        static let offlineDownloadDepth        = "LN_offlineDownloadDepth"
+        static let frequentFlyerEnabled        = "LN_frequentFlyerEnabled"
     }
 
     /// Runs once on upgrade: copies existing UserDefaults values into the KV store
@@ -653,6 +695,8 @@ final class UserSettings {
             Keys.readerShowImagesByDefault, Keys.safariReaderMode, Keys.codeWrapLines, Keys.showReadLaterBadge,
             Keys.selectedAppTheme, Keys.customAccentHex, Keys.appColorScheme,
             Keys.resumeMode,
+            Keys.cacheSizeCapMB, Keys.backgroundFeedPrefetch, Keys.backgroundPrefetchArticles,
+            Keys.offlineDownloadCategories, Keys.offlineDownloadDepth, Keys.frequentFlyerEnabled,
         ]
         for key in allKeys {
             if kvStore.object(forKey: key) == nil, let value = ud.object(forKey: key) {
@@ -746,6 +790,19 @@ final class UserSettings {
                 appColorScheme = AppColorScheme(rawValue: kvStore.string(forKey: key) ?? "") ?? .system
             case Keys.resumeMode:
                 resumeMode = ResumeMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .prompt
+            case Keys.cacheSizeCapMB:
+                cacheSizeCapMB = (kvStore.object(forKey: key) as? Int) ?? 150
+            case Keys.backgroundFeedPrefetch:
+                backgroundFeedPrefetch = kvStore.bool(forKey: key)
+            case Keys.backgroundPrefetchArticles:
+                backgroundPrefetchArticles = kvStore.bool(forKey: key)
+            case Keys.offlineDownloadCategories:
+                let raw = (kvStore.array(forKey: key) as? [String]) ?? StoryCategory.defaults.map(\.rawValue)
+                offlineDownloadCategories = raw.compactMap(StoryCategory.init(rawValue:))
+            case Keys.offlineDownloadDepth:
+                offlineDownloadDepth = (kvStore.object(forKey: key) as? Int) ?? 50
+            case Keys.frequentFlyerEnabled:
+                frequentFlyerEnabled = kvStore.bool(forKey: key)
             default:
                 break
             }
@@ -851,6 +908,15 @@ final class UserSettings {
 
         let rawResumeMode = kvStore.string(forKey: Keys.resumeMode) ?? ResumeMode.prompt.rawValue
         resumeMode = ResumeMode(rawValue: rawResumeMode) ?? .prompt
+
+        cacheSizeCapMB = (kvStore.object(forKey: Keys.cacheSizeCapMB) as? Int) ?? 150
+        backgroundFeedPrefetch = kvStore.bool(forKey: Keys.backgroundFeedPrefetch)
+        backgroundPrefetchArticles = kvStore.bool(forKey: Keys.backgroundPrefetchArticles)
+        let rawOfflineCats = (kvStore.array(forKey: Keys.offlineDownloadCategories) as? [String])
+            ?? StoryCategory.defaults.map(\.rawValue)
+        offlineDownloadCategories = rawOfflineCats.compactMap(StoryCategory.init(rawValue:))
+        offlineDownloadDepth = (kvStore.object(forKey: Keys.offlineDownloadDepth) as? Int) ?? 50
+        frequentFlyerEnabled = kvStore.bool(forKey: Keys.frequentFlyerEnabled)
 
         // Listen for changes pushed from other devices
         NotificationCenter.default.addObserver(

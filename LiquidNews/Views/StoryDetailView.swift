@@ -70,6 +70,7 @@ struct StoryDetailView: View {
 
     private var saved: SavedPostsStore { .shared }
     @State private var auth = HNAuthService.shared
+    @State private var net = NetworkMonitor.shared
     @State private var showReply = false
     @State private var actionError: String?
     @State private var hasUpvoted = false
@@ -395,14 +396,14 @@ struct StoryDetailView: View {
                 Label(hasUpvoted ? "Unvote" : "Upvote",
                       systemImage: hasUpvoted ? "arrow.up.circle.fill" : "arrow.up")
             }
-            .disabled(!auth.isLoggedIn)
+            .disabled(!auth.isLoggedIn || !net.isOnline)
 
             Button {
                 showReply = true
             } label: {
                 Label("Reply", systemImage: "bubble.left")
             }
-            .disabled(!auth.isLoggedIn)
+            .disabled(!auth.isLoggedIn || !net.isOnline)
         }
 
         // ── Organisation ──
@@ -424,7 +425,7 @@ struct StoryDetailView: View {
             } label: {
                 Label("Flag", systemImage: "flag")
             }
-            .disabled(!auth.isLoggedIn)
+            .disabled(!auth.isLoggedIn || !net.isOnline)
         }
 
         // ── External ──

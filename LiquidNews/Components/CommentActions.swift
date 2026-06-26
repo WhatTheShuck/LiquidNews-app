@@ -13,6 +13,8 @@ struct CommentActions: View {
     let comment: HNItem
     let effectiveMode: CommentRenderMode
     let hasUpvoted: Bool
+    /// Network actions (vote/reply/flag) are hidden when offline.
+    let isOnline: Bool
 
     /// Closure called when the user toggles their vote. Receives the *new* upvoted state.
     var onToggleUpvote: () -> Void
@@ -27,7 +29,7 @@ struct CommentActions: View {
 
     var body: some View {
         Group {
-            if isLoggedIn {
+            if isLoggedIn && isOnline {
                 Button(hasUpvoted ? "Unvote" : "Upvote", action: onToggleUpvote)
                 Button("Reply", action: onReply)
             }
@@ -45,7 +47,7 @@ struct CommentActions: View {
                 Button("Restore Full Rendering", action: onRestoreFullRendering)
             }
 
-            if isLoggedIn {
+            if isLoggedIn && isOnline {
                 Button("Flag", role: .destructive, action: onFlag)
             }
 

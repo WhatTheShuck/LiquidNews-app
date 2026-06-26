@@ -143,6 +143,14 @@ struct SettingsListView: View {
             divider
 
             categoryRow(
+                icon: "arrow.down.circle",
+                title: "Offline & Cache",
+                subtitle: "Storage, downloads, and prefetch"
+            ) { OfflineCacheSettingsView() }
+
+            divider
+
+            categoryRow(
                 icon: "info.circle",
                 title: "About",
                 subtitle: "Links, licenses, and version"
