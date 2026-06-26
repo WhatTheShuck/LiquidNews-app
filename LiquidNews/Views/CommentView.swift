@@ -170,6 +170,7 @@ struct CommentView: View {
                 comment: comment,
                 effectiveMode: effectiveMode,
                 hasUpvoted: hasUpvoted,
+                isOnline: NetworkMonitor.shared.currentlyOnline(),
                 onToggleUpvote: {
                     Task {
                         if hasUpvoted {
@@ -365,14 +366,10 @@ struct CommentView: View {
 
         withAnimation(.easeInOut(duration: 0.25)) { isLoadingReplies = true }
         let batch = Array(kids.prefix(count))
-        do {
-            let loaded = try await HNAPIService.shared.items(ids: batch)
-            withAnimation(.easeInOut(duration: 0.25)) {
-                replies = loaded
-                isLoadingReplies = false
-            }
-        } catch {
-            withAnimation(.easeInOut(duration: 0.25)) { isLoadingReplies = false }
+        let loaded = await Self.loadReplies(ids: batch)
+        withAnimation(.easeInOut(duration: 0.25)) {
+            replies = loaded
+            isLoadingReplies = false
         }
     }
 
@@ -383,15 +380,31 @@ struct CommentView: View {
         withAnimation(.easeInOut(duration: 0.25)) { isLoadingReplies = true }
         let alreadyLoaded = replies.count
         let nextBatch = Array(kids.dropFirst(alreadyLoaded).prefix(10))
-        do {
-            let newReplies = try await HNAPIService.shared.items(ids: nextBatch)
-            withAnimation(.easeInOut(duration: 0.25)) {
-                replies.append(contentsOf: newReplies)
-                isLoadingReplies = false
-            }
-        } catch {
-            withAnimation(.easeInOut(duration: 0.25)) { isLoadingReplies = false }
+        let newReplies = await Self.loadReplies(ids: nextBatch)
+        withAnimation(.easeInOut(duration: 0.25)) {
+            replies.append(contentsOf: newReplies)
+            isLoadingReplies = false
         }
+    }
+
+    /// Cache-first reply loading. When online, fetch from the network and write the
+    /// replies through to the cache (so a thread you read becomes offline-ready); when
+    /// offline (or the fetch fails), assemble whatever is cached in `ids` order. This is
+    /// what lets the comment layers prefetched for offline actually render without a
+    /// connection.
+    private static func loadReplies(ids: [Int]) async -> [HNItem] {
+        if NetworkMonitor.shared.currentlyOnline(),
+           let loaded = try? await HNAPIService.shared.items(ids: ids) {
+            for reply in loaded {
+                await HNCache.shared.storeItem(reply, fillSource: .readThrough, pinned: false)
+            }
+            return loaded
+        }
+        var cached: [HNItem] = []
+        for id in ids {
+            if let reply = await HNCache.shared.cachedItem(id: id) { cached.append(reply) }
+        }
+        return cached
     }
 }
 

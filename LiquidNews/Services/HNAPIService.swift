@@ -8,23 +8,17 @@
 //     feels instant but stays reasonably fresh.
 
 import Foundation
-import Network
 
 final class HNAPIService {
 
-    static let shared = HNAPIService()
+    nonisolated static let shared = HNAPIService()
 
     private let baseURL = "https://hacker-news.firebaseio.com/v0"
     private let decoder = JSONDecoder()
 
-    // MARK: - Network path monitor
-
-    private let pathMonitor = NWPathMonitor()
-    private var isOnWifi = true
-
     private var maxConcurrentFetches: Int {
         let s = UserSettings.shared
-        return isOnWifi ? s.maxConcurrentFetchesWifi : s.maxConcurrentFetchesCellular
+        return NetworkMonitor.shared.currentlyOnWifi() ? s.maxConcurrentFetchesWifi : s.maxConcurrentFetchesCellular
     }
 
     // MARK: - Caches
@@ -40,12 +34,7 @@ final class HNAPIService {
     private var listCache: [String: CachedList] = [:]
     private let listCacheTTL: TimeInterval = 5 * 60  // 5 minutes
 
-    private init() {
-        pathMonitor.pathUpdateHandler = { [weak self] path in
-            self?.isOnWifi = path.usesInterfaceType(.wifi)
-        }
-        pathMonitor.start(queue: .global(qos: .utility))
-    }
+    nonisolated private init() {}
 
     // MARK: - Story ID lists
 
@@ -55,6 +44,26 @@ final class HNAPIService {
     func askStoryIDs()  async throws -> [Int] { try await fetchIDs(path: "askstories") }
     func showStoryIDs() async throws -> [Int] { try await fetchIDs(path: "showstories") }
     func jobStoryIDs()  async throws -> [Int] { try await fetchIDs(path: "jobstories") }
+
+    /// Resolves the story-ID list for a feed category. Centralizes the category
+    /// → endpoint mapping so callers (view models, cache, offline download) share one path.
+    func storyIDs(for category: StoryCategory) async throws -> [Int] {
+        switch category {
+        case .top:      return try await topStoryIDs()
+        case .new:      return try await newStoryIDs()
+        case .best:     return try await bestStoryIDs()
+        case .ask:      return try await askStoryIDs()
+        case .show:     return try await showStoryIDs()
+        case .jobs:     return try await jobStoryIDs()
+        case .classic:  return try await webStoryIDs(endpoint: "classic")
+        case .active:   return try await webStoryIDs(endpoint: "active")
+        case .shownew:  return try await webStoryIDs(endpoint: "shownew")
+        case .asknew:   return try await webStoryIDs(endpoint: "asknew")
+        case .noob:     return try await webStoryIDs(endpoint: "noobstories")
+        case .launches: return try await webStoryIDs(endpoint: "launches")
+        case .pool:     return try await webStoryIDs(endpoint: "pool")
+        }
+    }
 
     /// Fetches story IDs by scraping a public HN web endpoint (e.g. /classic, /active).
     /// HN's HTML contains story rows as <tr class='athing' id='ITEM_ID'> — we extract
@@ -101,22 +110,38 @@ final class HNAPIService {
     /// Removes a single item from the cache so the next fetch gets fresh data.
     func evict(id: Int) { itemCache.removeValue(forKey: id) }
 
-    /// Fetch a single item, returning from cache if available.
+    /// Fetch a single item. Reads the in-memory L1 first, then the network. On a network
+    /// failure (offline, after a relaunch wiped L1, or a transient error) it falls back to
+    /// the persistent L2 (`HNCache`) so cached content survives app kills and offline — the
+    /// cache-first contract the offline feature depends on.
     func item(id: Int) async throws -> HNItem {
         if let cached = itemCache[id] { return cached }
 
-        let url = URL(string: "\(baseURL)/item/\(id).json")!
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let item = try decoder.decode(HNItem.self, from: data)
-        itemCache[id] = item
-        return item
+        do {
+            let url = URL(string: "\(baseURL)/item/\(id).json")!
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let item = try decoder.decode(HNItem.self, from: data)
+            itemCache[id] = item
+            return item
+        } catch {
+            if let persisted = await HNCache.shared.cachedItem(id: id) { return persisted }
+            throw error
+        }
     }
 
     /// Fetch multiple items concurrently (max 6 in-flight), preserving original order.
+    ///
+    /// Per-item failures are tolerated: each `item(id:)` already falls back to the
+    /// persistent cache, and any id that resolves to neither network nor cache is simply
+    /// omitted rather than aborting the whole batch. This means a partly-cached offline
+    /// batch (e.g. a Favourites list where only some stories were cached) returns what it
+    /// can instead of failing wholesale. If *nothing* resolves and there was at least one
+    /// error, the representative error is thrown so genuine online failures still surface.
     func items(ids: [Int]) async throws -> [HNItem] {
+        guard !ids.isEmpty else { return [] }
         let positions = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($1, $0) })
 
-        return try await withThrowingTaskGroup(of: HNItem.self) { group in
+        let (results, firstError): ([HNItem], Error?) = await withTaskGroup(of: Result<HNItem, Error>.self) { group in
             // Bound concurrency using the user's WiFi/cellular setting.
             let limit = self.maxConcurrentFetches
             var inFlight = 0
@@ -125,24 +150,33 @@ final class HNAPIService {
             func addNext() {
                 while inFlight < limit, let id = pending.next() {
                     inFlight += 1
-                    group.addTask { try await self.item(id: id) }
+                    group.addTask {
+                        do { return .success(try await self.item(id: id)) }
+                        catch { return .failure(error) }
+                    }
                 }
             }
 
             addNext()
 
-            var results: [HNItem] = []
-            results.reserveCapacity(ids.count)
-            for try await item in group {
-                results.append(item)
+            var collected: [HNItem] = []
+            var error: Error?
+            for await outcome in group {
+                switch outcome {
+                case .success(let item): collected.append(item)
+                case .failure(let e):    if error == nil { error = e }
+                }
                 inFlight -= 1
                 addNext()
             }
-
-            return results
-                .filter { $0.deleted != true && $0.dead != true }
-                .sorted { positions[$0.id, default: 0] < positions[$1.id, default: 0] }
+            return (collected, error)
         }
+
+        if results.isEmpty, let firstError { throw firstError }
+
+        return results
+            .filter { $0.deleted != true && $0.dead != true }
+            .sorted { positions[$0.id, default: 0] < positions[$1.id, default: 0] }
     }
 
     // MARK: - Algolia Search

@@ -4,7 +4,7 @@
 import Foundation
 import Observation
 
-enum StoryCategory: String, CaseIterable, Identifiable, Hashable {
+nonisolated enum StoryCategory: String, CaseIterable, Identifiable, Hashable, Sendable {
     case top      = "Top"
     case new      = "New"
     case best     = "Best"
@@ -51,14 +51,36 @@ final class StoriesViewModel {
         allIDs = []
         loadedCount = 0
         errorMessage = nil
-        isLoading = true
-        defer { isLoading = false }
 
+        // Phase 1: instant cached snapshot, if any.
+        if let cachedIDs = await HNCache.shared.cachedFeed(category), !cachedIDs.isEmpty {
+            allIDs = cachedIDs
+            let end = min(pageSize, cachedIDs.count)
+            var cachedItems: [HNItem] = []
+            for id in cachedIDs.prefix(end) {
+                if let item = await HNCache.shared.cachedItem(id: id) { cachedItems.append(item) }
+            }
+            stories = cachedItems
+            loadedCount = end
+        } else {
+            isLoading = true
+        }
+
+        // Phase 2: revalidate when online; otherwise the cached snapshot stands.
+        guard NetworkMonitor.shared.currentlyOnline() else {
+            isLoading = false
+            return
+        }
+        defer { isLoading = false }
         do {
-            allIDs = try await Self.storyIDs(for: category)
-            // Use the private helper that doesn't guard on isLoading,
-            // because we intentionally call this while isLoading is true.
-            await appendPage()
+            let ids = try await HNAPIService.shared.storyIDs(for: category)
+            await HNCache.shared.storeFeed(ids, category: category, fillSource: .readThrough)
+            allIDs = ids
+            let end = min(pageSize, ids.count)
+            let fresh = try await HNAPIService.shared.items(ids: Array(ids[..<end]))
+            for item in fresh { await HNCache.shared.storeItem(item, fillSource: .readThrough, pinned: false) }
+            stories = CacheReconciler.reconcile(displayed: stories, fresh: fresh)
+            loadedCount = end
         } catch {
             report(error)
         }
@@ -87,9 +109,11 @@ final class StoriesViewModel {
         }
 
         do {
-            let ids = try await Self.storyIDs(for: selectedCategory)
+            let ids = try await HNAPIService.shared.storyIDs(for: selectedCategory)
             let end = min(pageSize, ids.count)
             let newItems = try await HNAPIService.shared.items(ids: Array(ids[..<end]))
+            await HNCache.shared.storeFeed(ids, category: selectedCategory, fillSource: .readThrough)
+            for item in newItems { await HNCache.shared.storeItem(item, fillSource: .readThrough, pinned: false) }
             allIDs = ids
             stories = newItems
             loadedCount = end
@@ -115,25 +139,6 @@ final class StoriesViewModel {
         errorMessage = error.localizedDescription
     }
 
-    private static func storyIDs(for category: StoryCategory) async throws -> [Int] {
-        let api = HNAPIService.shared
-        switch category {
-        case .top:      return try await api.topStoryIDs()
-        case .new:      return try await api.newStoryIDs()
-        case .best:     return try await api.bestStoryIDs()
-        case .ask:      return try await api.askStoryIDs()
-        case .show:     return try await api.showStoryIDs()
-        case .jobs:     return try await api.jobStoryIDs()
-        case .classic:  return try await api.webStoryIDs(endpoint: "classic")
-        case .active:   return try await api.webStoryIDs(endpoint: "active")
-        case .shownew:  return try await api.webStoryIDs(endpoint: "shownew")
-        case .asknew:   return try await api.webStoryIDs(endpoint: "asknew")
-        case .noob:     return try await api.webStoryIDs(endpoint: "noobstories")
-        case .launches: return try await api.webStoryIDs(endpoint: "launches")
-        case .pool:     return try await api.webStoryIDs(endpoint: "pool")
-        }
-    }
-
     /// Fetches and appends the next slice of allIDs. No loading guards —
     /// callers are responsible for setting appropriate flags before calling.
     private func appendPage() async {
@@ -143,6 +148,7 @@ final class StoriesViewModel {
 
         do {
             let newItems = try await HNAPIService.shared.items(ids: pageIDs)
+            for item in newItems { await HNCache.shared.storeItem(item, fillSource: .readThrough, pinned: false) }
             stories.append(contentsOf: newItems)
             loadedCount = end
         } catch {

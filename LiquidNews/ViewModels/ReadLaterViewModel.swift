@@ -28,20 +28,41 @@ final class ReadLaterViewModel {
 
     private let store = SavedPostsStore.shared
 
+    /// Loads the saved stories cache-first so the list renders instantly and offline.
     func load(ids: Set<Int>) async {
         guard !ids.isEmpty else {
             stories = []
             return
         }
-        isLoading = true
         errorMessage = nil
+
+        // Phase 1: instant local snapshot.
+        var cached: [HNItem] = []
+        for id in ids {
+            if let item = await HNCache.shared.cachedItem(id: id) { cached.append(item) }
+        }
+        if !cached.isEmpty {
+            stories = sorted(cached)
+        } else {
+            isLoading = true
+        }
+
+        // Phase 2: revalidate when online; otherwise the cached snapshot stands.
+        guard NetworkMonitor.shared.currentlyOnline() else {
+            isLoading = false
+            return
+        }
+        defer { isLoading = false }
         do {
             let fetched = try await HNAPIService.shared.items(ids: Array(ids))
+            // Pin the refreshed snapshot so saved stories stay available offline.
+            for item in fetched {
+                await HNCache.shared.storeItem(item, fillSource: .readLater, pinned: true)
+            }
             stories = sorted(fetched)
         } catch {
-            errorMessage = error.localizedDescription
+            if stories.isEmpty { errorMessage = error.localizedDescription }
         }
-        isLoading = false
     }
 
     /// Re-sorts the already-loaded stories array without a network call.

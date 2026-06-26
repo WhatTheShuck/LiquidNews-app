@@ -36,27 +36,42 @@ final class StoryDetailViewModel {
             // Stories from search (Algolia) don't include the kids list —
             // fetch the full item from the HN API first to get it.
             let source = try await HNAPIService.shared.item(id: story.id)
+            await HNCache.shared.storeItem(source, fillSource: .readThrough, pinned: false)
             guard let kids = source.kids, !kids.isEmpty else {
                 comments = []
                 return
             }
             let topLevel = Array(kids.prefix(20))
-            var fetched = try await HNAPIService.shared.items(ids: topLevel)
 
-            // Sort: mods first, then current user, then everyone else.
-            let currentUser = HNAuthService.shared.username
-            fetched.sort { a, b in
-                let aMod = HNItem.moderators.contains(a.by ?? "")
-                let bMod = HNItem.moderators.contains(b.by ?? "")
-                let aMe = currentUser != nil && a.by == currentUser
-                let bMe = currentUser != nil && b.by == currentUser
-                if aMod != bMod { return aMod }
-                if aMe != bMe { return aMe }
-                return false
+            // Phase 1: cached comments, if present.
+            var cached: [HNItem] = []
+            for id in topLevel {
+                if let c = await HNCache.shared.cachedItem(id: id) { cached.append(c) }
             }
+            if !cached.isEmpty { comments = sortComments(cached) }
+
+            // Phase 2: revalidate when online.
+            guard NetworkMonitor.shared.currentlyOnline() else { return }
+            var fetched = try await HNAPIService.shared.items(ids: topLevel)
+            for c in fetched { await HNCache.shared.storeItem(c, fillSource: .readThrough, pinned: false) }
+            fetched = sortComments(fetched)
             comments = fetched
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    /// Sort: mods first, then current user, then everyone else.
+    private func sortComments(_ items: [HNItem]) -> [HNItem] {
+        let currentUser = HNAuthService.shared.username
+        return items.sorted { a, b in
+            let aMod = HNItem.moderators.contains(a.by ?? "")
+            let bMod = HNItem.moderators.contains(b.by ?? "")
+            let aMe = currentUser != nil && a.by == currentUser
+            let bMe = currentUser != nil && b.by == currentUser
+            if aMod != bMod { return aMod }
+            if aMe != bMe { return aMe }
+            return false
         }
     }
 }

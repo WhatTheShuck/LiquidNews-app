@@ -151,10 +151,20 @@ final class SavedPostsStore {
     // MARK: - Favourites
 
     func toggleFavourite(_ id: Int) {
+        let isAdding = !favouriteIDs.contains(id)
         if favouriteIDs.contains(id) { favouriteIDs.remove(id) } else { favouriteIDs.insert(id) }
         let arr = Array(favouriteIDs)
         UserDefaults.standard.set(arr, forKey: favouritesKey)
         kvStore.set(arr, forKey: favouritesKey)
+
+        // Keep a lightweight local snapshot of favourites — just the story item, pinned so
+        // the Favourites list always renders offline without re-fetching. Unlike Read Later
+        // we deliberately do NOT prefetch the comment thread or article body.
+        if isAdding {
+            Task { await HNCache.shared.prefetch(ids: [id], pinned: true, fillSource: .favourite) }
+        } else {
+            Task { await HNCache.shared.setPinnedItem(false, id: id) }
+        }
         syncToiCloud()
     }
 
@@ -163,6 +173,7 @@ final class SavedPostsStore {
     // MARK: - Read Later
 
     func toggleReadLater(_ id: Int) {
+        let isAdding = !readLaterIDs.contains(id)
         if readLaterIDs.contains(id) {
             readLaterIDs.remove(id)
             readLaterDates.removeValue(forKey: id)
@@ -174,6 +185,36 @@ final class SavedPostsStore {
         UserDefaults.standard.set(arr, forKey: readLaterKey)
         kvStore.set(arr, forKey: readLaterKey)
         saveReadLaterDates()
+
+        if isAdding {
+            Task { await Self.prefetchReadLater(id: id) }
+        } else {
+            Task {
+                await HNCache.shared.setPinnedItem(false, id: id)
+                await HNCache.shared.setPinnedArticle(false, id: id)
+            }
+        }
+    }
+
+    /// Prefetches and pins a Read Later story's item + comment thread (top-level plus
+    /// two reply layers), WiFi only. Article extraction is left to read-through (it
+    /// needs a main-actor WebView).
+    private static func prefetchReadLater(id: Int) async {
+        guard NetworkMonitor.shared.currentlyOnline() else { return }
+        // Always cache+pin the story item itself, on any connection — this is the cheap
+        // part and is what makes the Read Later list render offline.
+        await HNCache.shared.prefetch(ids: [id], pinned: true, fillSource: .readLater)
+        // The deep comment-thread walk (top-level + two reply layers) is the heavy part, so
+        // gate it to WiFi to avoid a surprise cellular-data hit.
+        guard NetworkMonitor.shared.currentlyOnWifi() else { return }
+        if let story = try? await HNAPIService.shared.item(id: id), let kids = story.kids {
+            await HNCache.shared.prefetchThread(
+                rootKidIDs: Array(kids.prefix(20)),
+                levels: 3,
+                pinned: true,
+                fillSource: .readLater
+            )
+        }
     }
 
     func isReadLater(_ id: Int) -> Bool { readLaterIDs.contains(id) }
@@ -441,7 +482,7 @@ final class SavedPostsStore {
 
     /// URL of the sync file in the iCloud ubiquitous container.
     /// Returns nil when iCloud is unavailable (not signed in, capability missing, etc.).
-    private var iCloudDataURL: URL? {
+    nonisolated private var iCloudDataURL: URL? {
         FileManager.default
             .url(forUbiquityContainerIdentifier: nil)?
             .appendingPathComponent("Documents/userdata.json")
