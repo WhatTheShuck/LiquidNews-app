@@ -37,6 +37,12 @@ extension View {
     func coachMarkTarget(_ mark: CoachMark) -> some View {
         anchorPreference(key: CoachMarkAnchorKey.self, value: .bounds) { [mark: $0] }
     }
+
+    /// Convenience: no-op when `mark` is nil (so a target can opt out conditionally).
+    @ViewBuilder
+    func coachMarkTarget(_ mark: CoachMark?) -> some View {
+        if let mark { coachMarkTarget(mark) } else { self }
+    }
 }
 
 // MARK: - Bubble
