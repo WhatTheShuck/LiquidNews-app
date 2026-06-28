@@ -58,6 +58,7 @@ struct StoriesListView: View {
     @Environment(\.iPadNavModel) private var navModel
     @Environment(ResumeCoordinator.self) private var resumeCoordinator
     @Environment(DeepLinkState.self) private var deepLink
+    @Environment(CoachMarkController.self) private var coachMarks: CoachMarkController?
     /// Non-nil when a resume banner should be shown for this cold launch.
     @State private var resumeBanner: RecentStory?
     /// User dismissed the resume banner for this session.
@@ -215,6 +216,7 @@ struct StoriesListView: View {
                 .opacity(1 - pickerProgress * 1.6)
                 .offset(y: -pickerProgress * 24)
         }
+        .coachMarks([.storySwipe])
         .sheet(item: $selectedStory) { story in
             NavigationStack {
                 StoryDetailView(story: story)
@@ -367,6 +369,7 @@ struct StoriesListView: View {
     private let store = SavedPostsStore.shared
 
     private func performAction(_ action: StoryAction, story: HNItem) {
+        coachMarks?.reportInteraction(.storySwipe)
         // Record "where you left off" for navigation/open actions only. A non-nil
         // DetailMode.forSelection result is exactly the open actions (comments/
         // reader/browser/safari) and nil for favourite/saveLater/hide/none.
@@ -515,6 +518,7 @@ struct StoriesListView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .coachMarkTarget(index == 0 ? .storySwipe : nil)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     swipeActionButton(settings.swipeLeftAction, story: story)
                 }
