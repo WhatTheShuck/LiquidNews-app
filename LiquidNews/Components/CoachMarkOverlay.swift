@@ -111,6 +111,72 @@ struct CoachMarkBubble: View {
     }
 }
 
+// MARK: - Screen modifier
+
+private struct CoachMarksModifier: ViewModifier {
+    let marks: [CoachMark]
+    var isSuppressed: Bool
+
+    private let store = CoachMarkStore.shared
+    @State private var controller = CoachMarkController()
+    /// One hint per screen visit. Latched on the first dismissal; reset when the
+    /// screen reappears (a sheet host is rebuilt per presentation, giving fresh
+    /// @State — so the second mark on a screen only appears on a later visit).
+    @State private var shownThisVisit = false
+    @State private var activeMark: CoachMark?
+
+    func body(content: Content) -> some View {
+        content
+            .environment(controller)
+            .overlayPreferenceValue(CoachMarkAnchorKey.self) { anchors in
+                GeometryReader { proxy in
+                    ZStack {
+                        if let mark = activeMark, let anchor = anchors[mark] {
+                            CoachMarkBubble(
+                                text: mark.text,
+                                arrowEdge: mark.arrowEdge,
+                                targetRect: proxy[anchor]
+                            ) {
+                                dismiss(mark)
+                            }
+                        }
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: activeMark)
+                    .onAppear { activate(anchored: Set(anchors.keys)) }
+                    .onChange(of: Set(anchors.keys)) { _, present in
+                        activate(anchored: present)
+                    }
+                }
+                // Only the bubble itself is interactive; the rest of the overlay
+                // never intercepts touches meant for the screen below.
+                .allowsHitTesting(activeMark != nil)
+            }
+            .onChange(of: controller.interacted) { _, fired in
+                if let mark = activeMark, fired.contains(mark) { dismiss(mark) }
+            }
+    }
+
+    private func activate(anchored: Set<CoachMark>) {
+        guard !isSuppressed, !shownThisVisit, activeMark == nil else { return }
+        activeMark = firstEligibleCoachMark(
+            in: marks, seen: store.seenMarks(), anchored: anchored)
+    }
+
+    private func dismiss(_ mark: CoachMark) {
+        store.markSeen(mark)
+        shownThisVisit = true     // no further marks this visit
+        activeMark = nil
+    }
+}
+
+extension View {
+    /// Renders at most one eligible coach mark from `marks` at this screen root.
+    /// Pass `isSuppressed: true` to defer while a sheet/presentation is active.
+    func coachMarks(_ marks: [CoachMark], isSuppressed: Bool = false) -> some View {
+        modifier(CoachMarksModifier(marks: marks, isSuppressed: isSuppressed))
+    }
+}
+
 /// A small triangle pointing outward from `edge`.
 private struct ArrowTriangle: Shape {
     let edge: Edge
