@@ -59,6 +59,8 @@ struct StoriesListView: View {
     @Environment(ResumeCoordinator.self) private var resumeCoordinator
     @Environment(DeepLinkState.self) private var deepLink
     @Environment(CoachMarkController.self) private var coachMarks: CoachMarkController?
+    @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("LN_lastSeenWhatsNewVersion") private var lastSeenWhatsNewVersion = ""
     /// Non-nil when a resume banner should be shown for this cold launch.
     @State private var resumeBanner: RecentStory?
     /// User dismissed the resume banner for this session.
@@ -82,6 +84,17 @@ struct StoriesListView: View {
 
     init(viewModel: StoriesViewModel = StoriesViewModel()) {
         _viewModel = State(initialValue: viewModel)
+    }
+
+    /// Suppress coach marks while the onboarding or version-gated What's New sheet
+    /// covers the feed at launch — otherwise a hint could activate (and auto-fade,
+    /// burning its "seen" flag) behind the sheet, unseen.
+    private var coachMarksSuppressed: Bool {
+        !hasSeenOnboarding
+            || WhatsNewGate.shouldShow(
+                storedVersion: lastSeenWhatsNewVersion,
+                currentVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
+                hasSeenOnboarding: hasSeenOnboarding)
     }
 
     // MARK: - Chip layout helpers
@@ -216,7 +229,7 @@ struct StoriesListView: View {
                 .opacity(1 - pickerProgress * 1.6)
                 .offset(y: -pickerProgress * 24)
         }
-        .coachMarks([.storySwipe])
+        .coachMarks([.storySwipe], isSuppressed: coachMarksSuppressed)
         .sheet(item: $selectedStory) { story in
             NavigationStack {
                 StoryDetailView(story: story)

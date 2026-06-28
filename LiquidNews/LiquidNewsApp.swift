@@ -103,8 +103,11 @@ struct LiquidNewsApp: App {
                         showWhatsNew = newValue
                     }
                 )) {
-                    WhatsNewView { showWhatsNew = false }
-                        .presentationCornerRadius(.glassCornerRadius)
+                    WhatsNewView {
+                        lastSeenWhatsNewVersion = currentAppVersion
+                        showWhatsNew = false
+                    }
+                    .presentationCornerRadius(.glassCornerRadius)
                 }
         }
     }
