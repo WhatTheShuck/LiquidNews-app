@@ -38,3 +38,104 @@ extension View {
         anchorPreference(key: CoachMarkAnchorKey.self, value: .bounds) { [mark: $0] }
     }
 }
+
+// MARK: - Bubble
+
+struct CoachMarkBubble: View {
+    let text: String
+    let arrowEdge: Edge
+    let targetRect: CGRect
+    let onDismiss: () -> Void
+
+    /// Gap between the target and the bubble's arrow tip.
+    private let gap: CGFloat = 10
+    private let maxWidth: CGFloat = 240
+
+    var body: some View {
+        bubble
+            .frame(maxWidth: maxWidth, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .position(bubbleAnchorPoint)
+            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            .task {
+                // Auto-fade after ~5s if the user doesn't act.
+                try? await Task.sleep(for: .seconds(5))
+                if !Task.isCancelled { onDismiss() }
+            }
+    }
+
+    private var bubble: some View {
+        Text(text)
+            .font(.system(size: 13, weight: .medium, design: .rounded))
+            .foregroundStyle(.primary)
+            .multilineTextAlignment(.leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .glassCard(cornerRadius: 16, tint: AppTheme.accent)
+            .overlay(alignment: arrowAlignment) {
+                ArrowTriangle(edge: arrowEdge)
+                    .fill(AppTheme.accent.opacity(0.45))
+                    .frame(width: 16, height: 9)
+                    .offset(arrowOffset)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { onDismiss() }
+    }
+
+    /// Where to place the bubble's center relative to the target.
+    private var bubbleAnchorPoint: CGPoint {
+        switch arrowEdge {
+        case .bottom: return CGPoint(x: targetRect.midX, y: targetRect.minY - gap)   // above, grows up
+        case .top:    return CGPoint(x: targetRect.midX, y: targetRect.maxY + gap)   // below
+        case .leading: return CGPoint(x: targetRect.maxX + gap, y: targetRect.midY)  // right of target
+        case .trailing: return CGPoint(x: targetRect.minX - gap, y: targetRect.midY) // left of target
+        }
+    }
+
+    private var arrowAlignment: Alignment {
+        switch arrowEdge {
+        case .bottom: return .bottom
+        case .top:    return .top
+        case .leading: return .leading
+        case .trailing: return .trailing
+        }
+    }
+
+    private var arrowOffset: CGSize {
+        switch arrowEdge {
+        case .bottom: return CGSize(width: 0, height: 9)
+        case .top:    return CGSize(width: 0, height: -9)
+        case .leading: return CGSize(width: -9, height: 0)
+        case .trailing: return CGSize(width: 9, height: 0)
+        }
+    }
+}
+
+/// A small triangle pointing outward from `edge`.
+private struct ArrowTriangle: Shape {
+    let edge: Edge
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        switch edge {
+        case .bottom: // points down
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
+        case .top: // points up
+            p.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.midX, y: rect.minY))
+        case .leading: // points left
+            p.move(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
+        case .trailing: // points right
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        }
+        p.closeSubpath()
+        return p
+    }
+}
