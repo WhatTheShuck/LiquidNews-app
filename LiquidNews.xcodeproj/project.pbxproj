@@ -17,6 +17,7 @@
 		AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001A /* DetailModeMappingTests.swift */; };
 		AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001C /* IPadReaderLayoutTests.swift */; };
 		AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000021 /* WordsOfWisdomTests.swift */; };
+		AA0000010000000000000C0 /* WhatsNewGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000C1 /* WhatsNewGateTests.swift */; };
 		AA000001000000000000F02 /* ImgurResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F01 /* ImgurResolverTests.swift */; };
 		AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F03 /* ReaderPreferencesTests.swift */; };
 		AA000001000000000000F06 /* ImgurImageActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F05 /* ImgurImageActionsTests.swift */; };
@@ -77,6 +78,7 @@
 		AA00000100000000000001A /* DetailModeMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailModeMappingTests.swift; sourceTree = "<group>"; };
 		AA00000100000000000001C /* IPadReaderLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadReaderLayoutTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000021 /* WordsOfWisdomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsOfWisdomTests.swift; sourceTree = "<group>"; };
+		AA0000010000000000000C1 /* WhatsNewGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewGateTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F01 /* ImgurResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurResolverTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F03 /* ReaderPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPreferencesTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F05 /* ImgurImageActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurImageActionsTests.swift; sourceTree = "<group>"; };
@@ -190,6 +192,7 @@
 				AA000001000000000000F03 /* ReaderPreferencesTests.swift */,
 				AA000001000000000000011 /* FavouritesImportTests.swift */,
 				AA000001000000000000013 /* HNItemTests.swift */,
+				AA0000010000000000000C1 /* WhatsNewGateTests.swift */,
 				AA000001000000000000014 /* HNAPIServiceTests.swift */,
 				AA000001000000000000019 /* StoriesViewModelTests.swift */,
 				AA000001000000000000021 /* WordsOfWisdomTests.swift */,
@@ -362,6 +365,7 @@
 				AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */,
 				AA000001000000000000010 /* FavouritesImportTests.swift in Sources */,
 				AA000001000000000000012 /* HNItemTests.swift in Sources */,
+				AA0000010000000000000C0 /* WhatsNewGateTests.swift in Sources */,
 				AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */,
 				AA000001000000000000018 /* StoriesViewModelTests.swift in Sources */,
 				AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */,
