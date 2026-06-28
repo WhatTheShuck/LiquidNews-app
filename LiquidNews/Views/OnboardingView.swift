@@ -50,24 +50,7 @@ struct OnboardingView: View {
                     // Feature cards
                     VStack(spacing: 12) {
                         ForEach(features, id: \.title) { feature in
-                            HStack(spacing: 16) {
-                                Image(systemName: feature.icon)
-                                    .font(.system(size: 26))
-                                    .foregroundStyle(AppTheme.accent)
-                                    .frame(width: 36)
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(feature.title)
-                                        .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.primary)
-                                    Text(feature.body)
-                                        .font(.system(size: 13))
-                                        .foregroundStyle(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                Spacer()
-                            }
-                            .padding(16)
-                            .glassCard()
+                            FeatureCard(icon: feature.icon, title: feature.title, body: feature.body)
                         }
                     }
                     .padding(.horizontal, 24)
