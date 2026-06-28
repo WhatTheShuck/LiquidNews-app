@@ -12,6 +12,12 @@ struct RootSplitView: View {
     @Environment(DeepLinkState.self) private var deepLink
     @State private var settings = UserSettings.shared
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    private let coachStore = CoachMarkStore.shared
+    @State private var showDividerHint = false
+    /// Suppress the divider hint while the What's New sheet may be presenting on
+    /// the same launch (coach marks defer to sheets).
+    @AppStorage("LN_lastSeenWhatsNewVersion") private var lastSeenWhatsNewVersion = ""
+    @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -63,6 +69,34 @@ struct RootSplitView: View {
             guard let id else { return }
             deepLink.pendingItemID = nil
             Task { await openItem(id: id) }
+        }
+        .overlay {
+            GeometryReader { proxy in
+                if showDividerHint {
+                    let x = proxy.size.width * 0.62
+                    let rect = CGRect(x: x, y: proxy.size.height / 2 - 1, width: 2, height: 2)
+                    CoachMarkBubble(
+                        text: CoachMark.iPadDividerResize.text,
+                        arrowEdge: CoachMark.iPadDividerResize.arrowEdge,
+                        targetRect: rect
+                    ) {
+                        coachStore.markSeen(.iPadDividerResize)
+                        showDividerHint = false
+                    }
+                    .animation(.easeInOut(duration: 0.25), value: showDividerHint)
+                }
+            }
+            .allowsHitTesting(showDividerHint)
+        }
+        .onAppear {
+            // Defer to the What's New sheet: only show once the user is past it.
+            let whatsNewPending = WhatsNewGate.shouldShow(
+                storedVersion: lastSeenWhatsNewVersion,
+                currentVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
+                hasSeenOnboarding: hasSeenOnboarding)
+            if !whatsNewPending && !coachStore.hasSeen(.iPadDividerResize) {
+                showDividerHint = true
+            }
         }
     }
 
