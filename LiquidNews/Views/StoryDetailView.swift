@@ -223,7 +223,10 @@ struct StoryDetailView: View {
                     .presentationCornerRadius(.glassCornerRadius)
                     .iPadPageSheet()
             case .inAppSafari(let url):
-                SafariView(url: url)
+                // Clear the binding when Safari's Done button fires. This view is itself
+                // a sheet, so leaving `activeSheet` stale after UIKit auto-dismisses lets
+                // SwiftUI collapse this whole detail sheet alongside Safari.
+                SafariView(url: url, onFinish: { activeSheet = nil })
                     .iPadPageSheet()
             case .share(let url):
                 ShareSheet(items: [url])

@@ -447,9 +447,6 @@ struct StoriesListView: View {
                 onOpen: { id in
                     deepLink.pendingItemID = id
                     withAnimation(.smooth) { resumeDismissed = true }
-                },
-                onDismiss: {
-                    withAnimation(.smooth) { resumeDismissed = true }
                 }
             )
             .transition(.move(edge: .top).combined(with: .opacity))
@@ -501,6 +498,14 @@ struct StoriesListView: View {
                     .listRowBackground(Color.clear)
                     .listRowSeparator(.hidden)
                     .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button {
+                            withAnimation(.smooth) { resumeDismissed = true }
+                        } label: {
+                            Label("Dismiss", systemImage: "xmark")
+                        }
+                        .tint(.gray)
+                    }
             }
             ForEach(Array(visibleStories.enumerated()), id: \.element.id) { index, story in
                 Button {

@@ -140,6 +140,8 @@ private struct AppThemePickerView: View {
     @State private var paymentsStore = StoreService.shared
     @State private var showPaywall = false
     @State private var showExpiredNudge = false
+    /// The premium theme awaiting confirmation; presenting the trial-start sheet.
+    @State private var pendingTrialTheme: AppThemePreset?
 
     @ScaledMetric(relativeTo: .body)     private var rowSize:   CGFloat = 15
     @ScaledMetric(relativeTo: .footnote) private var labelSize: CGFloat = 12
@@ -159,6 +161,16 @@ private struct AppThemePickerView: View {
                     NavigationStack {
                         PremiumPaywallView(focused: StoreService.ProductID.themes)
                     }
+                }
+                .sheet(item: $pendingTrialTheme) { preset in
+                    NavigationStack {
+                        TrialStartSheet {
+                            paymentsStore.startTrialIfNeeded()
+                            settings.selectedAppTheme = preset
+                        }
+                    }
+                    .presentationDetents([.medium])
+                    .presentationCornerRadius(.glassCornerRadius)
                 }
 
                 // Custom accent color picker
@@ -238,8 +250,8 @@ private struct AppThemePickerView: View {
             if preset.isPremium && !paymentsStore.isThemesUnlocked {
                 switch paymentsStore.trialState {
                 case .notStarted:
-                    paymentsStore.startTrialIfNeeded()
-                    settings.selectedAppTheme = preset
+                    // Confirm the trial before silently opting the user in.
+                    pendingTrialTheme = preset
                 case .active, .grace:
                     settings.selectedAppTheme = preset
                 case .hardExpired:

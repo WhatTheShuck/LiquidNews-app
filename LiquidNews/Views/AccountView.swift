@@ -14,6 +14,7 @@ struct AccountView: View {
     @State private var auth = HNAuthService.shared
     @State private var store = StoreService.shared
     @State private var showPaywall = false
+    @State private var showTrialStart = false
     @State private var showTrialExpiredNudge = false
     #if DEBUG
     @State private var savedPosts = SavedPostsStore.shared
@@ -69,6 +70,13 @@ struct AccountView: View {
             NavigationStack {
                 PremiumPaywallView(focused: StoreService.ProductID.account)
             }
+            .presentationCornerRadius(.glassCornerRadius)
+        }
+        .sheet(isPresented: $showTrialStart) {
+            NavigationStack {
+                TrialStartSheet { store.startTrialIfNeeded() }
+            }
+            .presentationDetents([.medium])
             .presentationCornerRadius(.glassCornerRadius)
         }
         .alert("Trial Ended", isPresented: $showTrialExpiredNudge) {
@@ -268,7 +276,7 @@ struct AccountView: View {
             .padding(.top, 8)
 
             Button {
-                store.startTrialIfNeeded()
+                showTrialStart = true
             } label: {
                 HStack {
                     Spacer()

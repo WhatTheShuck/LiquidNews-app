@@ -33,8 +33,6 @@ struct ResumeBannerView: View {
 
     /// Open the given story id (drives the existing deep-link path).
     let onOpen: (Int) -> Void
-    /// Dismiss the banner for this launch.
-    let onDismiss: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -59,7 +57,6 @@ struct ResumeBannerView: View {
         }
         .padding(.vertical, 4)
         .glassCard(tint: AppTheme.accent)
-        .overlay(alignment: .topTrailing) { dismissButton }
     }
 
     /// The hero "continue reading" row.
@@ -126,17 +123,6 @@ struct ResumeBannerView: View {
             .frame(maxHeight: .infinity)
     }
 
-    private var dismissButton: some View {
-        Button(action: onDismiss) {
-            Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.secondary)
-                .frame(width: 30, height: 30)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-    }
-
     private func relativeTime(_ date: Date) -> String {
         let f = RelativeDateTimeFormatter()
         f.unitsStyle = .abbreviated
@@ -161,7 +147,7 @@ private let sampleHint = ResumeEntry(
     ZStack {
         AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
         ResumeBannerView(primary: samplePrimary, hint: sampleHint,
-                         onOpen: { _ in }, onDismiss: {})
+                         onOpen: { _ in })
             .padding()
     }
 }
@@ -170,7 +156,7 @@ private let sampleHint = ResumeEntry(
     ZStack {
         AppTheme.backgroundGradient(for: .light).ignoresSafeArea()
         ResumeBannerView(primary: samplePrimary, hint: nil,
-                         onOpen: { _ in }, onDismiss: {})
+                         onOpen: { _ in })
             .padding()
     }
 }

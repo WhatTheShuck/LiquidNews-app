@@ -10,10 +10,12 @@ import SafariServices
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
     var readerMode: Bool = UserSettings.shared.safariReaderMode
-    /// Called when the user taps the controller's native "Done" button. Needed only
-    /// when SafariView is embedded inline (not presented as a sheet root), where Done
-    /// has no presenting controller to dismiss — e.g. the reader's fallback. nil for
-    /// modal sheet usages, which UIKit dismisses automatically.
+    /// Called when the user taps the controller's native "Done" button. Required for
+    /// inline embeds (the reader's fallback), where Done has no presenting controller to
+    /// dismiss. Also required for SafariView presented as a sheet *over another sheet*:
+    /// UIKit auto-dismisses Safari but leaves SwiftUI's `.sheet(item:)` binding stale,
+    /// which makes SwiftUI collapse the parent sheet too — pass a closure that clears the
+    /// binding. Only a top-level (non-nested) sheet can safely leave this nil.
     var onFinish: (() -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {

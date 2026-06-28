@@ -386,10 +386,14 @@ struct ArticleReaderView: View {
     let chromeStyle: ReaderChromeStyle
     private let onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var readerState = ReaderState()
     @State private var preferences: ReaderPreferences
     @State private var showReaderOptions = false
     @State private var isPreparingReport = false
+    /// Shows a brief banner when extraction fails and the reader falls back to
+    /// the original page in Safari, so the swap doesn't read as a broken reader.
+    @State private var showReaderUnavailableToast = false
     @State private var readerLinkSafariURL: IdentifiableURL?
     @State private var readerLinkReaderURL: IdentifiableURL?
     @State private var settings = UserSettings.shared
@@ -434,11 +438,23 @@ struct ArticleReaderView: View {
     private var readerContent: some View {
         Group {
             if isFailed {
-                SafariView(url: url, onFinish: closeReader)
-                    .ignoresSafeArea()
+                // ZStack (not .overlay on the safe-area-ignoring SafariView) so the
+                // banner lays out inside the safe area instead of under the status bar.
+                ZStack(alignment: .top) {
+                    SafariView(url: url, onFinish: closeReader)
+                        .ignoresSafeArea()
+
+                    if showReaderUnavailableToast {
+                        ReaderUnavailableBanner()
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                }
             } else {
                 readerBody
             }
+        }
+        .onChange(of: isFailed) { _, failed in
+            if failed { showReaderUnavailable() }
         }
     }
 
@@ -503,6 +519,10 @@ struct ArticleReaderView: View {
                                 systemImage: preferences.showImages ? "photo.fill" : "photo"
                             )
                         }
+
+                        Divider()
+
+                        openInSafariButtons
 
                         Divider()
 
@@ -574,7 +594,10 @@ struct ArticleReaderView: View {
             }
         }
         .sheet(item: $readerLinkSafariURL) { item in
-            SafariView(url: item.url)
+            // Clear the binding when Safari's Done button fires. The reader is itself a
+            // sheet, so leaving this stale after UIKit auto-dismisses lets SwiftUI collapse
+            // the reader alongside Safari.
+            SafariView(url: item.url, onFinish: { readerLinkSafariURL = nil })
         }
         .sheet(item: $readerLinkReaderURL) { item in
             NavigationStack {
@@ -599,6 +622,42 @@ struct ArticleReaderView: View {
     /// environment `dismiss` is a no-op, e.g. an iPad split-view detail column).
     private func closeReader() {
         if let onClose { onClose() } else { dismiss() }
+    }
+
+    /// Escape-hatch entries for when the reader renders the page poorly. Neither
+    /// closes the reader: in-app Safari opens over the top as a sheet (reusing the
+    /// reader-link sheet), and Safari hands off to the system browser.
+    ///
+    /// Both actions drive SwiftUI presentation directly from the Menu button —
+    /// setting the sheet item synchronously and using the `openURL` environment
+    /// action — exactly like StoryDetailView's "More" menu. Routing the work through
+    /// `DispatchQueue.main.asyncAfter` / `UIApplication.shared.open` instead mutates
+    /// state outside SwiftUI's transaction and leaves the Menu's context-menu
+    /// interaction in a bad state, which crashes deterministically with
+    /// NSInternalInconsistencyException 'unexpected start state' when the autorelease
+    /// pool drains. The async defer can't fix that — it's not a timing race.
+    @ViewBuilder
+    private var openInSafariButtons: some View {
+        Button {
+            readerLinkSafariURL = IdentifiableURL(url)
+        } label: {
+            Label("Open in In-App Safari", systemImage: "safari")
+        }
+        Button {
+            openURL(url)
+        } label: {
+            Label("Open in Safari", systemImage: "arrow.up.right.square")
+        }
+    }
+
+    /// Briefly surfaces a banner explaining the reader fell back to the original
+    /// page, then auto-dismisses it.
+    private func showReaderUnavailable() {
+        withAnimation(.easeOut(duration: 0.25)) { showReaderUnavailableToast = true }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation(.easeIn(duration: 0.25)) { showReaderUnavailableToast = false }
+        }
     }
 
     private var showOverlay: Bool {
@@ -769,6 +828,8 @@ struct ArticleReaderView: View {
                             systemImage: preferences.showImages ? "photo.fill" : "photo"
                         )
                     }
+                    Divider()
+                    openInSafariButtons
                     Divider()
                     Button {
                         Task { await reportReaderIssue() }
@@ -1575,31 +1636,37 @@ private struct ReaderOptionsSheet: View {
             Divider().padding(.horizontal, 20)
 
             // ── Theme ──────────────────────────────────────────────────
+            // Horizontal scroll so the full swatch row never overflows the sheet
+            // width on narrow devices (8 themes don't fit edge-to-edge on small phones).
             optionsSection("Theme") {
-                HStack(spacing: 14) {
-                    ForEach(ReaderTheme.allCases, id: \.rawValue) { theme in
-                        ZStack(alignment: .topTrailing) {
-                            ThemeSwatchButton(
-                                theme: theme,
-                                isSelected: preferences.theme == theme
-                            ) {
-                                if theme.isPremium && !store.isThemesUnlocked {
-                                    showPaywall = true
-                                } else {
-                                    preferences.theme = theme
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(ReaderTheme.allCases, id: \.rawValue) { theme in
+                            ZStack(alignment: .topTrailing) {
+                                ThemeSwatchButton(
+                                    theme: theme,
+                                    isSelected: preferences.theme == theme
+                                ) {
+                                    if theme.isPremium && !store.isThemesUnlocked {
+                                        showPaywall = true
+                                    } else {
+                                        preferences.theme = theme
+                                    }
                                 }
-                            }
-                            if theme.isPremium && !store.isThemesUnlocked {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(3)
-                                    .background(Color.black.opacity(0.6), in: Circle())
-                                    .offset(x: 2, y: -2)
+                                if theme.isPremium && !store.isThemesUnlocked {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .padding(3)
+                                        .background(Color.black.opacity(0.6), in: Circle())
+                                        .offset(x: 2, y: -2)
+                                }
                             }
                         }
                     }
-                    Spacer()
+                    // Vertical breathing room so the lock badge / selection ring
+                    // aren't clipped by the ScrollView's content bounds.
+                    .padding(.vertical, 2)
                 }
             }
 
@@ -1757,6 +1824,25 @@ private struct FontOptionButton: View {
                 .foregroundStyle(isSelected ? AppTheme.accent : .primary)
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Reader-unavailable banner
+
+/// Transient notice shown over the Safari fallback when extraction fails, so the
+/// silent swap from reader → original page reads as intentional, not broken.
+private struct ReaderUnavailableBanner: View {
+    var body: some View {
+        Label("Reader mode unavailable — showing the original page", systemImage: "safari")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(.primary)
+            .multilineTextAlignment(.leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(in: Capsule())
+            .shadow(color: .black.opacity(0.25), radius: 10, y: 3)
+            .padding(.top, 12)
+            .padding(.horizontal, 16)
     }
 }
 

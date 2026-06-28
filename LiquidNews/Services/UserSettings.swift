@@ -756,7 +756,7 @@ final class UserSettings {
             case Keys.defaultLinkOpen:
                 let raw = kvStore.string(forKey: key) ?? ""
                 let migrated = raw == "browser" ? LinkOpenMode.inAppSafari.rawValue : raw
-                defaultLinkOpen = LinkOpenMode(rawValue: migrated) ?? .inAppSafari
+                defaultLinkOpen = LinkOpenMode(rawValue: migrated) ?? .reader
             case Keys.commentLinkOpen:
                 commentLinkOpen = CommentLinkMode(rawValue: kvStore.string(forKey: key) ?? "") ?? .inAppSafari
             case Keys.readerLinkOpen:
@@ -768,11 +768,11 @@ final class UserSettings {
             case Keys.readBehaviour:
                 readBehaviour = ReadBehaviour(rawValue: kvStore.string(forKey: key) ?? "") ?? .dim
             case Keys.readerShowImagesByDefault:
-                readerShowImagesByDefault = kvStore.bool(forKey: key)
+                readerShowImagesByDefault = (kvStore.object(forKey: key) as? Bool) ?? true
             case Keys.safariReaderMode:
                 safariReaderMode = (kvStore.object(forKey: key) as? Bool) ?? true
             case Keys.codeWrapLines:
-                codeWrapLines = kvStore.bool(forKey: key)
+                codeWrapLines = (kvStore.object(forKey: key) as? Bool) ?? true
             case Keys.glassComments:
                 glassComments = kvStore.bool(forKey: key)
             case Keys.wordsOfWisdom:
@@ -863,9 +863,9 @@ final class UserSettings {
         let rawSwipeRight = kvStore.string(forKey: Keys.swipeRightAction) ?? StoryAction.saveLater.rawValue
         swipeRightAction = StoryAction(rawValue: rawSwipeRight) ?? .saveLater
 
-        let rawLinkOpen = kvStore.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.inAppSafari.rawValue
+        let rawLinkOpen = kvStore.string(forKey: Keys.defaultLinkOpen) ?? LinkOpenMode.reader.rawValue
         let migratedLinkOpen = rawLinkOpen == "browser" ? LinkOpenMode.inAppSafari.rawValue : rawLinkOpen
-        defaultLinkOpen = LinkOpenMode(rawValue: migratedLinkOpen) ?? .inAppSafari
+        defaultLinkOpen = LinkOpenMode(rawValue: migratedLinkOpen) ?? .reader
         if rawLinkOpen == "browser" {
             kvStore.set(migratedLinkOpen, forKey: Keys.defaultLinkOpen)
         }
@@ -885,11 +885,10 @@ final class UserSettings {
         let rawReadBehaviour = kvStore.string(forKey: Keys.readBehaviour) ?? ReadBehaviour.dim.rawValue
         readBehaviour = ReadBehaviour(rawValue: rawReadBehaviour) ?? .dim
 
-        readerShowImagesByDefault = kvStore.bool(forKey: Keys.readerShowImagesByDefault)
-
         // kvStore.bool(forKey:) returns false for absent keys; these settings default to true
+        readerShowImagesByDefault = (kvStore.object(forKey: Keys.readerShowImagesByDefault) as? Bool) ?? true
         safariReaderMode = (kvStore.object(forKey: Keys.safariReaderMode) as? Bool) ?? true
-        codeWrapLines = kvStore.bool(forKey: Keys.codeWrapLines)
+        codeWrapLines = (kvStore.object(forKey: Keys.codeWrapLines) as? Bool) ?? true
         glassComments = kvStore.bool(forKey: Keys.glassComments)
         wordsOfWisdom = kvStore.bool(forKey: Keys.wordsOfWisdom)
 
