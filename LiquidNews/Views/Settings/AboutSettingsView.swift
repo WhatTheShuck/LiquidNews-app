@@ -7,6 +7,7 @@ struct AboutSettingsView: View {
 
     @State private var showLicenses = false
     @State private var showWhatsNew = false
+    @State private var tipsReplayed = false
 
     @ScaledMetric(relativeTo: .body) private var rowFontSize: CGFloat = 15
 
@@ -73,6 +74,27 @@ struct AboutSettingsView: View {
                     .padding(16)
                 }
                 .buttonStyle(.plain)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                Button {
+                    CoachMarkStore.shared.replayAll()
+                    tipsReplayed = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: tipsReplayed ? "checkmark.circle" : "lightbulb")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        Text(tipsReplayed ? "Tips Reset" : "Replay Tips")
+                            .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .buttonStyle(.plain)
+                .disabled(tipsReplayed)
 
                 Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
 
