@@ -49,7 +49,10 @@ struct TabRootView: View {
     }
 
     private var visibleOptionalTabs: [AppTab] {
-        Array(allEnabledOptional.prefix(3))
+        // With overflow, leave room for the "More" tab by showing only the first
+        // 3 optional tabs. Without overflow, Feed + up to 4 optional tabs fit in
+        // the bar directly, so show them all.
+        Array(allEnabledOptional.prefix(hasOverflow ? 3 : 4))
     }
 
     private var hasOverflow: Bool { allEnabledOptional.count > 4 }
@@ -82,6 +85,7 @@ struct TabRootView: View {
                 Tab("More", systemImage: "ellipsis", value: TabSelection.more) {
                     moreTabContent
                 }
+                .badge(overflowBadgeCount)
             }
         }
         .onChange(of: selection) { _, newValue in
@@ -190,6 +194,14 @@ struct TabRootView: View {
                                 .font(.system(size: 17, weight: .medium))
                             Text(tab.label)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            if readLaterBadgeCount(for: tab) > 0 {
+                                Text("\(readLaterBadgeCount(for: tab))")
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(.red))
+                            }
                         }
                         .foregroundStyle(.primary)
                         .padding(.horizontal, 20)
@@ -214,6 +226,12 @@ struct TabRootView: View {
     private func readLaterBadgeCount(for tab: AppTab) -> Int {
         guard tab == .readLater, settings.showReadLaterBadge else { return 0 }
         return store.readLaterIDs.count
+    }
+
+    /// Aggregate badge shown on the "More" tab — surfaces the Read Later count
+    /// when Read Later has overflowed into the More menu.
+    private var overflowBadgeCount: Int {
+        overflowTabs.reduce(0) { $0 + readLaterBadgeCount(for: $1) }
     }
 
     // MARK: - Tab management
