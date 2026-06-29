@@ -51,16 +51,25 @@ struct CoachMarkBubble: View {
     let text: String
     let arrowEdge: Edge
     let targetRect: CGRect
+    var isSwipeHint: Bool = false
+    var extraGap: CGFloat = 0
     let onDismiss: () -> Void
 
     /// Gap between the target and the bubble's arrow tip.
-    private let gap: CGFloat = 10
+    private let baseGap: CGFloat = 10
+    private var gap: CGFloat { baseGap + extraGap }
     private let maxWidth: CGFloat = 240
+
+    /// Measured card size — needed to position the bubble by its edge (fully clear
+    /// of the target) rather than by its center, which would overlap the target and
+    /// hide the arrow behind it.
+    @State private var bubbleSize: CGSize = .zero
 
     var body: some View {
         bubble
             .frame(maxWidth: maxWidth, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { bubbleSize = $0 }
             .position(bubbleAnchorPoint)
             .transition(.opacity.combined(with: .scale(scale: 0.9)))
             .task {
@@ -71,30 +80,54 @@ struct CoachMarkBubble: View {
     }
 
     private var bubble: some View {
-        Text(text)
-            .font(.system(size: 13, weight: .medium, design: .rounded))
-            .foregroundStyle(.primary)
-            .multilineTextAlignment(.leading)
+        bubbleContent
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .glassCard(cornerRadius: 16, tint: AppTheme.accent)
             .overlay(alignment: arrowAlignment) {
-                ArrowTriangle(edge: arrowEdge)
-                    .fill(AppTheme.accent.opacity(0.45))
-                    .frame(width: 16, height: 9)
-                    .offset(arrowOffset)
+                // Swipe hints communicate direction with the inline chevrons, so
+                // they skip the single pointing triangle.
+                if !isSwipeHint {
+                    ArrowTriangle(edge: arrowEdge)
+                        .fill(AppTheme.accent.opacity(0.45))
+                        .frame(width: 16, height: 9)
+                        .offset(arrowOffset)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture { onDismiss() }
     }
 
-    /// Where to place the bubble's center relative to the target.
+    @ViewBuilder
+    private var bubbleContent: some View {
+        if isSwipeHint {
+            HStack(spacing: 10) {
+                SwipeChevrons(edge: .leading)
+                Text(text)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                SwipeChevrons(edge: .trailing)
+            }
+        } else {
+            Text(text)
+                .font(.system(size: 13, weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.leading)
+        }
+    }
+
+    /// Center point for `.position`, derived so the bubble's *edge* (not its center)
+    /// sits `gap` away from the target — keeping the whole card, and its arrow, clear
+    /// of the target instead of overlapping it.
     private var bubbleAnchorPoint: CGPoint {
+        let halfW = bubbleSize.width / 2
+        let halfH = bubbleSize.height / 2
         switch arrowEdge {
-        case .bottom: return CGPoint(x: targetRect.midX, y: targetRect.minY - gap)   // above, grows up
-        case .top:    return CGPoint(x: targetRect.midX, y: targetRect.maxY + gap)   // below
-        case .leading: return CGPoint(x: targetRect.maxX + gap, y: targetRect.midY)  // right of target
-        case .trailing: return CGPoint(x: targetRect.minX - gap, y: targetRect.midY) // left of target
+        case .bottom: return CGPoint(x: targetRect.midX, y: targetRect.minY - gap - halfH)   // fully above
+        case .top:    return CGPoint(x: targetRect.midX, y: targetRect.maxY + gap + halfH)    // fully below
+        case .leading: return CGPoint(x: targetRect.maxX + gap + halfW, y: targetRect.midY)   // fully right
+        case .trailing: return CGPoint(x: targetRect.minX - gap - halfW, y: targetRect.midY)  // fully left
         }
     }
 
@@ -141,7 +174,9 @@ private struct CoachMarksModifier: ViewModifier {
                             CoachMarkBubble(
                                 text: mark.text,
                                 arrowEdge: mark.arrowEdge,
-                                targetRect: proxy[anchor]
+                                targetRect: proxy[anchor],
+                                isSwipeHint: mark.isSwipeHint,
+                                extraGap: mark.extraGap
                             ) {
                                 dismiss(mark)
                             }
@@ -180,6 +215,22 @@ extension View {
     /// Pass `isSuppressed: true` to defer while a sheet/presentation is active.
     func coachMarks(_ marks: [CoachMark], isSuppressed: Bool = false) -> some View {
         modifier(CoachMarksModifier(marks: marks, isSuppressed: isSuppressed))
+    }
+}
+
+/// A pair of double chevrons that gently pulse outward to suggest a horizontal
+/// swipe. `edge` is the direction the chevrons point (.leading or .trailing).
+private struct SwipeChevrons: View {
+    let edge: Edge
+    @State private var nudge = false
+
+    var body: some View {
+        Image(systemName: edge == .leading ? "chevron.compact.left" : "chevron.compact.right")
+            .font(.system(size: 18, weight: .semibold))
+            .foregroundStyle(AppTheme.accent)
+            .offset(x: nudge ? (edge == .leading ? -3 : 3) : 0)
+            .animation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true), value: nudge)
+            .onAppear { nudge = true }
     }
 }
 

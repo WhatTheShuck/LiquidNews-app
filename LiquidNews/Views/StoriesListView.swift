@@ -229,7 +229,7 @@ struct StoriesListView: View {
                 .opacity(1 - pickerProgress * 1.6)
                 .offset(y: -pickerProgress * 24)
         }
-        .coachMarks([.storySwipe], isSuppressed: coachMarksSuppressed)
+        .coachMarks([.resumeBanner, .storySwipe], isSuppressed: coachMarksSuppressed)
         .sheet(item: $selectedStory) { story in
             NavigationStack {
                 StoryDetailView(story: story)
@@ -465,6 +465,7 @@ struct StoriesListView: View {
                     withAnimation(.smooth) { resumeDismissed = true }
                 }
             )
+            .coachMarkTarget(.resumeBanner)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

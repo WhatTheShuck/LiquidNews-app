@@ -21,6 +21,8 @@ struct AccountView: View {
     @State private var showWipeiCloudConfirm = false
     @State private var wipeResultMessage: String?
     @State private var showWipeResult = false
+    @State private var showTutorialClearedConfirm = false
+    @AppStorage("LN_lastSeenWhatsNewVersion") private var lastSeenWhatsNewVersion = ""
     #endif
     @FocusState private var focusedField: LoginField?
 
@@ -370,6 +372,13 @@ struct AccountView: View {
                 Button("Reset Trial (not started)") { store.debugResetTrial() }
                     .padding(14)
                 Divider().overlay(AppTheme.glassBorder)
+                Button("Clear Tutorial (Coach Marks + What's New)") {
+                    CoachMarkStore.shared.replayAll()
+                    lastSeenWhatsNewVersion = ""
+                    showTutorialClearedConfirm = true
+                }
+                .padding(14)
+                Divider().overlay(AppTheme.glassBorder)
                 Button(role: .destructive) {
                     showWipeiCloudConfirm = true
                 } label: {
@@ -400,6 +409,11 @@ struct AccountView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(wipeResultMessage ?? "")
+        }
+        .alert("Tutorial Cleared", isPresented: $showTutorialClearedConfirm) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Coach marks and the What's New gate have been reset. What's New shows on next launch; coach marks reappear as you revisit each screen.")
         }
     }
     #endif
