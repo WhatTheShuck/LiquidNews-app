@@ -480,6 +480,7 @@ struct ArticleReaderView: View {
             }
         }
         .animation(.easeOut(duration: 0.3), value: showOverlay)
+        .sectionIntroCoach(.readerAppearance)
         .safeAreaInset(edge: .bottom) {
             if readerState.canGoBack && readerState.userHasNavigatedInline {
                 HStack {

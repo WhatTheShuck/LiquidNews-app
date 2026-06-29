@@ -105,8 +105,9 @@ struct StoryDetailView: View {
                         .padding(.vertical, 24)
                         .glassCard()
                 } else {
-                    ForEach(viewModel.comments) { comment in
-                        CommentView(comment: comment, depth: 0, opUsername: story.by, story: story)
+                    ForEach(Array(viewModel.comments.enumerated()), id: \.element.id) { index, comment in
+                        CommentView(comment: comment, depth: 0, opUsername: story.by, story: story,
+                                    isCoachMarkTarget: index == 0)
                     }
                 }
             }
@@ -116,6 +117,7 @@ struct StoryDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .coachMarks([.readArticleLongPress, .commentTapCollapse, .commentLongPress])
         // Disable scroll clip so glass cards near the top/bottom of the viewport
         // can render their full glow region without being cut off by the clip bounds.
         .scrollClipDisabled()
@@ -531,6 +533,7 @@ struct StoryDetailView: View {
                         Label("Open in Safari", systemImage: "arrow.up.right.square")
                     }
                 }
+                .coachMarkTarget(.readArticleLongPress)
             }
 
             // Self-post body

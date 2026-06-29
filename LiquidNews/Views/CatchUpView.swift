@@ -45,6 +45,7 @@ struct CatchUpView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .sectionIntroCoach(.catchUpIntro)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {

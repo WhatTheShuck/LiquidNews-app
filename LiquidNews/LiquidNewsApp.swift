@@ -19,6 +19,8 @@ struct LiquidNewsApp: App {
     @State private var resumeCoordinator = ResumeCoordinator()
     @State private var store = StoreService.shared
     @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("LN_lastSeenWhatsNewVersion") private var lastSeenWhatsNewVersion = ""
+    @State private var showWhatsNew = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var showThemeNudge = false
     @State private var showThemePaywall = false
@@ -49,6 +51,13 @@ struct LiquidNewsApp: App {
                         UserSettings.shared.hiddenPostsExpiry
                     )
                     await BackgroundPrefetcher.runIfEnabled()
+                    if WhatsNewGate.shouldShow(
+                        storedVersion: lastSeenWhatsNewVersion,
+                        currentVersion: currentAppVersion,
+                        hasSeenOnboarding: hasSeenOnboarding
+                    ) {
+                        showWhatsNew = true
+                    }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
@@ -76,10 +85,27 @@ struct LiquidNewsApp: App {
                 }
                 .sheet(isPresented: .init(
                     get: { !hasSeenOnboarding },
-                    set: { _ in hasSeenOnboarding = true }
+                    set: { _ in
+                        hasSeenOnboarding = true
+                        lastSeenWhatsNewVersion = currentAppVersion
+                    }
                 )) {
                     OnboardingView {
                         hasSeenOnboarding = true
+                        lastSeenWhatsNewVersion = currentAppVersion
+                    }
+                    .presentationCornerRadius(.glassCornerRadius)
+                }
+                .sheet(isPresented: Binding(
+                    get: { showWhatsNew },
+                    set: { newValue in
+                        if !newValue { lastSeenWhatsNewVersion = currentAppVersion }
+                        showWhatsNew = newValue
+                    }
+                )) {
+                    WhatsNewView {
+                        lastSeenWhatsNewVersion = currentAppVersion
+                        showWhatsNew = false
                     }
                     .presentationCornerRadius(.glassCornerRadius)
                 }
@@ -105,6 +131,10 @@ struct LiquidNewsApp: App {
                 showThemeNudge = true
             }
         }
+    }
+
+    private var currentAppVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
     }
 
     /// Extracts an HN item ID from either scheme:

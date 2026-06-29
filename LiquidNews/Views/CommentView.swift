@@ -21,6 +21,9 @@ struct CommentView: View {
     /// Username of the story's original poster. Passed down from StoryDetailView.
     var opUsername: String? = nil
     var story: HNItem? = nil
+    /// True only for the first top-level comment, so it carries the commentLongPress
+    /// coach-mark anchor. Replies and other comments leave this false.
+    var isCoachMarkTarget: Bool = false
 
     @State private var isExpanded = true
     @State private var replies: [HNItem] = []
@@ -30,6 +33,7 @@ struct CommentView: View {
 
     // Long-press / actions
     @State private var auth = HNAuthService.shared
+    @Environment(CoachMarkController.self) private var coachMarks: CoachMarkController?
     @State private var showReply = false
     @State private var actionError: String?
     @State private var hasUpvoted = false
@@ -72,6 +76,7 @@ struct CommentView: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
                 }
+                coachMarks?.reportInteraction(.commentTapCollapse)
             } label: {
                 HStack(alignment: .center) {
                     Text(comment.by ?? "[deleted]")
@@ -161,9 +166,12 @@ struct CommentView: View {
         .modifier(CommentCardBackground(
             depth: depth, cornerRadius: 18, threadColor: threadColor,
             glass: settings.glassComments))
+        .coachMarkTarget(isCoachMarkTarget ? .commentLongPress : nil)
+        .coachMarkTarget(isCoachMarkTarget ? .commentTapCollapse : nil)
         .onLongPressGesture(minimumDuration: 0.4) {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             showActions = true
+            coachMarks?.reportInteraction(.commentLongPress)
         }
         .confirmationDialog("", isPresented: $showActions, titleVisibility: .hidden) {
             CommentActions(

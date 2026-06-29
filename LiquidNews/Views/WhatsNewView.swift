@@ -1,33 +1,39 @@
-// OnboardingView.swift
-// Shown once on first launch to introduce LiquidNews features.
+// WhatsNewView.swift
+// Version-gated sheet shown to existing users after they update, advertising
+// this release's headline features. Distinct from OnboardingView (first launch).
 
 import SwiftUI
 
-struct OnboardingView: View {
+struct WhatsNewView: View {
 
     var onDismiss: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     private let features: [(icon: String, title: String, body: String)] = [
         (
-            "flame",
-            "Hacker News, beautifully",
-            "All of HN with a Liquid Glass design built for iOS 26."
+            "wifi.slash",
+            "Offline mode",
+            "Read saved stories and cached threads with no connection."
         ),
         (
-            "square.grid.2x2",
-            "Feed categories",
-            "Switch between Top, New, Best, Ask, Show, Jobs and more with a tap or swipe."
+            "arrow.down.circle",
+            "Prepare for offline",
+            "Download stories and their comments ahead of a flight or commute."
         ),
         (
-            "hand.draw",
-            "Swipe actions",
-            "Swipe story cards to save, favourite, or hide — fully customisable in Settings."
+            "internaldrive",
+            "Persistent cache",
+            "Stories you've opened load instantly, cache-first, on every launch."
         ),
         (
-            "bookmark",
-            "Save & curate",
-            "Save stories for later, follow curated newsletters, and track what you've read."
+            "arrow.triangle.2.circlepath",
+            "Continue from iCloud",
+            "Pick up the story you were reading on another device."
+        ),
+        (
+            "sidebar.left",
+            "iPad split view",
+            "A three-column layout that uses every inch of a larger screen."
         ),
     ]
 
@@ -35,19 +41,17 @@ struct OnboardingView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 32) {
-                    // Header
                     VStack(spacing: 12) {
-                        Image(systemName: "newspaper.fill")
+                        Image(systemName: "sparkles")
                             .font(.system(size: 64))
                             .foregroundStyle(AppTheme.accent)
                             .padding(.top, 56)
-                        Text("Welcome to LiquidNews")
+                        Text("What's New")
                             .font(.system(size: 28, weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
                             .multilineTextAlignment(.center)
                     }
 
-                    // Feature cards
                     VStack(spacing: 12) {
                         ForEach(features, id: \.title) { feature in
                             FeatureCard(icon: feature.icon, title: feature.title, body: feature.body)
@@ -58,9 +62,8 @@ struct OnboardingView: View {
                 }
             }
 
-            // Get Started button — pinned to bottom
             Button(action: onDismiss) {
-                Text("Get Started")
+                Text("Continue")
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity)
@@ -83,5 +86,5 @@ struct OnboardingView: View {
 }
 
 #Preview {
-    OnboardingView { }
+    WhatsNewView { }
 }

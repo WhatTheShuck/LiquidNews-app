@@ -85,6 +85,7 @@ struct SettingsListView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(16)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .glassCard()
