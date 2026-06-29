@@ -150,6 +150,48 @@ struct CoachMarkBubble: View {
     }
 }
 
+// MARK: - Banner
+
+/// Arrow-less glass card pinned below the nav bar. Used by "intro" marks that
+/// explain a whole screen rather than point at a single gesture target.
+struct CoachMarkBanner: View {
+    let text: String
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack {
+            HStack(alignment: .top, spacing: 12) {
+                Text(text)
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button("Got it", action: onDismiss)
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .foregroundStyle(AppTheme.accent)
+                    .buttonStyle(.plain)
+                    .fixedSize()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .glassCard(cornerRadius: 16, tint: AppTheme.accent)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onDismiss)
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
+
+            Spacer(minLength: 0)
+        }
+        .transition(.move(edge: .top).combined(with: .opacity))
+        .task {
+            // Auto-fade after ~8s (longer than bubbles — there's more to read).
+            try? await Task.sleep(for: .seconds(8))
+            if !Task.isCancelled { onDismiss() }
+        }
+    }
+}
+
 // MARK: - Screen modifier
 
 private struct CoachMarksModifier: ViewModifier {
@@ -170,15 +212,19 @@ private struct CoachMarksModifier: ViewModifier {
             .overlayPreferenceValue(CoachMarkAnchorKey.self) { anchors in
                 GeometryReader { proxy in
                     ZStack {
-                        if let mark = activeMark, let anchor = anchors[mark] {
-                            CoachMarkBubble(
-                                text: mark.text,
-                                arrowEdge: mark.arrowEdge,
-                                targetRect: proxy[anchor],
-                                isSwipeHint: mark.isSwipeHint,
-                                extraGap: mark.extraGap
-                            ) {
-                                dismiss(mark)
+                        if let mark = activeMark {
+                            if mark.isBanner {
+                                CoachMarkBanner(text: mark.text) { dismiss(mark) }
+                            } else if let anchor = anchors[mark] {
+                                CoachMarkBubble(
+                                    text: mark.text,
+                                    arrowEdge: mark.arrowEdge,
+                                    targetRect: proxy[anchor],
+                                    isSwipeHint: mark.isSwipeHint,
+                                    extraGap: mark.extraGap
+                                ) {
+                                    dismiss(mark)
+                                }
                             }
                         }
                     }
@@ -199,8 +245,12 @@ private struct CoachMarksModifier: ViewModifier {
 
     private func activate(anchored: Set<CoachMark>) {
         guard !isSuppressed, !shownThisVisit, activeMark == nil else { return }
+        // Banner marks have no gesture target, so they count as "anchored" the
+        // moment their host screen appears.
+        let bannerMarks = marks.filter(\.isBanner)
         activeMark = firstEligibleCoachMark(
-            in: marks, seen: store.seenMarks(), anchored: anchored)
+            in: marks, seen: store.seenMarks(),
+            anchored: anchored.union(bannerMarks))
     }
 
     private func dismiss(_ mark: CoachMark) {
@@ -215,6 +265,28 @@ extension View {
     /// Pass `isSuppressed: true` to defer while a sheet/presentation is active.
     func coachMarks(_ marks: [CoachMark], isSuppressed: Bool = false) -> some View {
         modifier(CoachMarksModifier(marks: marks, isSuppressed: isSuppressed))
+    }
+
+    /// Hosts a single banner intro mark, suppressed while onboarding / What's New
+    /// covers the screen at launch. Keeps the launch-gate logic in one place so
+    /// section screens don't each re-declare it.
+    func sectionIntroCoach(_ mark: CoachMark) -> some View {
+        modifier(SectionIntroCoachModifier(mark: mark))
+    }
+}
+
+/// Wraps `coachMarks([mark])` with the shared launch-suppression gate, reading the
+/// onboarding / What's New flags itself so each section screen only names its mark.
+private struct SectionIntroCoachModifier: ViewModifier {
+    let mark: CoachMark
+
+    @AppStorage("LN_hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("LN_lastSeenWhatsNewVersion") private var lastSeenWhatsNewVersion = ""
+
+    func body(content: Content) -> some View {
+        content.coachMarks([mark], isSuppressed: WhatsNewGate.coachMarksSuppressed(
+            storedWhatsNewVersion: lastSeenWhatsNewVersion,
+            hasSeenOnboarding: hasSeenOnboarding))
     }
 }
 

@@ -117,7 +117,7 @@ struct StoryDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .coachMarks([.readArticleLongPress, .commentLongPress])
+        .coachMarks([.readArticleLongPress, .commentTapCollapse, .commentLongPress])
         // Disable scroll clip so glass cards near the top/bottom of the viewport
         // can render their full glow region without being cut off by the clip bounds.
         .scrollClipDisabled()

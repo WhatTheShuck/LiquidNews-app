@@ -90,11 +90,9 @@ struct StoriesListView: View {
     /// covers the feed at launch — otherwise a hint could activate (and auto-fade,
     /// burning its "seen" flag) behind the sheet, unseen.
     private var coachMarksSuppressed: Bool {
-        !hasSeenOnboarding
-            || WhatsNewGate.shouldShow(
-                storedVersion: lastSeenWhatsNewVersion,
-                currentVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0",
-                hasSeenOnboarding: hasSeenOnboarding)
+        WhatsNewGate.coachMarksSuppressed(
+            storedWhatsNewVersion: lastSeenWhatsNewVersion,
+            hasSeenOnboarding: hasSeenOnboarding)
     }
 
     // MARK: - Chip layout helpers
@@ -229,7 +227,7 @@ struct StoriesListView: View {
                 .opacity(1 - pickerProgress * 1.6)
                 .offset(y: -pickerProgress * 24)
         }
-        .coachMarks([.resumeBanner, .storySwipe], isSuppressed: coachMarksSuppressed)
+        .coachMarks([.feedIntro, .resumeBanner, .storySwipe], isSuppressed: coachMarksSuppressed)
         .sheet(item: $selectedStory) { story in
             NavigationStack {
                 StoryDetailView(story: story)

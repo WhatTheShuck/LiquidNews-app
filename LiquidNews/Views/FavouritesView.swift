@@ -32,6 +32,7 @@ struct FavouritesView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .sectionIntroCoach(.favouritesIntro)
         .navigationTitle(AppTab.favourites.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)

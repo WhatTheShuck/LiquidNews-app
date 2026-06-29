@@ -53,4 +53,24 @@ final class CoachMarkEligibilityTests: XCTestCase {
             anchored: [.storySwipe])
         XCTAssertEqual(result, .storySwipe)
     }
+
+    // MARK: - Banner marks
+
+    func test_bannerMark_isFlaggedBanner_andHasText() {
+        // Intro marks render as arrow-less banners and carry explanatory copy.
+        XCTAssertTrue(CoachMark.feedIntro.isBanner)
+        XCTAssertTrue(CoachMark.readerAppearance.isBanner)
+        XCTAssertFalse(CoachMark.commentTapCollapse.isBanner)
+        XCTAssertFalse(CoachMark.feedIntro.text.isEmpty)
+    }
+
+    func test_bannerMark_winsInOrder_whenTreatedAsAnchored() {
+        // The host treats banner marks as anchored on appearance; here we mimic that
+        // by including the banner in the anchored set. It precedes the swipe bubble.
+        let result = firstEligibleCoachMark(
+            in: [.feedIntro, .storySwipe],
+            seen: [],
+            anchored: [.feedIntro, .storySwipe])
+        XCTAssertEqual(result, .feedIntro)
+    }
 }

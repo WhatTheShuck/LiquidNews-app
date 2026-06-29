@@ -65,6 +65,7 @@ struct CuratedView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .sectionIntroCoach(.curatedIntro)
         .navigationTitle(AppTab.curated.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)

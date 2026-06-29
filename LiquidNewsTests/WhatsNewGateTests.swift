@@ -33,4 +33,23 @@ final class WhatsNewGateTests: XCTestCase {
         XCTAssertFalse(WhatsNewGate.shouldShow(
             storedVersion: "", currentVersion: "1.0", hasSeenOnboarding: false))
     }
+
+    // MARK: - coachMarksSuppressed
+
+    func test_coachMarksSuppressed_whileOnboardingUnseen() {
+        XCTAssertTrue(WhatsNewGate.coachMarksSuppressed(
+            storedWhatsNewVersion: "1.0", hasSeenOnboarding: false, currentVersion: "1.0"))
+    }
+
+    func test_coachMarksSuppressed_whileWhatsNewPending() {
+        // Onboarding done but an unseen What's New is about to cover the screen.
+        XCTAssertTrue(WhatsNewGate.coachMarksSuppressed(
+            storedWhatsNewVersion: "1.0", hasSeenOnboarding: true, currentVersion: "1.1"))
+    }
+
+    func test_coachMarksNotSuppressed_whenCaughtUp() {
+        // Onboarding seen and What's New already seen for this version ⇒ marks allowed.
+        XCTAssertFalse(WhatsNewGate.coachMarksSuppressed(
+            storedWhatsNewVersion: "1.1", hasSeenOnboarding: true, currentVersion: "1.1"))
+    }
 }

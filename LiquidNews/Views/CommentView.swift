@@ -76,6 +76,7 @@ struct CommentView: View {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isExpanded.toggle()
                 }
+                coachMarks?.reportInteraction(.commentTapCollapse)
             } label: {
                 HStack(alignment: .center) {
                     Text(comment.by ?? "[deleted]")
@@ -166,6 +167,7 @@ struct CommentView: View {
             depth: depth, cornerRadius: 18, threadColor: threadColor,
             glass: settings.glassComments))
         .coachMarkTarget(isCoachMarkTarget ? .commentLongPress : nil)
+        .coachMarkTarget(isCoachMarkTarget ? .commentTapCollapse : nil)
         .onLongPressGesture(minimumDuration: 0.4) {
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
             showActions = true
