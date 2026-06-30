@@ -32,6 +32,19 @@ final class ReaderHTMLBuilderTests: XCTestCase {
         XCTAssertTrue(html.contains("a &quot;quote&quot; &amp; &lt;tag&gt;"))
     }
 
+    // MARK: - Table CSS tests
+
+    func test_readerCSS_tablesSizeToContentAndScroll() {
+        let css = ReaderHTMLBuilder.readerCSS
+        // Wide tables must be able to grow past the viewport and scroll, rather
+        // than being forced to width:100% (which crushes columns into slivers).
+        XCTAssertTrue(css.contains("width: max-content"))
+        XCTAssertTrue(css.contains("max-width: 100%"))
+        XCTAssertTrue(css.contains("overflow-x: auto"))
+        // Momentum scrolling on iOS so the horizontal scroll feels native.
+        XCTAssertTrue(css.contains("-webkit-overflow-scrolling: touch"))
+    }
+
     // MARK: - Gallery tests (body class, site label, title, images)
 
     func test_gallery_usesImagePageBodyClass() {

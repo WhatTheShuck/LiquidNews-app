@@ -144,12 +144,27 @@ enum ReaderHTMLBuilder {
     ul, ol { padding-left: 1.6em; margin: 0.9em 0; }
     li { margin: 0.3em 0; }
     hr { border: none; border-top: 1px solid var(--border); margin: 2em 0; }
+    /* Tables size to their content (max-content) but the scroll box is capped
+       to the container (max-width:100%). Narrow tables therefore look natural,
+       while wide tables overflow horizontally and scroll instead of crushing
+       their columns into unreadable slivers. (Pinning width:100% defeats the
+       overflow and is the classic responsive-table trap.) */
     table {
-        border-collapse: collapse; width: 100%; margin: 1.2em 0;
-        font-size: 0.9rem; display: block; overflow-x: auto;
+        display: block; width: max-content; max-width: 100%;
+        border-collapse: collapse; margin: 1.2em 0; font-size: 0.9rem;
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
     }
-    th, td { padding: 8px 14px; border: 1px solid var(--border); text-align: left; }
+    th, td {
+        padding: 8px 14px; border: 1px solid var(--border);
+        text-align: left; vertical-align: top;
+    }
     th { background: var(--code-bg); color: var(--heading); font-weight: 600; }
+    /* Subtle zebra striping keeps dense, multi-row tables readable. */
+    tbody tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+    caption {
+        caption-side: bottom; font-size: 0.78rem; color: var(--dim);
+        font-style: italic; padding-top: 6px; text-align: left;
+    }
     /* Images are hidden by default; JS removes this class when the user toggles them on */
     .no-images img,
     .no-images video,
