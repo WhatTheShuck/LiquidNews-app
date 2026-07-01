@@ -3,6 +3,7 @@
 
 import Foundation
 import Security
+import os
 
 enum KeychainHelper {
 
@@ -12,13 +13,23 @@ enum KeychainHelper {
     static func save(_ value: String, forKey key: String) {
         guard let data = value.data(using: .utf8) else { return }
         let query: [CFString: Any] = [
-            kSecClass:        kSecClassGenericPassword,
-            kSecAttrService:  service,
-            kSecAttrAccount:  key,
-            kSecValueData:    data
+            kSecClass:            kSecClassGenericPassword,
+            kSecAttrService:      service,
+            kSecAttrAccount:      key,
+            kSecValueData:        data,
+            // Available after the first unlock following a boot, including while
+            // locked in the background — matches how the app refreshes state.
+            kSecAttrAccessible:   kSecAttrAccessibleAfterFirstUnlock
         ]
-        SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        // Delete any existing item first; errSecItemNotFound is expected and fine.
+        let deleteStatus = SecItemDelete(query as CFDictionary)
+        if deleteStatus != errSecSuccess && deleteStatus != errSecItemNotFound {
+            Logger.keychain.error("SecItemDelete failed for key \(key, privacy: .public): \(deleteStatus)")
+        }
+        let addStatus = SecItemAdd(query as CFDictionary, nil)
+        if addStatus != errSecSuccess {
+            Logger.keychain.error("SecItemAdd failed for key \(key, privacy: .public): \(addStatus)")
+        }
     }
 
     /// Returns the stored string for the given key, or nil if absent.
@@ -43,6 +54,9 @@ enum KeychainHelper {
             kSecAttrService: service,
             kSecAttrAccount: key
         ]
-        SecItemDelete(query as CFDictionary)
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess && status != errSecItemNotFound {
+            Logger.keychain.error("SecItemDelete failed for key \(key, privacy: .public): \(status)")
+        }
     }
 }

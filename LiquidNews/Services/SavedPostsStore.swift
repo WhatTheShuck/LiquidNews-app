@@ -13,6 +13,7 @@
 
 import Foundation
 import Observation
+import os
 
 @Observable
 final class SavedPostsStore {
@@ -494,7 +495,7 @@ final class SavedPostsStore {
     func mergeFromiCloud() async {
         let data = await Task.detached(priority: .background) { [self] () -> Data? in
             guard let url = iCloudDataURL else {
-                print("[LiquidNews] mergeFromiCloud: iCloud container unavailable")
+                Logger.sync.notice("mergeFromiCloud: iCloud container unavailable")
                 return nil
             }
             // Tell iOS we want this file — no-op if already local, starts async
@@ -509,7 +510,7 @@ final class SavedPostsStore {
             do {
                 try importData(data, replacing: false, syncCloud: false)
             } catch {
-                print("[LiquidNews] mergeFromiCloud: importData failed: \(error)")
+                Logger.sync.error("mergeFromiCloud: importData failed: \(error.localizedDescription, privacy: .public)")
             }
             syncToiCloud()
         }
@@ -519,7 +520,7 @@ final class SavedPostsStore {
     /// Called after every local save so other devices receive the latest data.
     private func syncToiCloud() {
         guard let data = try? exportData() else {
-            print("[LiquidNews] syncToiCloud: exportData() failed")
+            Logger.sync.error("syncToiCloud: exportData() failed")
             return
         }
         guard let url = iCloudDataURL else { return }

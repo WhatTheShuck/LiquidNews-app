@@ -9,7 +9,7 @@
 
 import Foundation
 
-final class HNAPIService {
+actor HNAPIService {
 
     nonisolated static let shared = HNAPIService()
 
@@ -101,6 +101,9 @@ final class HNAPIService {
                     }
                 }
             }
+        }
+        if ids.isEmpty {
+            HNScrapeLog.parseReturnedEmpty("parseHNStoryIDs")
         }
         return ids
     }

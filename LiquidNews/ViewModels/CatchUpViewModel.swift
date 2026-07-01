@@ -4,6 +4,7 @@
 
 import Foundation
 import Observation
+import os
 
 // MARK: - Date range presets
 
@@ -121,7 +122,10 @@ final class CatchUpViewModel {
             )
             stories.append(contentsOf: result.stories)
             currentPage += 1
-        } catch { }
+        } catch {
+            // Non-critical: pagination failure just leaves the current page in place. Log for diagnosis.
+            Logger.feed.debug("CatchUp: loadNextPage failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func refresh() async {

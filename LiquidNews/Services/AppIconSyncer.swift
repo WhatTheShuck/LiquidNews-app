@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import os
 
 enum AppIconFamily: String {
     case `default`
@@ -36,7 +37,7 @@ func applyAppIcon(family: AppIconFamily, isDark: Bool) {
     let target = family.resolvedAlternateIconName(isDark: isDark)
     guard UIApplication.shared.alternateIconName != target else { return }
     UIApplication.shared.setAlternateIconName(target) { error in
-        if let error { print("[AppIcon] setAlternateIconName failed: \(error)") }
+        if let error { Logger.appIcon.error("setAlternateIconName failed: \(error.localizedDescription, privacy: .public)") }
     }
 }
 

@@ -4,6 +4,7 @@
 // depth threshold in the main comment list, or opened directly via deep link.
 
 import SwiftUI
+import os
 
 struct ThreadView: View {
     let rootComment: HNItem
@@ -88,7 +89,10 @@ struct ThreadView: View {
             isLoadingStory = true
             do {
                 resolvedStory = try await HNAPIService.shared.rootStory(forItemID: rootComment.id)
-            } catch {}
+            } catch {
+                // Non-critical: the "Story" toolbar button just stays hidden. Log for diagnosis.
+                Logger.reader.debug("ThreadView: rootStory fetch failed: \(error.localizedDescription, privacy: .public)")
+            }
             isLoadingStory = false
         }
     }

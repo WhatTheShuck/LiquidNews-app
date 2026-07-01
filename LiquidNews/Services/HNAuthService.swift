@@ -195,6 +195,7 @@ final class HNAuthService {
                 if !token.isEmpty { return token }
             }
         }
+        HNScrapeLog.parseReturnedEmpty("parseVoteAuth", context: "item \(itemId) how \(how)")
         return nil
     }
 
@@ -206,6 +207,7 @@ final class HNAuthService {
                 if !token.isEmpty { return token }
             }
         }
+        HNScrapeLog.parseReturnedEmpty("parseFlagAuth", context: "item \(itemId)")
         return nil
     }
 
@@ -226,6 +228,7 @@ final class HNAuthService {
                 if !hmac.isEmpty { return hmac }
             }
         }
+        HNScrapeLog.parseReturnedEmpty("parseHmac")
         return nil
     }
 }
@@ -233,8 +236,16 @@ final class HNAuthService {
 // MARK: - Helpers
 
 private extension String {
-    /// Percent-encodes the string for inclusion in an x-www-form-urlencoded body.
+    /// Percent-encodes the string for inclusion in an `application/x-www-form-urlencoded` body.
+    ///
+    /// `.urlQueryAllowed` is wrong here: it permits the reserved characters that delimit a form
+    /// body — `&` and `=` separate fields, `+` is decoded as a space — so a username or password
+    /// containing any of them would corrupt the POST and surface as a bogus "incorrect credentials"
+    /// failure. We start from that set and strip every sub-/gen-delimiter, leaving only the
+    /// unreserved characters; over-encoding is always safe for a form value.
     var hnEncoded: String {
-        addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? self
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.remove(charactersIn: "!#$&'()*+,/:;=?@[]")
+        return addingPercentEncoding(withAllowedCharacters: allowed) ?? self
     }
 }

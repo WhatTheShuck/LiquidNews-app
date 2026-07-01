@@ -499,8 +499,15 @@ private struct AddCuratedFeedView: View {
     @State private var showFormat = false
 
     private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
-            && URL(string: urlString.trimmingCharacters(in: .whitespaces)) != nil
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        // Require a real http(s) URL with a host — `URL(string:)` alone accepts
+        // schemeless junk like "example", which would become a silently-broken feed.
+        let trimmed = urlString.trimmingCharacters(in: .whitespaces)
+        guard let url = URL(string: trimmed),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = url.host(), !host.isEmpty else { return false }
+        return true
     }
 
     var body: some View {

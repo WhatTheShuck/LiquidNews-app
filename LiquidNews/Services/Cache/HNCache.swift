@@ -26,6 +26,12 @@ actor HNCache {
         return try? decoder.decode(HNItem.self, from: data)
     }
 
+    // NOTE: Article-body caching is intentionally deferred. The live reader
+    // (`ArticleReaderView`) runs its own WKWebView + Readability.js pipeline and does
+    // not currently write through here, so `storeArticle`/`cachedArticle` have no
+    // production producer yet (exercised only by tests). `setPinnedArticle` is still
+    // called defensively from `SavedPostsStore` cleanup. Kept as the seam for when
+    // article-body caching is wired up. See DESLOPPIFY M2.
     func cachedArticle(id: Int) async -> ReadabilityArticle? {
         guard let data = await disk.data(for: .article(id)) else { return nil }
         return try? decoder.decode(ReadabilityArticle.self, from: data)

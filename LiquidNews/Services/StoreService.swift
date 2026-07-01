@@ -8,6 +8,7 @@ import Foundation
 import StoreKit
 import Observation
 import UIKit
+import os
 
 // MARK: - Error
 
@@ -233,7 +234,7 @@ final class StoreService {
         } catch {
             await MainActor.run {
                 self.isLoadingProducts = false
-                print("[StoreService] Failed to load products: \(error)")
+                Logger.store.error("Failed to load products: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -247,7 +248,7 @@ final class StoreService {
                     await self.updatePurchasedProducts()
                     await transaction.finish()
                 } catch {
-                    print("[StoreService] Transaction verification failed: \(error)")
+                    Logger.store.error("Transaction verification failed: \(error.localizedDescription, privacy: .public)")
                 }
             }
         }

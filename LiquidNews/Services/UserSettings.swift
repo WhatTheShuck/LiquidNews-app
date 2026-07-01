@@ -8,146 +8,6 @@ import Foundation
 import Observation
 import SwiftUI
 
-// MARK: - Link open mode
-
-enum LinkOpenMode: String, CaseIterable, Identifiable {
-    case reader      = "reader"
-    case inAppSafari = "inAppSafari"
-    case safari      = "safari"
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .reader:      "Reader"
-        case .inAppSafari: "In-App Safari"
-        case .safari:      "Safari"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .reader:      "Extract and display article content natively"
-        case .inAppSafari: "Open articles inside the app with Safari"
-        case .safari:      "Hand off to Safari for every link"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .reader:      "textformat"
-        case .inAppSafari: "safari"
-        case .safari:      "arrow.up.right.square"
-        }
-    }
-}
-
-// MARK: - Comment link mode
-
-enum CommentLinkMode: String, CaseIterable, Identifiable {
-    case inAppSafari = "inAppSafari"
-    case reader      = "reader"
-    case safari      = "safari"
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .inAppSafari: "In-App Safari"
-        case .reader:      "Reader"
-        case .safari:      "Safari"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .inAppSafari: "Open in Safari without leaving the app"
-        case .reader:      "Extract and display content natively"
-        case .safari:      "Hand off to Safari"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .inAppSafari: "safari"
-        case .reader:      "textformat"
-        case .safari:      "arrow.up.right.square"
-        }
-    }
-}
-
-// MARK: - Reader link mode
-
-enum ReaderLinkMode: String, CaseIterable, Identifiable {
-    case inAppSafari = "inAppSafari"
-    case reader      = "reader"
-    case inline      = "inline"
-    case safari      = "safari"
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .inAppSafari: "In-App Safari"
-        case .reader:      "Reader"
-        case .inline:      "Inline"
-        case .safari:      "Safari"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .inAppSafari: "Open in Safari without leaving the app"
-        case .reader:      "Extract and display content natively"
-        case .inline:      "Navigate within the current view"
-        case .safari:      "Hand off to Safari"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .inAppSafari: "safari"
-        case .reader:      "textformat"
-        case .inline:      "arrow.turn.down.right"
-        case .safari:      "arrow.up.right.square"
-        }
-    }
-}
-
-// MARK: - HN thread link mode
-
-enum HNLinkMode: String, CaseIterable, Identifiable {
-    case inApp   = "inApp"
-    case safari  = "safari"
-    case ask     = "ask"
-
-    var id: String { rawValue }
-
-    var label: String {
-        switch self {
-        case .inApp:   "In App"
-        case .safari:  "Safari"
-        case .ask:     "Ask Each Time"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .inApp:   "Open HN thread links within LiquidNews"
-        case .safari:  "Hand off to Safari"
-        case .ask:     "Show share sheet each time"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .inApp:   "apps.iphone"
-        case .safari:  "arrow.up.right.square"
-        case .ask:     "square.and.arrow.up"
-        }
-    }
-}
-
 // MARK: - Viewed post behaviour
 
 enum ReadBehaviour: String, CaseIterable, Identifiable {
@@ -374,13 +234,25 @@ final class UserSettings {
     private let kvStore = NSUbiquitousKeyValueStore.default
     private static let migrationKey = "LN_kv_migrated"
 
+    /// True while `applyExternalChanges(_:)` is assigning values that just arrived
+    /// from iCloud. Property `didSet`s consult this via `persist` so they don't
+    /// echo the just-read value straight back into the KV store.
+    private var isApplyingExternalChanges = false
+
+    /// Runs a KV-store write unless we're mid-`applyExternalChanges`, in which case
+    /// the value already came from the store and re-writing it is wasteful churn.
+    private func persist(_ write: () -> Void) {
+        guard !isApplyingExternalChanges else { return }
+        write()
+    }
+
     // MARK: - Comment expansion
 
     /// How many replies to auto-load per comment (0 = never, loads on tap only).
     /// HN's own website shows all replies inline, but that's impractical on mobile.
     /// Default of 3 balances context vs. scroll fatigue.
     var autoLoadReplyCount: Int {
-        didSet { kvStore.set(autoLoadReplyCount, forKey: Keys.autoLoadReplyCount) }
+        didSet { persist { kvStore.set(autoLoadReplyCount, forKey: Keys.autoLoadReplyCount) } }
     }
 
     /// Maximum nesting depth at which replies auto-load.
@@ -388,18 +260,18 @@ final class UserSettings {
     /// Beyond this depth, replies require a manual tap to load.
     /// Default of 2 keeps threads readable without infinite nesting.
     var maxAutoExpandDepth: Int {
-        didSet { kvStore.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) }
+        didSet { persist { kvStore.set(maxAutoExpandDepth, forKey: Keys.maxAutoExpandDepth) } }
     }
 
     /// Max concurrent comment fetches on WiFi. Higher = faster load, more bandwidth.
     var maxConcurrentFetchesWifi: Int {
-        didSet { kvStore.set(maxConcurrentFetchesWifi, forKey: Keys.maxConcurrentFetchesWifi) }
+        didSet { persist { kvStore.set(maxConcurrentFetchesWifi, forKey: Keys.maxConcurrentFetchesWifi) } }
     }
 
     /// Max concurrent comment fetches on cellular. Lower = less data usage and more
     /// reliable loads on poor connections.
     var maxConcurrentFetchesCellular: Int {
-        didSet { kvStore.set(maxConcurrentFetchesCellular, forKey: Keys.maxConcurrentFetchesCellular) }
+        didSet { persist { kvStore.set(maxConcurrentFetchesCellular, forKey: Keys.maxConcurrentFetchesCellular) } }
     }
 
     // MARK: - Comment rendering
@@ -407,7 +279,7 @@ final class UserSettings {
     /// Global default for how comment text is rendered.
     /// Can be overridden per-comment from the long-press context menu.
     var commentRenderingStyle: CommentRenderMode {
-        didSet { kvStore.set(commentRenderingStyle.rawValue, forKey: Keys.commentRenderingStyle) }
+        didSet { persist { kvStore.set(commentRenderingStyle.rawValue, forKey: Keys.commentRenderingStyle) } }
     }
 
 
@@ -415,26 +287,26 @@ final class UserSettings {
 
     /// Which optional tabs appear in the bottom pill. Feed is always shown and not stored here.
     var enabledOptionalTabs: Set<AppTab> {
-        didSet { kvStore.set(enabledOptionalTabs.map(\.rawValue), forKey: Keys.enabledOptionalTabs) }
+        didSet { persist { kvStore.set(enabledOptionalTabs.map(\.rawValue), forKey: Keys.enabledOptionalTabs) } }
     }
 
     /// Display order of all optional tabs. All five are always present here;
     /// whether each is visible is controlled by `enabledOptionalTabs`.
     var tabOrder: [AppTab] {
-        didSet { kvStore.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) }
+        didSet { persist { kvStore.set(tabOrder.map(\.rawValue), forKey: Keys.tabOrder) } }
     }
 
     // MARK: - Feed categories
 
     /// Display order of all known feed categories (enabled and disabled).
     var feedCategoryOrder: [StoryCategory] {
-        didSet { kvStore.set(feedCategoryOrder.map(\.rawValue), forKey: Keys.feedCategoryOrder) }
+        didSet { persist { kvStore.set(feedCategoryOrder.map(\.rawValue), forKey: Keys.feedCategoryOrder) } }
     }
 
     /// Which feed categories the user has switched on.
     /// At least one is always kept enabled.
     var enabledFeedCategories: Set<StoryCategory> {
-        didSet { kvStore.set(Array(enabledFeedCategories.map(\.rawValue)), forKey: Keys.enabledFeedCategories) }
+        didSet { persist { kvStore.set(Array(enabledFeedCategories.map(\.rawValue)), forKey: Keys.enabledFeedCategories) } }
     }
 
     /// Enabled categories in user-defined display order (used by the chip picker).
@@ -446,53 +318,53 @@ final class UserSettings {
 
     /// How article links open by default. Users can one-off override via long-press.
     var defaultLinkOpen: LinkOpenMode {
-        didSet { kvStore.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) }
+        didSet { persist { kvStore.set(defaultLinkOpen.rawValue, forKey: Keys.defaultLinkOpen) } }
     }
 
     // MARK: - Inline link modes
 
     /// How links tapped inside comment text open.
     var commentLinkOpen: CommentLinkMode {
-        didSet { kvStore.set(commentLinkOpen.rawValue, forKey: Keys.commentLinkOpen) }
+        didSet { persist { kvStore.set(commentLinkOpen.rawValue, forKey: Keys.commentLinkOpen) } }
     }
 
     /// How links tapped inside reader views open.
     var readerLinkOpen: ReaderLinkMode {
-        didSet { kvStore.set(readerLinkOpen.rawValue, forKey: Keys.readerLinkOpen) }
+        didSet { persist { kvStore.set(readerLinkOpen.rawValue, forKey: Keys.readerLinkOpen) } }
     }
 
     /// How links to other HN threads open when tapped inside comments or the reader.
     var hnThreadLinkOpen: HNLinkMode {
-        didSet { kvStore.set(hnThreadLinkOpen.rawValue, forKey: Keys.hnThreadLinkOpen) }
+        didSet { persist { kvStore.set(hnThreadLinkOpen.rawValue, forKey: Keys.hnThreadLinkOpen) } }
     }
 
     // MARK: - Tap + swipe actions
 
     /// What happens when the user taps a story card.
     var tapAction: StoryAction {
-        didSet { kvStore.set(tapAction.rawValue, forKey: Keys.tapAction) }
+        didSet { persist { kvStore.set(tapAction.rawValue, forKey: Keys.tapAction) } }
     }
 
     /// Action triggered when swiping a story card left (trailing edge).
     var swipeLeftAction: StoryAction {
-        didSet { kvStore.set(swipeLeftAction.rawValue, forKey: Keys.swipeLeftAction) }
+        didSet { persist { kvStore.set(swipeLeftAction.rawValue, forKey: Keys.swipeLeftAction) } }
     }
 
     /// Action triggered when swiping a story card right (leading edge).
     var swipeRightAction: StoryAction {
-        didSet { kvStore.set(swipeRightAction.rawValue, forKey: Keys.swipeRightAction) }
+        didSet { persist { kvStore.set(swipeRightAction.rawValue, forKey: Keys.swipeRightAction) } }
     }
 
     // MARK: - Hidden posts expiry
 
     /// How long to retain hidden post entries before auto-clearing them.
     var hiddenPostsExpiry: HiddenPostsExpiry {
-        didSet { kvStore.set(hiddenPostsExpiry.rawValue, forKey: Keys.hiddenPostsExpiry) }
+        didSet { persist { kvStore.set(hiddenPostsExpiry.rawValue, forKey: Keys.hiddenPostsExpiry) } }
     }
 
     /// What happens to a story in feeds after the user opens it.
     var readBehaviour: ReadBehaviour {
-        didSet { kvStore.set(readBehaviour.rawValue, forKey: Keys.readBehaviour) }
+        didSet { persist { kvStore.set(readBehaviour.rawValue, forKey: Keys.readBehaviour) } }
     }
 
     // MARK: - Reader
@@ -500,58 +372,60 @@ final class UserSettings {
     /// When true, images are fetched and shown in Reader mode by default.
     /// Can still be toggled per-article from the reader's ellipsis menu.
     var readerShowImagesByDefault: Bool {
-        didSet { kvStore.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) }
+        didSet { persist { kvStore.set(readerShowImagesByDefault, forKey: Keys.readerShowImagesByDefault) } }
     }
 
     /// When true, SFSafariViewController will attempt to enter Safari Reader Mode automatically.
     var safariReaderMode: Bool {
-        didSet { kvStore.set(safariReaderMode, forKey: Keys.safariReaderMode) }
+        didSet { persist { kvStore.set(safariReaderMode, forKey: Keys.safariReaderMode) } }
     }
 
     /// When true, code blocks in comments wrap long lines instead of scrolling horizontally.
     var codeWrapLines: Bool {
-        didSet { kvStore.set(codeWrapLines, forKey: Keys.codeWrapLines) }
+        didSet { persist { kvStore.set(codeWrapLines, forKey: Keys.codeWrapLines) } }
     }
 
     /// When true, comment cards use a live Liquid Glass surface instead of the fixed
     /// ultraThinMaterial blur. Defaults to false — glass on every nested card can
     /// cause visual artifacts and performance issues on busy threads.
     var glassComments: Bool {
-        didSet { kvStore.set(glassComments, forKey: Keys.glassComments) }
+        didSet { persist { kvStore.set(glassComments, forKey: Keys.glassComments) } }
     }
 
     /// When true, a random goofy quote is shown on the reader loading screen.
     var wordsOfWisdom: Bool {
-        didSet { kvStore.set(wordsOfWisdom, forKey: Keys.wordsOfWisdom) }
+        didSet { persist { kvStore.set(wordsOfWisdom, forKey: Keys.wordsOfWisdom) } }
     }
 
     /// How the reader presents on iPad (regular width). `.sideBySide` shows the
     /// article beside its comments; `.replace` swaps the detail column to the reader.
     /// Ignored on iPhone (compact), which always uses the reader sheet.
     var iPadReaderLayout: IPadReaderLayout {
-        didSet { kvStore.set(iPadReaderLayout.rawValue, forKey: Keys.iPadReaderLayout) }
+        didSet { persist { kvStore.set(iPadReaderLayout.rawValue, forKey: Keys.iPadReaderLayout) } }
     }
 
     // MARK: - Read Later
 
     /// When true, a count badge appears on the Read Later tab.
     var showReadLaterBadge: Bool {
-        didSet { kvStore.set(showReadLaterBadge, forKey: Keys.showReadLaterBadge) }
+        didSet { persist { kvStore.set(showReadLaterBadge, forKey: Keys.showReadLaterBadge) } }
     }
 
     // MARK: - App Theme
 
     var selectedAppTheme: AppThemePreset {
-        didSet { kvStore.set(selectedAppTheme.rawValue, forKey: Keys.selectedAppTheme) }
+        didSet { persist { kvStore.set(selectedAppTheme.rawValue, forKey: Keys.selectedAppTheme) } }
     }
 
     /// Custom accent color stored as a 6-char lowercase hex string, or nil for the preset default.
     var customAccentHex: String? {
         didSet {
-            if let hex = customAccentHex {
-                kvStore.set(hex, forKey: Keys.customAccentHex)
-            } else {
-                kvStore.removeObject(forKey: Keys.customAccentHex)
+            persist {
+                if let hex = customAccentHex {
+                    kvStore.set(hex, forKey: Keys.customAccentHex)
+                } else {
+                    kvStore.removeObject(forKey: Keys.customAccentHex)
+                }
             }
         }
     }
@@ -559,7 +433,7 @@ final class UserSettings {
     // MARK: - Color scheme override
 
     var appColorScheme: AppColorScheme {
-        didSet { kvStore.set(appColorScheme.rawValue, forKey: Keys.appColorScheme) }
+        didSet { persist { kvStore.set(appColorScheme.rawValue, forKey: Keys.appColorScheme) } }
     }
 
     // MARK: - Resume last story
@@ -567,28 +441,30 @@ final class UserSettings {
     /// How the app resumes the last opened story on cold launch. Only read at
     /// launch — changing it has no live effect this session.
     var resumeMode: ResumeMode {
-        didSet { kvStore.set(resumeMode.rawValue, forKey: Keys.resumeMode) }
+        didSet { persist { kvStore.set(resumeMode.rawValue, forKey: Keys.resumeMode) } }
     }
 
     // MARK: - Curated sources
 
     /// When true, the "loading may take a moment" banner is permanently hidden.
     var hideCuratedLoadingBanner: Bool {
-        didSet { kvStore.set(hideCuratedLoadingBanner, forKey: Keys.hideCuratedLoadingBanner) }
+        didSet { persist { kvStore.set(hideCuratedLoadingBanner, forKey: Keys.hideCuratedLoadingBanner) } }
     }
 
     /// Which built-in curated sources are enabled (stored by rawValue).
     var enabledBuiltInCuratedSources: Set<String> {
         didSet {
-            kvStore.set(Array(enabledBuiltInCuratedSources), forKey: Keys.enabledBuiltInCuratedSources)
+            persist { kvStore.set(Array(enabledBuiltInCuratedSources), forKey: Keys.enabledBuiltInCuratedSources) }
         }
     }
 
     /// User-added custom curated feed URLs.
     var customCuratedFeeds: [CustomCuratedFeed] {
         didSet {
-            if let data = try? JSONEncoder().encode(customCuratedFeeds) {
-                kvStore.set(data, forKey: Keys.customCuratedFeeds)
+            persist {
+                if let data = try? JSONEncoder().encode(customCuratedFeeds) {
+                    kvStore.set(data, forKey: Keys.customCuratedFeeds)
+                }
             }
         }
     }
@@ -598,35 +474,35 @@ final class UserSettings {
     /// Cache size cap in megabytes. Mirrored into DiskCache on change.
     var cacheSizeCapMB: Int {
         didSet {
-            kvStore.set(cacheSizeCapMB, forKey: Keys.cacheSizeCapMB)
+            persist { kvStore.set(cacheSizeCapMB, forKey: Keys.cacheSizeCapMB) }
             Task { await DiskCache.shared.setSizeCap(cacheSizeCapMB * 1024 * 1024) }
         }
     }
 
     /// When true, enabled feeds are refreshed + their items prefetched on launch/foreground (WiFi only).
     var backgroundFeedPrefetch: Bool {
-        didSet { kvStore.set(backgroundFeedPrefetch, forKey: Keys.backgroundFeedPrefetch) }
+        didSet { persist { kvStore.set(backgroundFeedPrefetch, forKey: Keys.backgroundFeedPrefetch) } }
     }
 
     /// Sub-toggle: also extract + cache article bodies during background prefetch (heavier).
     var backgroundPrefetchArticles: Bool {
-        didSet { kvStore.set(backgroundPrefetchArticles, forKey: Keys.backgroundPrefetchArticles) }
+        didSet { persist { kvStore.set(backgroundPrefetchArticles, forKey: Keys.backgroundPrefetchArticles) } }
     }
 
     /// Remembered feed selection for the "Prepare for offline" sheet.
     var offlineDownloadCategories: [StoryCategory] {
-        didSet { kvStore.set(offlineDownloadCategories.map(\.rawValue), forKey: Keys.offlineDownloadCategories) }
+        didSet { persist { kvStore.set(offlineDownloadCategories.map(\.rawValue), forKey: Keys.offlineDownloadCategories) } }
     }
 
     /// Remembered download depth (stories per feed) for "Prepare for offline".
     var offlineDownloadDepth: Int {
-        didSet { kvStore.set(offlineDownloadDepth, forKey: Keys.offlineDownloadDepth) }
+        didSet { persist { kvStore.set(offlineDownloadDepth, forKey: Keys.offlineDownloadDepth) } }
     }
 
     /// "Frequent Flyer": surfaces a one-tap airplane shortcut in the feed toolbar that
     /// opens Prepare-for-offline, for travellers who download often.
     var frequentFlyerEnabled: Bool {
-        didSet { kvStore.set(frequentFlyerEnabled, forKey: Keys.frequentFlyerEnabled) }
+        didSet { persist { kvStore.set(frequentFlyerEnabled, forKey: Keys.frequentFlyerEnabled) } }
     }
 
     // MARK: - Init
@@ -682,8 +558,12 @@ final class UserSettings {
         // in the KV store, one device completing migration could suppress migration
         // on another device that hasn't run yet.
         guard !ud.bool(forKey: migrationKey) else { return }
+        // Must list every persisted key: any key absent here is silently dropped on
+        // upgrade (the user's old UserDefaults value is never copied into the KV store).
+        // Keep this in sync with `Keys` — DESLOPPIFY M1.
         let allKeys: [String] = [
             Keys.autoLoadReplyCount, Keys.maxAutoExpandDepth,
+            Keys.maxConcurrentFetchesWifi, Keys.maxConcurrentFetchesCellular,
             Keys.enabledOptionalTabs, Keys.tabOrder,
             Keys.commentRenderingStyle, Keys.hideCuratedLoadingBanner,
             Keys.enabledBuiltInCuratedSources, Keys.customCuratedFeeds,
@@ -692,7 +572,9 @@ final class UserSettings {
             Keys.defaultLinkOpen, Keys.commentLinkOpen, Keys.readerLinkOpen,
             Keys.hnThreadLinkOpen,
             Keys.hiddenPostsExpiry, Keys.readBehaviour,
-            Keys.readerShowImagesByDefault, Keys.safariReaderMode, Keys.codeWrapLines, Keys.showReadLaterBadge,
+            Keys.readerShowImagesByDefault, Keys.safariReaderMode, Keys.codeWrapLines,
+            Keys.glassComments, Keys.wordsOfWisdom, Keys.iPadReaderLayout,
+            Keys.showReadLaterBadge,
             Keys.selectedAppTheme, Keys.customAccentHex, Keys.appColorScheme,
             Keys.resumeMode,
             Keys.cacheSizeCapMB, Keys.backgroundFeedPrefetch, Keys.backgroundPrefetchArticles,
@@ -709,6 +591,8 @@ final class UserSettings {
 
     private func applyExternalChanges(_ notification: Notification) {
         guard let changedKeys = notification.userInfo?[NSUbiquitousKeyValueStoreChangedKeysKey] as? [String] else { return }
+        isApplyingExternalChanges = true
+        defer { isApplyingExternalChanges = false }
         for key in changedKeys {
             switch key {
             case Keys.autoLoadReplyCount:
