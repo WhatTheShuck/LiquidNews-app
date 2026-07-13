@@ -37,6 +37,7 @@ struct CommentView: View {
     @State private var showReply = false
     @State private var actionError: String?
     @State private var hasUpvoted = false
+    @State private var voteInFlight = false
     @State private var showActions = false
 
     // Per-comment render override (nil = follow global setting)
@@ -184,13 +185,19 @@ struct CommentView: View {
                 hasUpvoted: hasUpvoted,
                 isOnline: NetworkMonitor.shared.currentlyOnline(),
                 onToggleUpvote: {
+                    // Optimistic: flip immediately, revert + surface the error
+                    // if the vote fails (matches the story upvote behaviour).
+                    guard !voteInFlight else { return }
+                    voteInFlight = true
+                    let wasUpvoted = hasUpvoted
+                    hasUpvoted = !wasUpvoted
                     Task {
-                        if hasUpvoted {
-                            try? await HNAuthService.shared.vote(itemId: comment.id, how: "un")
-                            hasUpvoted = false
-                        } else {
-                            try? await HNAuthService.shared.vote(itemId: comment.id, how: "up")
-                            hasUpvoted = true
+                        defer { voteInFlight = false }
+                        do {
+                            try await HNAuthService.shared.vote(itemId: comment.id, how: wasUpvoted ? .un : .up)
+                        } catch {
+                            hasUpvoted = wasUpvoted
+                            actionError = error.localizedDescription
                         }
                     }
                 },

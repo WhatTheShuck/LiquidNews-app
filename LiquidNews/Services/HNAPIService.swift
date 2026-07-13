@@ -103,7 +103,15 @@ actor HNAPIService {
             }
         }
         if ids.isEmpty {
-            HNScrapeLog.parseReturnedEmpty("parseHNStoryIDs")
+            // Benign empties: HN's rate-limit interstitial, and login-gated feeds
+            // (e.g. /pool) which serve the login form instead of story rows.
+            if html.contains("not able to serve your requests this quickly") {
+                HNScrapeLog.parseEmptyExpected("parseHNStoryIDs", reason: "rate limited by HN")
+            } else if html.contains("action=login") || html.contains("action=\"login\"") {
+                HNScrapeLog.parseEmptyExpected("parseHNStoryIDs", reason: "login-gated feed served the login page")
+            } else {
+                HNScrapeLog.parseReturnedEmpty("parseHNStoryIDs")
+            }
         }
         return ids
     }

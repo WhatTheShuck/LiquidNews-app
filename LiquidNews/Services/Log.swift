@@ -22,4 +22,6 @@ extension Logger {
     static let feed = Logger(subsystem: subsystem, category: "feed")
     /// Keychain reads/writes.
     static let keychain = Logger(subsystem: subsystem, category: "keychain")
+    /// HN HTML-scrape breakage signal (see `HNScrapeLog`).
+    static let hnMarkup = Logger(subsystem: subsystem, category: "hn-markup")
 }

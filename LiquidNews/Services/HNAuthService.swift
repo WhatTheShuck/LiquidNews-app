@@ -82,14 +82,21 @@ final class HNAuthService {
 
     // MARK: - Engagement actions
 
-    /// Votes on an item. `how` is `"up"` to upvote or `"un"` to unvote.
-    /// Downvote (`"down"`) requires sufficient karma and only works on comments.
-    func vote(itemId: Int, how: String) async throws {
+    /// Vote direction, spelled the way HN's `how` query parameter expects.
+    /// Downvote (`"down"`) requires sufficient karma and only works on comments,
+    /// so it is deliberately not modelled.
+    enum VoteDirection: String {
+        case up   // upvote
+        case un   // retract an upvote
+    }
+
+    /// Votes on an item.
+    func vote(itemId: Int, how: VoteDirection) async throws {
         let html = try await fetchItemPageHTML(itemId: itemId)
-        guard let auth = parseVoteAuth(from: html, itemId: itemId, how: how) else {
+        guard let auth = parseVoteAuth(from: html, itemId: itemId, how: how.rawValue) else {
             throw HNAuthError.actionFailed
         }
-        let voteURL = URL(string: "https://news.ycombinator.com/vote?id=\(itemId)&how=\(how)&auth=\(auth)&goto=news")!
+        let voteURL = URL(string: "https://news.ycombinator.com/vote?id=\(itemId)&how=\(how.rawValue)&auth=\(auth)&goto=news")!
         let _ = try await hnRequest(url: voteURL)
     }
 
@@ -186,6 +193,14 @@ final class HNAuthService {
         return String(data: data, encoding: .utf8) ?? ""
     }
 
+    /// True when the fetched page has no logged-in session: every HN page rendered
+    /// for a logged-in user carries a `logout` link in the top bar. Without a session,
+    /// auth links (vote/flag) and the reply form are absent *by design*, so an empty
+    /// parse of a logged-out page is not a markup-change signal.
+    private func isLoggedOutPage(_ html: String) -> Bool {
+        !html.contains("href=\"logout") && !html.contains("href='logout")
+    }
+
     private func parseVoteAuth(from html: String, itemId: Int, how: String) -> String? {
         // HN vote links appear as: vote?id=ITEMID&amp;how=DIRECTION&amp;auth=TOKEN
         for pattern in ["vote?id=\(itemId)&amp;how=\(how)&amp;auth=",
@@ -194,6 +209,18 @@ final class HNAuthService {
                 let token = String(html[range.upperBound...].prefix(while: { $0.isHexDigit }))
                 if !token.isEmpty { return token }
             }
+        }
+        // Benign absences, in likelihood order. A vote-state desync (HN already has
+        // the vote we're casting) renders only the opposite direction's link.
+        if isLoggedOutPage(html) {
+            HNScrapeLog.parseEmptyExpected("parseVoteAuth", reason: "no session (expired or logged out)")
+            return nil
+        }
+        let opposite = how == "up" ? "un" : "up"
+        if html.contains("vote?id=\(itemId)&amp;how=\(opposite)&amp;auth=")
+            || html.contains("vote?id=\(itemId)&how=\(opposite)&auth=") {
+            HNScrapeLog.parseEmptyExpected("parseVoteAuth", reason: "item \(itemId) already in '\(opposite)' state")
+            return nil
         }
         HNScrapeLog.parseReturnedEmpty("parseVoteAuth", context: "item \(itemId) how \(how)")
         return nil
@@ -206,6 +233,16 @@ final class HNAuthService {
                 let token = String(html[range.upperBound...].prefix(while: { $0.isHexDigit }))
                 if !token.isEmpty { return token }
             }
+        }
+        // Benign absences: no session, or the item is already flagged (the unflag
+        // link carries an `un=t` parameter our flag pattern doesn't match).
+        if isLoggedOutPage(html) {
+            HNScrapeLog.parseEmptyExpected("parseFlagAuth", reason: "no session (expired or logged out)")
+            return nil
+        }
+        if html.contains("flag?id=\(itemId)&amp;un=t") || html.contains("flag?id=\(itemId)&un=t") {
+            HNScrapeLog.parseEmptyExpected("parseFlagAuth", reason: "item \(itemId) already flagged")
+            return nil
         }
         HNScrapeLog.parseReturnedEmpty("parseFlagAuth", context: "item \(itemId)")
         return nil
@@ -227,6 +264,11 @@ final class HNAuthService {
                 let hmac = String(after.prefix(while: { $0 != "\"" && $0 != "'" && $0 != ">" && !$0.isWhitespace }))
                 if !hmac.isEmpty { return hmac }
             }
+        }
+        // The reply form (and its hmac) is only rendered for a logged-in session.
+        if isLoggedOutPage(html) {
+            HNScrapeLog.parseEmptyExpected("parseHmac", reason: "no session (expired or logged out)")
+            return nil
         }
         HNScrapeLog.parseReturnedEmpty("parseHmac")
         return nil

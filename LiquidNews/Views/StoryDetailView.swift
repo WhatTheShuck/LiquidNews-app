@@ -74,6 +74,7 @@ struct StoryDetailView: View {
     @State private var showReply = false
     @State private var actionError: String?
     @State private var hasUpvoted = false
+    @State private var voteInFlight = false
     @State private var localScore: Int
     @Environment(\.colorScheme) private var colorScheme
 
@@ -381,15 +382,22 @@ struct StoryDetailView: View {
         // ── Engagement (auth-gated) ──
         Section {
             Button {
+                // Optimistic: flip immediately so the tap feels instant, then
+                // revert (and surface the error) if HN rejects the vote. The
+                // in-flight guard stops a second tap racing a contradictory request.
+                guard !voteInFlight else { return }
+                voteInFlight = true
+                let wasUpvoted = hasUpvoted
+                hasUpvoted = !wasUpvoted
+                localScore += wasUpvoted ? -1 : 1
                 Task {
-                    if hasUpvoted {
-                        try? await HNAuthService.shared.vote(itemId: story.id, how: "un")
-                        localScore -= 1
-                        hasUpvoted = false
-                    } else {
-                        try? await HNAuthService.shared.vote(itemId: story.id, how: "up")
-                        localScore += 1
-                        hasUpvoted = true
+                    defer { voteInFlight = false }
+                    do {
+                        try await HNAuthService.shared.vote(itemId: story.id, how: wasUpvoted ? .un : .up)
+                    } catch {
+                        hasUpvoted = wasUpvoted
+                        localScore += wasUpvoted ? 1 : -1
+                        actionError = error.localizedDescription
                     }
                 }
             } label: {
