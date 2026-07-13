@@ -12,21 +12,28 @@ enum KeychainHelper {
     /// Stores or overwrites a string value for the given key.
     static func save(_ value: String, forKey key: String) {
         guard let data = value.data(using: .utf8) else { return }
-        let query: [CFString: Any] = [
-            kSecClass:            kSecClassGenericPassword,
-            kSecAttrService:      service,
-            kSecAttrAccount:      key,
-            kSecValueData:        data,
-            // Available after the first unlock following a boot, including while
-            // locked in the background — matches how the app refreshes state.
-            kSecAttrAccessible:   kSecAttrAccessibleAfterFirstUnlock
+
+        // Delete by identity only (class + service + account). Attributes like
+        // kSecAttrAccessible must NOT appear here: an item written by a prior app
+        // version under the default accessibility wouldn't match, so the delete
+        // would miss it and the SecItemAdd below would fail with
+        // errSecDuplicateItem — silently dropping the credential update on upgrade.
+        let identityQuery: [CFString: Any] = [
+            kSecClass:       kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecAttrAccount: key
         ]
-        // Delete any existing item first; errSecItemNotFound is expected and fine.
-        let deleteStatus = SecItemDelete(query as CFDictionary)
+        let deleteStatus = SecItemDelete(identityQuery as CFDictionary)
         if deleteStatus != errSecSuccess && deleteStatus != errSecItemNotFound {
             Logger.keychain.error("SecItemDelete failed for key \(key, privacy: .public): \(deleteStatus)")
         }
-        let addStatus = SecItemAdd(query as CFDictionary, nil)
+
+        var addQuery = identityQuery
+        addQuery[kSecValueData] = data
+        // Available after the first unlock following a boot, including while
+        // locked in the background — matches how the app refreshes state.
+        addQuery[kSecAttrAccessible] = kSecAttrAccessibleAfterFirstUnlock
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         if addStatus != errSecSuccess {
             Logger.keychain.error("SecItemAdd failed for key \(key, privacy: .public): \(addStatus)")
         }

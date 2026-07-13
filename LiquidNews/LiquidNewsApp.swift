@@ -67,6 +67,10 @@ struct LiquidNewsApp: App {
                             enforceTrials()
                         }
                         Task { await BackgroundPrefetcher.runIfEnabled() }
+                    } else if phase == .background {
+                        // Flush any debounced iCloud write before suspension so a
+                        // queued save isn't lost.
+                        SavedPostsStore.shared.flushPendingSync()
                     }
                 }
                 .alert("Trial Ended", isPresented: $showThemeNudge) {

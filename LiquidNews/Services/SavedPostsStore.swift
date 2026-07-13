@@ -153,7 +153,7 @@ final class SavedPostsStore {
 
     func toggleFavourite(_ id: Int) {
         let isAdding = !favouriteIDs.contains(id)
-        if favouriteIDs.contains(id) { favouriteIDs.remove(id) } else { favouriteIDs.insert(id) }
+        if isAdding { favouriteIDs.insert(id) } else { favouriteIDs.remove(id) }
         let arr = Array(favouriteIDs)
         UserDefaults.standard.set(arr, forKey: favouritesKey)
         kvStore.set(arr, forKey: favouritesKey)
@@ -175,12 +175,12 @@ final class SavedPostsStore {
 
     func toggleReadLater(_ id: Int) {
         let isAdding = !readLaterIDs.contains(id)
-        if readLaterIDs.contains(id) {
-            readLaterIDs.remove(id)
-            readLaterDates.removeValue(forKey: id)
-        } else {
+        if isAdding {
             readLaterIDs.insert(id)
             readLaterDates[id] = Date()
+        } else {
+            readLaterIDs.remove(id)
+            readLaterDates.removeValue(forKey: id)
         }
         let arr = Array(readLaterIDs)
         UserDefaults.standard.set(arr, forKey: readLaterKey)
@@ -464,21 +464,6 @@ final class SavedPostsStore {
         if syncCloud { syncToiCloud() }
     }
 
-    // MARK: - Legacy / pins
-
-    private let pinsKey = "LN_pins"
-    private(set) var pinnedIDs: Set<Int> = []
-
-    // NOTE: pinnedIDs are intentionally not included in UserDataExport and will not
-    // sync to iCloud. Pins are a local-only legacy feature.
-    func togglePin(_ id: Int) {
-        if pinnedIDs.contains(id) { pinnedIDs.remove(id) } else { pinnedIDs.insert(id) }
-        UserDefaults.standard.set(Array(pinnedIDs), forKey: pinsKey)
-        syncToiCloud()
-    }
-
-    func isPinned(_ id: Int) -> Bool { pinnedIDs.contains(id) }
-
     // MARK: - iCloud sync
 
     /// URL of the sync file in the iCloud ubiquitous container.
@@ -502,7 +487,17 @@ final class SavedPostsStore {
             // download if it's cloud-only. The read below will succeed if the file
             // is already present; if not, the next foreground refresh will catch it.
             try? FileManager.default.startDownloadingUbiquitousItem(at: url)
-            return try? Data(contentsOf: url)
+            // Coordinated read so we never see a half-written file or race a
+            // remote update landing mid-read.
+            var readData: Data?
+            var coordError: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordError) { readURL in
+                readData = try? Data(contentsOf: readURL)
+            }
+            if let coordError {
+                Logger.sync.error("mergeFromiCloud: coordination failed: \(coordError.localizedDescription, privacy: .public)")
+            }
+            return readData
         }.value
         guard let data else { return }
         // importData mutates @Observable state — run on main thread.
@@ -516,9 +511,45 @@ final class SavedPostsStore {
         }
     }
 
-    /// Writes the current full state to the iCloud container file in the background.
-    /// Called after every local save so other devices receive the latest data.
+    // MARK: - iCloud file write (debounced)
+
+    /// Debounces the iCloud container write. Each mutating path calls
+    /// `syncToiCloud()`; a burst (e.g. marking several stories read in a row)
+    /// cancels the previously scheduled write and reschedules, so the whole burst
+    /// produces a single full-dataset serialization + write instead of one per
+    /// mutation. IDs already sync in real time via `NSUbiquitousKeyValueStore`, so
+    /// this file write can afford to lag slightly. Flushed on backgrounding via
+    /// `flushPendingSync()`.
+    private var pendingSyncTask: Task<Void, Never>?
+    private let syncDebounce: Duration = .milliseconds(750)
+
+    /// Schedules a coalesced write of the current full state to the iCloud
+    /// container file. Called after every local save.
     private func syncToiCloud() {
+        pendingSyncTask?.cancel()
+        let delay = syncDebounce
+        pendingSyncTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            self.pendingSyncTask = nil
+            self.writeToiCloudNow()
+        }
+    }
+
+    /// Forces any pending debounced write to run immediately. Call when the app is
+    /// heading to the background so a queued write isn't lost.
+    @MainActor
+    func flushPendingSync() {
+        guard pendingSyncTask != nil else { return }
+        pendingSyncTask?.cancel()
+        pendingSyncTask = nil
+        writeToiCloudNow()
+    }
+
+    /// Serializes and writes the full dataset to the iCloud container file,
+    /// coordinated via `NSFileCoordinator` so a cross-device read never sees a
+    /// half-written file and a concurrent remote update isn't clobbered.
+    private func writeToiCloudNow() {
         guard let data = try? exportData() else {
             Logger.sync.error("syncToiCloud: exportData() failed")
             return
@@ -529,7 +560,17 @@ final class SavedPostsStore {
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            try? data.write(to: url, options: .atomic)
+            var coordError: NSError?
+            NSFileCoordinator().coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { writeURL in
+                do {
+                    try data.write(to: writeURL, options: .atomic)
+                } catch {
+                    Logger.sync.error("syncToiCloud: write failed: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+            if let coordError {
+                Logger.sync.error("syncToiCloud: coordination failed: \(coordError.localizedDescription, privacy: .public)")
+            }
         }
     }
 
@@ -641,7 +682,8 @@ final class SavedPostsStore {
 
         // 4. Remove the local UserDefaults mirrors (NOT the migration flag).
         let ud = UserDefaults.standard
-        for key in [favouritesKey, readLaterKey, readLaterDatesKey, pinsKey] {
+        // LN_pins is a leftover from the deleted legacy pin feature — clear it too.
+        for key in [favouritesKey, readLaterKey, readLaterDatesKey, "LN_pins"] {
             ud.removeObject(forKey: key)
         }
 
@@ -653,7 +695,6 @@ final class SavedPostsStore {
         hiddenIDs      = []
         readHistory    = []
         readIDs        = []
-        pinnedIDs      = []
 
         return """
         Cleared \(kvKeys.count) iCloud KV key(s).
