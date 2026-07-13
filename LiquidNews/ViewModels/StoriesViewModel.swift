@@ -56,11 +56,7 @@ final class StoriesViewModel {
         if let cachedIDs = await HNCache.shared.cachedFeed(category), !cachedIDs.isEmpty {
             allIDs = cachedIDs
             let end = min(pageSize, cachedIDs.count)
-            var cachedItems: [HNItem] = []
-            for id in cachedIDs.prefix(end) {
-                if let item = await HNCache.shared.cachedItem(id: id) { cachedItems.append(item) }
-            }
-            stories = cachedItems
+            stories = await HNCache.shared.cachedItems(ids: cachedIDs.prefix(end))
             loadedCount = end
         } else {
             isLoading = true

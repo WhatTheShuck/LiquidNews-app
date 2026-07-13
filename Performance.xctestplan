@@ -1,0 +1,33 @@
+{
+  "configurations" : [
+    {
+      "id" : "E7B2D14E-0000-0000-0000-000000000002",
+      "name" : "Performance",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:LiquidNews.xcodeproj",
+      "identifier" : "66853FE12F724480001B84E8",
+      "name" : "LiquidNews"
+    }
+  },
+  "testTargets" : [
+    {
+      "selectedTests" : [
+        "CommentsPerfTests",
+        "HNAPIServicePerfTests",
+        "ReaderPerfTests"
+      ],
+      "target" : {
+        "containerPath" : "container:LiquidNews.xcodeproj",
+        "identifier" : "AA000001000000000000008",
+        "name" : "LiquidNewsTests"
+      }
+    }
+  ],
+  "version" : 1
+}

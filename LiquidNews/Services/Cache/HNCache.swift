@@ -26,12 +26,23 @@ actor HNCache {
         return try? decoder.decode(HNItem.self, from: data)
     }
 
+    /// Batched cache snapshot for a set of ids. Missing/undecodable entries are
+    /// skipped, so the result may be smaller than `ids`. Order is unspecified —
+    /// callers sort. A single actor hop for the whole set (vs one per id).
+    func cachedItems(ids: some Sequence<Int>) async -> [HNItem] {
+        var items: [HNItem] = []
+        for id in ids {
+            if let item = await cachedItem(id: id) { items.append(item) }
+        }
+        return items
+    }
+
     // NOTE: Article-body caching is intentionally deferred. The live reader
     // (`ArticleReaderView`) runs its own WKWebView + Readability.js pipeline and does
     // not currently write through here, so `storeArticle`/`cachedArticle` have no
     // production producer yet (exercised only by tests). `setPinnedArticle` is still
     // called defensively from `SavedPostsStore` cleanup. Kept as the seam for when
-    // article-body caching is wired up. See DESLOPPIFY M2.
+    // article-body caching is wired up.
     func cachedArticle(id: Int) async -> ReadabilityArticle? {
         guard let data = await disk.data(for: .article(id)) else { return nil }
         return try? decoder.decode(ReadabilityArticle.self, from: data)

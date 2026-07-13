@@ -17,9 +17,15 @@
 		AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001A /* DetailModeMappingTests.swift */; };
 		AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA00000100000000000001C /* IPadReaderLayoutTests.swift */; };
 		AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000021 /* WordsOfWisdomTests.swift */; };
+		AA000001000000000000030 /* CustomBackgroundTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000031 /* CustomBackgroundTests.swift */; };
 		AA0000010000000000000C0 /* WhatsNewGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000C1 /* WhatsNewGateTests.swift */; };
 		AA0000010000000000000C2 /* CoachMarkEligibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000C3 /* CoachMarkEligibilityTests.swift */; };
 		AA0000010000000000000C4 /* CoachMarkStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000010000000000000C5 /* CoachMarkStoreTests.swift */; };
+		AA000001000000000000E02 /* StubURLProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000E01 /* StubURLProtocol.swift */; };
+		AA000001000000000000E04 /* HNAPIServicePerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000E03 /* HNAPIServicePerfTests.swift */; };
+		AA000001000000000000E06 /* PerfSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000E05 /* PerfSupport.swift */; };
+		AA000001000000000000E08 /* CommentsPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000E07 /* CommentsPerfTests.swift */; };
+		AA000001000000000000E0A /* ReaderPerfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000E09 /* ReaderPerfTests.swift */; };
 		AA000001000000000000F02 /* ImgurResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F01 /* ImgurResolverTests.swift */; };
 		AA000001000000000000F04 /* ReaderPreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F03 /* ReaderPreferencesTests.swift */; };
 		AA000001000000000000F06 /* ImgurImageActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F05 /* ImgurImageActionsTests.swift */; };
@@ -80,9 +86,15 @@
 		AA00000100000000000001A /* DetailModeMappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailModeMappingTests.swift; sourceTree = "<group>"; };
 		AA00000100000000000001C /* IPadReaderLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IPadReaderLayoutTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000021 /* WordsOfWisdomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsOfWisdomTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000031 /* CustomBackgroundTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomBackgroundTests.swift; sourceTree = "<group>"; };
 		AA0000010000000000000C1 /* WhatsNewGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsNewGateTests.swift; sourceTree = "<group>"; };
 		AA0000010000000000000C3 /* CoachMarkEligibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachMarkEligibilityTests.swift; sourceTree = "<group>"; };
 		AA0000010000000000000C5 /* CoachMarkStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachMarkStoreTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000E01 /* StubURLProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StubURLProtocol.swift; path = Support/StubURLProtocol.swift; sourceTree = "<group>"; };
+		AA000001000000000000E03 /* HNAPIServicePerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNAPIServicePerfTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000E05 /* PerfSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PerfSupport.swift; path = Support/PerfSupport.swift; sourceTree = "<group>"; };
+		AA000001000000000000E07 /* CommentsPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsPerfTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000E09 /* ReaderPerfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPerfTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F01 /* ImgurResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurResolverTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F03 /* ReaderPreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderPreferencesTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F05 /* ImgurImageActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImgurImageActionsTests.swift; sourceTree = "<group>"; };
@@ -202,6 +214,7 @@
 				AA000001000000000000014 /* HNAPIServiceTests.swift */,
 				AA000001000000000000019 /* StoriesViewModelTests.swift */,
 				AA000001000000000000021 /* WordsOfWisdomTests.swift */,
+				AA000001000000000000031 /* CustomBackgroundTests.swift */,
 				AA00000100000000000001A /* DetailModeMappingTests.swift */,
 				AA00000100000000000001C /* IPadReaderLayoutTests.swift */,
 				AA000001000000000000F11 /* RecentStoryStoreTests.swift */,
@@ -209,6 +222,11 @@
 				AA000001000000000000F15 /* ResumeModeTests.swift */,
 				AA000001000000000000F17 /* DeviceKindTests.swift */,
 				AA000001000000000000F19 /* ResumeResolverTests.swift */,
+				AA000001000000000000E01 /* StubURLProtocol.swift */,
+				AA000001000000000000E03 /* HNAPIServicePerfTests.swift */,
+				AA000001000000000000E05 /* PerfSupport.swift */,
+				AA000001000000000000E07 /* CommentsPerfTests.swift */,
+				AA000001000000000000E09 /* ReaderPerfTests.swift */,
 			);
 			path = LiquidNewsTests;
 			sourceTree = "<group>";
@@ -377,6 +395,7 @@
 				AA000001000000000000015 /* HNAPIServiceTests.swift in Sources */,
 				AA000001000000000000018 /* StoriesViewModelTests.swift in Sources */,
 				AA000001000000000000020 /* WordsOfWisdomTests.swift in Sources */,
+				AA000001000000000000030 /* CustomBackgroundTests.swift in Sources */,
 				AA00000100000000000001B /* DetailModeMappingTests.swift in Sources */,
 				AA00000100000000000001D /* IPadReaderLayoutTests.swift in Sources */,
 				AA000001000000000000F12 /* RecentStoryStoreTests.swift in Sources */,
@@ -384,6 +403,11 @@
 				AA000001000000000000F16 /* ResumeModeTests.swift in Sources */,
 				AA000001000000000000F18 /* DeviceKindTests.swift in Sources */,
 				AA000001000000000000F1A /* ResumeResolverTests.swift in Sources */,
+				AA000001000000000000E02 /* StubURLProtocol.swift in Sources */,
+				AA000001000000000000E04 /* HNAPIServicePerfTests.swift in Sources */,
+				AA000001000000000000E06 /* PerfSupport.swift in Sources */,
+				AA000001000000000000E08 /* CommentsPerfTests.swift in Sources */,
+				AA000001000000000000E0A /* ReaderPerfTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

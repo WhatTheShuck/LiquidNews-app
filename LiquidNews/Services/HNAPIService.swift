@@ -9,9 +9,9 @@
 
 import Foundation
 
-actor HNAPIService {
+final class HNAPIService: @unchecked Sendable {
 
-    nonisolated static let shared = HNAPIService()
+    static let shared = HNAPIService()
 
     private let baseURL = "https://hacker-news.firebaseio.com/v0"
     private let decoder = JSONDecoder()
@@ -22,19 +22,25 @@ actor HNAPIService {
     }
 
     // MARK: - Caches
+    //
+    // Fetches run concurrently (see `items(ids:)`), so the caches must be safe for
+    // concurrent access. They're guarded by an internal lock rather than actor
+    // isolation: a warm read is then a cheap lock acquire on the caller's thread
+    // instead of a cross-actor hop — the latter measured ~100x slower when a large
+    // thread re-resolves already-cached items while scrolling.
 
     // Items don't change, so we keep them forever in the session.
-    private var itemCache: [Int: HNItem] = [:]
+    private let itemCache = LockedCache<Int, HNItem>()
 
     // ID lists do change (new stories get posted), so we expire them.
     private struct CachedList {
         let ids: [Int]
         let fetchedAt: Date
     }
-    private var listCache: [String: CachedList] = [:]
+    private let listCache = LockedCache<String, CachedList>()
     private let listCacheTTL: TimeInterval = 5 * 60  // 5 minutes
 
-    nonisolated private init() {}
+    private init() {}
 
     // MARK: - Story ID lists
 
@@ -140,7 +146,8 @@ actor HNAPIService {
         }
     }
 
-    /// Fetch multiple items concurrently (max 6 in-flight), preserving original order.
+    /// Fetch multiple items concurrently, preserving original order. The in-flight
+    /// limit comes from the user's WiFi/cellular concurrency setting.
     ///
     /// Per-item failures are tolerated: each `item(id:)` already falls back to the
     /// persistent cache, and any id that resolves to neither network nor cache is simply
@@ -351,4 +358,24 @@ actor HNAPIService {
 
 enum RootStoryError: Error {
     case noParent
+}
+
+// MARK: - Locked cache
+
+/// A minimal dictionary guarded by a lock, for state shared across concurrent
+/// fetches. Reads/writes are a lock acquire on the calling thread — deliberately
+/// cheaper than routing every access through actor isolation.
+private final class LockedCache<Key: Hashable, Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [Key: Value] = [:]
+
+    subscript(key: Key) -> Value? {
+        get { lock.lock(); defer { lock.unlock() }; return storage[key] }
+        set { lock.lock(); defer { lock.unlock() }; storage[key] = newValue }
+    }
+
+    func removeValue(forKey key: Key) {
+        lock.lock(); defer { lock.unlock() }
+        storage.removeValue(forKey: key)
+    }
 }
