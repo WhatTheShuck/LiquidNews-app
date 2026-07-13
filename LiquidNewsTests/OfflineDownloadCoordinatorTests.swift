@@ -90,4 +90,75 @@ final class OfflineDownloadCoordinatorTests: XCTestCase {
         private(set) var ids: [Int] = []
         func record(_ id: Int) { ids.append(id) }
     }
+
+    /// Regression (DESLOPPIFY C2): Cancel must actually stop an in-flight download.
+    /// The coordinator owns the task it starts, so `cancel()` cancels the real download —
+    /// items past the one in flight are never fetched.
+    func test_cancel_stopsInFlightDownload() async {
+        let fetcher = GateFetcher()
+        fetcher.feedIDs = [.top: [1, 2, 3]]
+        for id in [1, 2, 3] { fetcher.itemsByID[id] = HNItem(id: id, type: .story, title: "S\(id)") }
+        let cache = HNCache(disk: DiskCache(directory: tempDir, sizeCap: 10_000_000), fetcher: fetcher)
+        let coordinator = OfflineDownloadCoordinator(fetcher: fetcher, cache: cache, prefetchArticle: { _ in })
+
+        let download = coordinator.start(plan: OfflinePlan(categories: [.top], depth: 3))
+        await fetcher.gate.waitUntilReached()   // first item fetch is now in flight
+        coordinator.cancel()
+        await fetcher.gate.open()
+        await download.value
+
+        let two = await cache.cachedItem(id: 2)
+        let three = await cache.cachedItem(id: 3)
+        XCTAssertNil(two, "items after the in-flight one must not be fetched after cancel")
+        XCTAssertNil(three, "items after the in-flight one must not be fetched after cancel")
+        XCTAssertFalse(coordinator.isDownloading)
+        XCTAssertNil(coordinator.progress)
+    }
+
+    /// A fetcher whose first `item(id:)` call parks at a gate so the test can cancel
+    /// mid-download deterministically, then release the fetch.
+    private final class GateFetcher: HNFetching, @unchecked Sendable {
+        var itemsByID: [Int: HNItem] = [:]
+        var feedIDs: [StoryCategory: [Int]] = [:]
+        let gate = Gate()
+        func item(id: Int) async throws -> HNItem {
+            await gate.waitAtGate()
+            guard let i = itemsByID[id] else { throw URLError(.fileDoesNotExist) }
+            return i
+        }
+        func items(ids: [Int]) async throws -> [HNItem] {
+            var result: [HNItem] = []
+            for id in ids { result.append(try await item(id: id)) }
+            return result
+        }
+        func storyIDs(for category: StoryCategory) async throws -> [Int] { feedIDs[category] ?? [] }
+    }
+
+    private actor Gate {
+        private var opened = false
+        private var reached = false
+        private var gateWaiters: [CheckedContinuation<Void, Never>] = []
+        private var reachedWaiters: [CheckedContinuation<Void, Never>] = []
+
+        /// Called by the fetcher: signals arrival, then parks until `open()`.
+        func waitAtGate() async {
+            reached = true
+            for c in reachedWaiters { c.resume() }
+            reachedWaiters.removeAll()
+            if opened { return }
+            await withCheckedContinuation { gateWaiters.append($0) }
+        }
+
+        /// Called by the test: suspends until the fetcher has arrived at the gate.
+        func waitUntilReached() async {
+            if reached { return }
+            await withCheckedContinuation { reachedWaiters.append($0) }
+        }
+
+        func open() {
+            opened = true
+            for c in gateWaiters { c.resume() }
+            gateWaiters.removeAll()
+        }
+    }
 }

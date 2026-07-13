@@ -92,7 +92,8 @@ struct PrepareForOfflineSheet: View {
                         let plan = OfflinePlan(categories: Array(selected), depth: depth)
                         settings.offlineDownloadCategories = plan.categories  // remember
                         settings.offlineDownloadDepth = depth
-                        Task { await coordinator.download(plan: plan); dismiss() }
+                        let download = coordinator.start(plan: plan)
+                        Task { await download.value; dismiss() }
                     }
                     .fontWeight(.semibold)
                     .disabled(selected.isEmpty || coordinator.isDownloading)

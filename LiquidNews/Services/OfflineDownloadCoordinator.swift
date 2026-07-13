@@ -19,8 +19,9 @@ final class OfflineDownloadCoordinator {
         fetcher: HNAPIService.shared,
         cache: .shared,
         prefetchArticle: { item in
-            // Production article extraction is wired in Task 14 (UI). Default no-op keeps
-            // the coordinator usable before that wiring exists.
+            // Article-body caching is intentionally deferred: the live reader runs its
+            // own WKWebView + Readability.js pipeline and doesn't write through HNCache,
+            // so this stays a no-op (see the matching deferral note in HNCache).
             _ = item
         }
     )
@@ -41,6 +42,18 @@ final class OfflineDownloadCoordinator {
         self.fetcher = fetcher
         self.cache = cache
         self.prefetchArticle = prefetchArticle
+    }
+
+    /// Starts the download as a coordinator-owned task so `cancel()` can actually stop it.
+    /// Returns the task so callers can await completion (e.g. to dismiss the sheet).
+    /// If a download is already running, returns it instead of starting a second one.
+    @discardableResult
+    func start(plan: OfflinePlan) -> Task<Void, Never> {
+        if let task, isDownloading { return task }
+        isDownloading = true
+        let newTask = Task { await download(plan: plan) }
+        task = newTask
+        return newTask
     }
 
     func cancel() {
