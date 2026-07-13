@@ -20,7 +20,7 @@ struct ComposeReplyView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
+            ThemeBackground().ignoresSafeArea()
             VStack(alignment: .leading, spacing: 12) {
                 TextEditor(text: $text)
                     .scrollContentBackground(.hidden)

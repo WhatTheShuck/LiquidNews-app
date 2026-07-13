@@ -31,7 +31,7 @@ struct FavouritesView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .sectionIntroCoach(.favouritesIntro)
         .navigationTitle(AppTab.favourites.label)
         .toolbarTitleDisplayMode(.inline)
@@ -47,15 +47,13 @@ struct FavouritesView: View {
             NavigationStack {
                 StoryDetailView(story: story)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
         .sheet(item: $readerURL) { item in
             NavigationStack {
                 ArticleReaderView(url: item.url)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
         .sheet(item: $safariURL) { item in
             SafariView(url: item.url)

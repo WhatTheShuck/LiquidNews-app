@@ -226,6 +226,17 @@ enum AppColorScheme: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Custom background
+
+/// What replaces the theme preset's background gradient. `.none` means the
+/// preset gradient renders as usual.
+enum CustomBackgroundKind: String, CaseIterable {
+    case none
+    case solid
+    case gradient
+    case image
+}
+
 @Observable
 final class UserSettings {
 
@@ -430,6 +441,41 @@ final class UserSettings {
         }
     }
 
+    /// Custom background override — replaces the preset gradient when not `.none`.
+    var customBackgroundKind: CustomBackgroundKind {
+        didSet { persist { kvStore.set(customBackgroundKind.rawValue, forKey: Keys.customBackgroundKind) } }
+    }
+
+    /// Hexes for the custom background: 1 entry for `.solid`, 2–3 for `.gradient`.
+    var customBackgroundHexes: [String] {
+        didSet { persist { kvStore.set(customBackgroundHexes, forKey: Keys.customBackgroundHexes) } }
+    }
+
+    /// Scrim opacity over a custom background photo (0…0.8).
+    var customBackgroundDim: Double {
+        didSet { persist { kvStore.set(customBackgroundDim, forKey: Keys.customBackgroundDim) } }
+    }
+
+    /// Blur radius in points over a custom background photo (0…20).
+    var customBackgroundBlur: Double {
+        didSet { persist { kvStore.set(customBackgroundBlur, forKey: Keys.customBackgroundBlur) } }
+    }
+
+    /// UUID bumped on each new photo pick. Identity for the decoded-image cache.
+    /// The image file itself never syncs (iCloud KVS 1 MB cap) — a device with
+    /// this set but no file falls back to the preset gradient.
+    var customBackgroundImageRevision: String? {
+        didSet {
+            persist {
+                if let rev = customBackgroundImageRevision {
+                    kvStore.set(rev, forKey: Keys.customBackgroundImageRevision)
+                } else {
+                    kvStore.removeObject(forKey: Keys.customBackgroundImageRevision)
+                }
+            }
+        }
+    }
+
     // MARK: - Color scheme override
 
     var appColorScheme: AppColorScheme {
@@ -538,6 +584,11 @@ final class UserSettings {
         static let showReadLaterBadge           = "LN_showReadLaterBadge"
         static let selectedAppTheme             = "LN_selectedAppTheme"
         static let customAccentHex              = "LN_customAccentHex"
+        static let customBackgroundKind          = "LN_customBackgroundKind"
+        static let customBackgroundHexes         = "LN_customBackgroundHexes"
+        static let customBackgroundDim           = "LN_customBackgroundDim"
+        static let customBackgroundBlur          = "LN_customBackgroundBlur"
+        static let customBackgroundImageRevision = "LN_customBackgroundImageRevision"
         static let appColorScheme               = "LN_appColorScheme"
         static let resumeMode                   = "LN_resumeMode"
         static let cacheSizeCapMB             = "LN_cacheSizeCapMB"
@@ -576,6 +627,9 @@ final class UserSettings {
             Keys.glassComments, Keys.wordsOfWisdom, Keys.iPadReaderLayout,
             Keys.showReadLaterBadge,
             Keys.selectedAppTheme, Keys.customAccentHex, Keys.appColorScheme,
+            Keys.customBackgroundKind, Keys.customBackgroundHexes,
+            Keys.customBackgroundDim, Keys.customBackgroundBlur,
+            Keys.customBackgroundImageRevision,
             Keys.resumeMode,
             Keys.cacheSizeCapMB, Keys.backgroundFeedPrefetch, Keys.backgroundPrefetchArticles,
             Keys.offlineDownloadCategories, Keys.offlineDownloadDepth, Keys.frequentFlyerEnabled,
@@ -670,6 +724,16 @@ final class UserSettings {
                 selectedAppTheme = AppThemePreset(rawValue: kvStore.string(forKey: key) ?? "") ?? .standard
             case Keys.customAccentHex:
                 customAccentHex = kvStore.string(forKey: key).flatMap { $0.isEmpty ? nil : $0 }
+            case Keys.customBackgroundKind:
+                customBackgroundKind = CustomBackgroundKind(rawValue: kvStore.string(forKey: key) ?? "") ?? .none
+            case Keys.customBackgroundHexes:
+                customBackgroundHexes = (kvStore.array(forKey: key) as? [String]) ?? []
+            case Keys.customBackgroundDim:
+                customBackgroundDim = (kvStore.object(forKey: key) as? Double) ?? 0.35
+            case Keys.customBackgroundBlur:
+                customBackgroundBlur = (kvStore.object(forKey: key) as? Double) ?? 0
+            case Keys.customBackgroundImageRevision:
+                customBackgroundImageRevision = kvStore.string(forKey: key).flatMap { $0.isEmpty ? nil : $0 }
             case Keys.appColorScheme:
                 appColorScheme = AppColorScheme(rawValue: kvStore.string(forKey: key) ?? "") ?? .system
             case Keys.resumeMode:
@@ -785,6 +849,13 @@ final class UserSettings {
         selectedAppTheme = AppThemePreset(rawValue: rawTheme) ?? .standard
 
         customAccentHex = kvStore.string(forKey: Keys.customAccentHex).flatMap { $0.isEmpty ? nil : $0 }
+
+        let rawBackgroundKind = kvStore.string(forKey: Keys.customBackgroundKind) ?? CustomBackgroundKind.none.rawValue
+        customBackgroundKind = CustomBackgroundKind(rawValue: rawBackgroundKind) ?? .none
+        customBackgroundHexes = (kvStore.array(forKey: Keys.customBackgroundHexes) as? [String]) ?? []
+        customBackgroundDim = (kvStore.object(forKey: Keys.customBackgroundDim) as? Double) ?? 0.35
+        customBackgroundBlur = (kvStore.object(forKey: Keys.customBackgroundBlur) as? Double) ?? 0
+        customBackgroundImageRevision = kvStore.string(forKey: Keys.customBackgroundImageRevision).flatMap { $0.isEmpty ? nil : $0 }
 
         let rawColorScheme = kvStore.string(forKey: Keys.appColorScheme) ?? AppColorScheme.system.rawValue
         appColorScheme = AppColorScheme(rawValue: rawColorScheme) ?? .system

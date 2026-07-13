@@ -477,8 +477,7 @@ struct DataPrivacySettingsView: View {
                 }
             }
             .presentationDetents([.large])
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
     }
 

@@ -37,7 +37,7 @@ struct PremiumPaywallView: View {
             .padding(.bottom, 40)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .navigationTitle("LiquidNews Premium")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)

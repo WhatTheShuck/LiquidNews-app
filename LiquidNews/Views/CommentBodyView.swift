@@ -312,7 +312,9 @@ private struct CodeBlockView: View {
                 }
             }
         }
-        .glassCard(cornerRadius: 12)
+        // .clear opts out of the default accent wash — code blocks sit inside
+        // thread-coloured comment cards and must stay neutral.
+        .glassCard(cornerRadius: 12, tint: .clear)
     }
 }
 
@@ -358,7 +360,7 @@ private extension String {
 
 #Preview("Rich comment with code") {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         ScrollView {
             CommentBodyView(html: PreviewData.richComment.text ?? "")
                 .padding()

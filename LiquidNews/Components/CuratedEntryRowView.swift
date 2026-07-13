@@ -128,7 +128,7 @@ extension Date {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         ScrollView {
             VStack(spacing: 12) {
 

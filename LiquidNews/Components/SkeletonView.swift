@@ -219,14 +219,14 @@ struct CommentsSkeletonView: View {
 
 #Preview("Story skeleton") {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         StoriesSkeletonView()
     }
 }
 
 #Preview("Curated skeleton") {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         CuratedSkeletonView()
     }
 }

@@ -87,7 +87,7 @@ struct AccountView: View {
         } message: {
             Text("Your 7-day free trial has ended. Unlock Account to stay signed in.")
         }
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .navigationTitle("Account")
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -238,7 +238,7 @@ struct AccountView: View {
                 .foregroundStyle(AppTheme.accent)
         }
         .padding(14)
-        .glassCard(tint: AppTheme.accent)
+        .glassCard()
     }
 
     // MARK: - Grace banner

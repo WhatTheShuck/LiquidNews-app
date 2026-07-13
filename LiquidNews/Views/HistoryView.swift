@@ -22,7 +22,7 @@ struct HistoryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .navigationTitle(AppTab.history.label)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -59,8 +59,7 @@ struct HistoryView: View {
         }
         .sheet(item: $selectedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
         }
     }
 

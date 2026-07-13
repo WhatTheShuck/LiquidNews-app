@@ -64,7 +64,7 @@ struct CuratedView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .sectionIntroCoach(.curatedIntro)
         .navigationTitle(AppTab.curated.label)
         .toolbarTitleDisplayMode(.inline)
@@ -74,14 +74,12 @@ struct CuratedView: View {
         }
         .sheet(item: $selectedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
                 .iPadPageSheet()
         }
         .sheet(item: $readerURL) { item in
             NavigationStack { ArticleReaderView(url: item.url) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
         }
         .sheet(item: $safariURL) { item in
             SafariView(url: item.url)

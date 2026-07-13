@@ -30,7 +30,7 @@ struct EmptyStateView: View {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         EmptyStateView(
             icon: "bookmark",
             title: "You're all caught up",

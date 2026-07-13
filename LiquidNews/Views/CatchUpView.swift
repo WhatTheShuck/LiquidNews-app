@@ -44,7 +44,7 @@ struct CatchUpView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .sectionIntroCoach(.catchUpIntro)
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
@@ -88,15 +88,13 @@ struct CatchUpView: View {
         .animation(.spring(duration: 0.25), value: viewModel.preset)
         .sheet(item: $selectedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
         }
         .sheet(item: $readerURL) { item in
             NavigationStack {
                 ArticleReaderView(url: item.url)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
         .sheet(item: $safariURL) { item in
             SafariView(url: item.url)

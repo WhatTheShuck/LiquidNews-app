@@ -28,7 +28,7 @@ struct SearchView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
+            ThemeBackground().ignoresSafeArea()
 
             VStack(spacing: 0) {
                 searchHeader
@@ -75,8 +75,7 @@ struct SearchView: View {
         }
         .sheet(item: $selectedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
                 .iPadPageSheet()
         }
     }

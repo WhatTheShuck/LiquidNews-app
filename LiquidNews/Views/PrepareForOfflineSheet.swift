@@ -79,7 +79,7 @@ struct PrepareForOfflineSheet: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+            .background(ThemeBackground().ignoresSafeArea())
             .navigationTitle("Prepare for Offline")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
@@ -108,7 +108,6 @@ struct PrepareForOfflineSheet: View {
             }
         }
         .presentationDetents([.large])
-        .presentationDragIndicator(.visible)
-        .presentationCornerRadius(.glassCornerRadius)
+        .glassSheet()
     }
 }

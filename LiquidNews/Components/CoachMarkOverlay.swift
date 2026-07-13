@@ -83,7 +83,7 @@ struct CoachMarkBubble: View {
         bubbleContent
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .glassCard(cornerRadius: 16, tint: AppTheme.accent)
+            .glassCard(cornerRadius: 16)
             .overlay(alignment: arrowAlignment) {
                 // Swipe hints communicate direction with the inline chevrons, so
                 // they skip the single pointing triangle.
@@ -175,7 +175,7 @@ struct CoachMarkBanner: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .glassCard(cornerRadius: 16, tint: AppTheme.accent)
+            .glassCard(cornerRadius: 16)
             .contentShape(Rectangle())
             .onTapGesture(perform: onDismiss)
             .padding(.horizontal, 12)

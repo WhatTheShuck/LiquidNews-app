@@ -56,7 +56,7 @@ struct ResumeBannerView: View {
             }
         }
         .padding(.vertical, 4)
-        .glassCard(tint: AppTheme.accent)
+        .glassCard()
     }
 
     /// The hero "continue reading" row.
@@ -145,7 +145,7 @@ private let sampleHint = ResumeEntry(
 
 #Preview("Primary + hint") {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         ResumeBannerView(primary: samplePrimary, hint: sampleHint,
                          onOpen: { _ in })
             .padding()
@@ -154,7 +154,7 @@ private let sampleHint = ResumeEntry(
 
 #Preview("Primary only") {
     ZStack {
-        AppTheme.backgroundGradient(for: .light).ignoresSafeArea()
+        ThemeBackground(colorScheme: .light).ignoresSafeArea()
         ResumeBannerView(primary: samplePrimary, hint: nil,
                          onOpen: { _ in })
             .padding()

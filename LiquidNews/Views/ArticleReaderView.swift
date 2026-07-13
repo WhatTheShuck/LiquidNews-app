@@ -70,8 +70,7 @@ struct ArticleReaderView: View {
             }
             .sheet(item: $linkedHNStory) { story in
                 NavigationStack { StoryDetailView(story: story) }
-                    .presentationDragIndicator(.visible)
-                    .presentationCornerRadius(.glassCornerRadius)
+                    .glassSheet()
             }
     }
 
@@ -251,8 +250,7 @@ struct ArticleReaderView: View {
         .sheet(isPresented: $showReaderOptions) {
             ReaderOptionsSheet(preferences: preferences)
                 .presentationDetents([.height(StoreService.shared.isThemesUnlocked ? 380 : 300)])
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
         }
         .fullScreenCover(item: $readerState.pendingImagePreview) { request in
             QuickLookPreview(fileURLs: request.fileURLs, startIndex: request.startIndex)

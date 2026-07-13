@@ -422,6 +422,41 @@ enum AppThemePreset: String, CaseIterable, Identifiable {
         }
     }
 
+    // MARK: Glass tint (theme wash over custom backgrounds)
+
+    /// Scheme-aware theme identity colour for tinting glass when a custom
+    /// background hides the preset gradient. Dark reuses the swatch; light
+    /// uses the light gradient's most saturated stop, because the dark
+    /// swatches read as grey shadows over light glass.
+    func glassTint(for scheme: ColorScheme) -> Color {
+        scheme == .light ? lightGlassTint : swatchColor
+    }
+
+    /// Final stop (location 1.0) of the light `backgroundGradient` —
+    /// literal duplication, matching how `swatchColor` duplicates the
+    /// dark gradients' first stops.
+    private var lightGlassTint: Color {
+        switch self {
+        case .standard:    return Color(red: 0.68, green: 0.81, blue: 1.00)
+        case .classic:     return Color(red: 0.97, green: 0.81, blue: 0.58)
+        case .cosmic:      return Color(red: 0.76, green: 0.68, blue: 1.00)
+        case .forest:      return Color(red: 0.65, green: 0.88, blue: 0.75)
+        case .ember:       return Color(red: 0.96, green: 0.76, blue: 0.65)
+        case .midnight:    return Color(red: 0.71, green: 0.75, blue: 0.87)
+        case .catppuccin:  return Color(red: 0.82, green: 0.79, blue: 0.94)
+        case .dracula:     return Color(red: 0.83, green: 0.80, blue: 0.94)
+        case .gruvbox:     return Color(red: 0.84, green: 0.77, blue: 0.63)
+        case .solarized:   return Color(red: 0.88, green: 0.86, blue: 0.79)
+        case .nord:        return Color(red: 0.85, green: 0.87, blue: 0.91)
+        case .kanagawa:    return Color(red: 0.86, green: 0.84, blue: 0.67)
+        case .everforest:  return Color(red: 0.84, green: 0.81, blue: 0.73)
+        case .rosepine:    return Color(red: 0.92, green: 0.88, blue: 0.85)
+        case .onedark:     return Color(red: 0.78, green: 0.82, blue: 0.90)
+        case .monokai:     return Color(red: 0.86, green: 0.84, blue: 0.79)
+        case .synthwave:   return Color(red: 0.81, green: 0.78, blue: 0.93)
+        }
+    }
+
     // MARK: Comment depth colors
 
     var commentColors: [Color] {
@@ -572,7 +607,7 @@ extension Color {
     /// Parses a 6-character hex string (without #) into a Color. Returns nil if invalid.
     init?(hexString: String) {
         let hex = hexString.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        guard hex.count == 6 else { return nil }
+        guard hex.count == 6, hex.allSatisfy(\.isHexDigit) else { return nil }
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
         let r = Double((int >> 16) & 0xFF) / 255

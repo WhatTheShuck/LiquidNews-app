@@ -8,7 +8,7 @@ struct UnavailableOfflineView: View {
 
     var body: some View {
         ZStack {
-            AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
+            ThemeBackground().ignoresSafeArea()
             EmptyStateView(
                 icon: "wifi.slash",
                 title: "Not Available Offline",

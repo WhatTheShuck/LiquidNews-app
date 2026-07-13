@@ -131,7 +131,7 @@ struct StoriesListView: View {
             }
         }
         .animation(.default, value: networkMonitor.isOnline)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .toolbarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -232,15 +232,13 @@ struct StoriesListView: View {
             NavigationStack {
                 StoryDetailView(story: story)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
         .sheet(item: $readerURL) { item in
             NavigationStack {
                 ArticleReaderView(url: item.url)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
         .sheet(item: $safariURL) { item in
             SafariView(url: item.url)

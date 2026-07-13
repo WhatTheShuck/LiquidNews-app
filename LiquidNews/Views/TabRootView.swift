@@ -108,8 +108,7 @@ struct TabRootView: View {
         .preferredColorScheme(settings.selectedAppTheme == .classic ? .light : settings.appColorScheme.resolved)
         .sheet(item: $deepLinkedStory) { story in
             NavigationStack { StoryDetailView(story: story) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
         }
         .sheet(item: $deepLinkedComment) { comment in
             NavigationStack {
@@ -122,8 +121,7 @@ struct TabRootView: View {
                     }
                 )
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
         .onChange(of: deepLink.pendingItemID) { _, id in
             guard let id else { return }

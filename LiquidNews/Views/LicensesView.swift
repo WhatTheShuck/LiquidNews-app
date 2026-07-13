@@ -21,7 +21,7 @@ struct LicensesView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+            .background(ThemeBackground().ignoresSafeArea())
             .navigationTitle("Open Source Licenses")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)

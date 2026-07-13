@@ -126,7 +126,7 @@ struct StoryDetailView: View {
         // the toolbar prevents the system from sampling content and
         // rendering Liquid Glass — per WWDC25 guidance to remove
         // backgrounds sitting behind toolbars.
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .environment(\.openURL, OpenURLAction { url in
             if let id = HNURLRouter.itemID(from: url) {
                 Task { @MainActor in
@@ -213,16 +213,14 @@ struct StoryDetailView: View {
         }
         .sheet(item: $selectedRelatedStory) { relatedStory in
             NavigationStack { StoryDetailView(story: relatedStory) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
                 .iPadPageSheet()
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .nativeReader(let url):
                 NavigationStack { ArticleReaderView(url: url) }
-                    .presentationDragIndicator(.visible)
-                    .presentationCornerRadius(.glassCornerRadius)
+                    .glassSheet()
                     .iPadPageSheet()
             case .inAppSafari(let url):
                 // Clear the binding when Safari's Done button fires. This view is itself
@@ -235,8 +233,7 @@ struct StoryDetailView: View {
                     .iPadPageSheet()
             case .hnStory(let story):
                 NavigationStack { StoryDetailView(story: story) }
-                    .presentationDragIndicator(.visible)
-                    .presentationCornerRadius(.glassCornerRadius)
+                    .glassSheet()
                     .iPadPageSheet()
             case .hnComment(let comment):
                 NavigationStack {
@@ -248,15 +245,13 @@ struct StoryDetailView: View {
                         }
                     )
                 }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
                 .iPadPageSheet()
             }
         }
         .sheet(isPresented: $showReply) {
             NavigationStack { ComposeReplyView(parentId: story.id) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
                 .iPadPageSheet()
         }
         .alert("Action Failed", isPresented: Binding(

@@ -81,7 +81,7 @@ struct WhatsNewView: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 40)
         }
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
     }
 }
 

@@ -47,6 +47,6 @@ struct SidebarView: View {
         }
         .navigationTitle("LiquidNews")
         .scrollContentBackground(.hidden)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
     }
 }

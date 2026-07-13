@@ -36,7 +36,7 @@ struct SettingsListView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+            .background(ThemeBackground().ignoresSafeArea())
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)

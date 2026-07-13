@@ -214,7 +214,7 @@ struct DetailColumnView: View {
 
     private var placeholder: some View {
         ZStack {
-            AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea()
+            ThemeBackground().ignoresSafeArea()
             VStack(spacing: 16) {
                 Image(systemName: "newspaper")
                     .font(.system(size: 52))

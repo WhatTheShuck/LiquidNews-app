@@ -597,7 +597,7 @@ private struct AddCuratedFeedView: View {
                 .padding(.bottom, 32)
             }
             .scrollBounceBehavior(.basedOnSize)
-            .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+            .background(ThemeBackground().ignoresSafeArea())
             .navigationTitle("Add Custom Feed")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)

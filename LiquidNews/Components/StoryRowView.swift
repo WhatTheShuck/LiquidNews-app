@@ -110,7 +110,7 @@ struct MetaBadge: View {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         StoryRowView(
             story: HNItem(
                 id: 1,

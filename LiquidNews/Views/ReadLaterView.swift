@@ -28,7 +28,7 @@ struct ReadLaterView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(AppTheme.backgroundGradient(for: colorScheme).ignoresSafeArea())
+        .background(ThemeBackground().ignoresSafeArea())
         .sectionIntroCoach(.readLaterIntro)
         .navigationTitle(AppTab.readLater.label)
         .toolbarTitleDisplayMode(.inline)
@@ -48,8 +48,7 @@ struct ReadLaterView: View {
             NavigationStack {
                 StoryDetailView(story: story)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
         }
     }
 
