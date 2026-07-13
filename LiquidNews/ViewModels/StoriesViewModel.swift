@@ -119,19 +119,11 @@ final class StoriesViewModel {
         }
     }
 
-    /// True for errors produced by cooperative task cancellation —
-    /// not real failures, so they should never be shown to the user.
-    static func isCancellation(_ error: Error) -> Bool {
-        if error is CancellationError { return true }
-        if let urlError = error as? URLError, urlError.code == .cancelled { return true }
-        return false
-    }
-
     // MARK: - Private
 
     /// Records an error for display unless it's a task cancellation.
     private func report(_ error: Error) {
-        guard !Self.isCancellation(error) else { return }
+        guard !error.isCancellation else { return }
         errorMessage = error.localizedDescription
     }
 

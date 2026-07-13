@@ -6,53 +6,16 @@ import Foundation
 import Observation
 
 @Observable
-final class FavouritesViewModel {
+final class FavouritesViewModel: SavedListViewModel {
 
     var stories: [HNItem] = []
     var isLoading = false
     var errorMessage: String? = nil
 
-    // MARK: - Load
+    let fillSource: FillSource = .favourite
 
-    /// Loads the favourited stories, cache-first so the list renders instantly (and
-    /// offline) without re-fetching every time. Sorted newest-first by post time.
-    func load(ids: Set<Int>) async {
-        guard !ids.isEmpty else {
-            stories = []
-            return
-        }
-        errorMessage = nil
-
-        // Phase 1: instant local snapshot.
-        var cached: [HNItem] = []
-        for id in ids {
-            if let item = await HNCache.shared.cachedItem(id: id) { cached.append(item) }
-        }
-        if !cached.isEmpty {
-            stories = byNewest(cached)
-        } else {
-            isLoading = true
-        }
-
-        // Phase 2: revalidate when online; otherwise the cached snapshot stands.
-        guard NetworkMonitor.shared.currentlyOnline() else {
-            isLoading = false
-            return
-        }
-        defer { isLoading = false }
-        do {
-            let fetched = try await HNAPIService.shared.items(ids: Array(ids))
-            // Pin the refreshed snapshot so favourites stay available offline.
-            for item in fetched {
-                await HNCache.shared.storeItem(item, fillSource: .favourite, pinned: true)
-            }
-            stories = byNewest(fetched)
-        } catch {
-            if stories.isEmpty { errorMessage = error.localizedDescription }
-        }
-    }
-
-    private func byNewest(_ items: [HNItem]) -> [HNItem] {
+    /// Newest-first by post time.
+    func sortStories(_ items: [HNItem]) -> [HNItem] {
         items.sorted { ($0.time ?? 0) > ($1.time ?? 0) }
     }
 

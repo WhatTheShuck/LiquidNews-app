@@ -352,25 +352,13 @@ struct StoryDetailView: View {
                 // One-off override sub-menu — lets the user choose a different
                 // mode without changing their default setting.
                 Menu {
-                    Button {
-                        if let model = iPadNavModel {
-                            withAnimation(.smooth) { model.select(story, mode: .reader) }
-                        } else {
-                            activeSheet = .nativeReader(url)
-                        }
-                    } label: {
+                    Button { openArticle(url, as: .reader) } label: {
                         Label("Open in Reader", systemImage: "textformat")
                     }
-                    Button {
-                        if let model = iPadNavModel {
-                            withAnimation(.smooth) { model.select(story, mode: .browser) }
-                        } else {
-                            activeSheet = .inAppSafari(url)
-                        }
-                    } label: {
+                    Button { openArticle(url, as: .inAppSafari) } label: {
                         Label("Open in In-App Safari", systemImage: "safari")
                     }
-                    Button { openURL(url) } label: {
+                    Button { openArticle(url, as: .safari) } label: {
                         Label("Open in Safari", systemImage: "arrow.up.right.square")
                     }
                 } label: {
@@ -449,15 +437,18 @@ struct StoryDetailView: View {
 
     // MARK: - Helpers
 
-    /// Opens an article URL using the user's default link open mode. On iPad
-    /// (model present) navigation modes route through the detail column; `.safari`
-    /// always opens externally. On iPhone (model absent) the sheet path is used.
-    private func openArticle(_ url: URL) {
-        if let model = iPadNavModel, let mode = DetailMode.forLinkOpen(settings.defaultLinkOpen) {
-            withAnimation(.smooth) { model.select(story, mode: mode) }
+    /// Opens an article URL. Pass `as:` for a one-off override; otherwise the
+    /// user's default link open mode is used. On iPad (model present) navigation
+    /// modes route through the detail column; `.safari` always opens externally.
+    /// On iPhone (model absent) the sheet path is used. Single source of truth for
+    /// open-mode routing — every "Open Article As…" menu funnels through here.
+    private func openArticle(_ url: URL, as overrideMode: LinkOpenMode? = nil) {
+        let mode = overrideMode ?? settings.defaultLinkOpen
+        if let model = iPadNavModel, let detailMode = DetailMode.forLinkOpen(mode) {
+            withAnimation(.smooth) { model.select(story, mode: detailMode) }
             return
         }
-        switch settings.defaultLinkOpen {
+        switch mode {
         case .reader:      activeSheet = .nativeReader(url)
         case .inAppSafari: activeSheet = .inAppSafari(url)
         case .safari:      openURL(url)
@@ -526,13 +517,13 @@ struct StoryDetailView: View {
                 .buttonStyle(.plain)
                 .padding(.top, 2)
                 .contextMenu {
-                    Button { activeSheet = .nativeReader(url) } label: {
+                    Button { openArticle(url, as: .reader) } label: {
                         Label("Open in Reader", systemImage: "textformat")
                     }
-                    Button { activeSheet = .inAppSafari(url) } label: {
+                    Button { openArticle(url, as: .inAppSafari) } label: {
                         Label("Open in In-App Safari", systemImage: "safari")
                     }
-                    Button { openURL(url) } label: {
+                    Button { openArticle(url, as: .safari) } label: {
                         Label("Open in Safari", systemImage: "arrow.up.right.square")
                     }
                 }

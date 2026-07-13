@@ -102,7 +102,7 @@ final class CatchUpViewModel {
             stories     = result.stories
             totalPages  = result.totalPages
         } catch {
-            if !(error is CancellationError) {
+            if !error.isCancellation {
                 errorMessage = error.localizedDescription
             }
         }

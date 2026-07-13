@@ -10,26 +10,26 @@ final class StoriesViewModelTests: XCTestCase {
     // user-facing errors.
 
     func test_isCancellation_swiftCancellationError() {
-        XCTAssertTrue(StoriesViewModel.isCancellation(CancellationError()))
+        XCTAssertTrue(CancellationError().isCancellation)
     }
 
     func test_isCancellation_urlErrorCancelled() {
-        XCTAssertTrue(StoriesViewModel.isCancellation(URLError(.cancelled)))
+        XCTAssertTrue(URLError(.cancelled).isCancellation)
     }
 
     func test_isCancellation_bridgedNSURLErrorCancelled() {
         let nsError = NSError(domain: NSURLErrorDomain, code: NSURLErrorCancelled)
-        XCTAssertTrue(StoriesViewModel.isCancellation(nsError))
+        XCTAssertTrue(nsError.isCancellation)
     }
 
     func test_isCancellation_realNetworkError_isFalse() {
-        XCTAssertFalse(StoriesViewModel.isCancellation(URLError(.notConnectedToInternet)))
+        XCTAssertFalse(URLError(.notConnectedToInternet).isCancellation)
     }
 
     func test_isCancellation_decodingError_isFalse() {
         let error = DecodingError.dataCorrupted(
             .init(codingPath: [], debugDescription: "bad json")
         )
-        XCTAssertFalse(StoriesViewModel.isCancellation(error))
+        XCTAssertFalse(error.isCancellation)
     }
 }

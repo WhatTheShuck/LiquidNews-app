@@ -19,55 +19,20 @@ enum ReadLaterSort: CaseIterable {
 }
 
 @Observable
-final class ReadLaterViewModel {
+final class ReadLaterViewModel: SavedListViewModel {
 
     var stories: [HNItem] = []
     var isLoading = false
     var errorMessage: String? = nil
     var sort: ReadLaterSort = .dateSaved
 
+    let fillSource: FillSource = .readLater
+
     private let store = SavedPostsStore.shared
-
-    /// Loads the saved stories cache-first so the list renders instantly and offline.
-    func load(ids: Set<Int>) async {
-        guard !ids.isEmpty else {
-            stories = []
-            return
-        }
-        errorMessage = nil
-
-        // Phase 1: instant local snapshot.
-        var cached: [HNItem] = []
-        for id in ids {
-            if let item = await HNCache.shared.cachedItem(id: id) { cached.append(item) }
-        }
-        if !cached.isEmpty {
-            stories = sorted(cached)
-        } else {
-            isLoading = true
-        }
-
-        // Phase 2: revalidate when online; otherwise the cached snapshot stands.
-        guard NetworkMonitor.shared.currentlyOnline() else {
-            isLoading = false
-            return
-        }
-        defer { isLoading = false }
-        do {
-            let fetched = try await HNAPIService.shared.items(ids: Array(ids))
-            // Pin the refreshed snapshot so saved stories stay available offline.
-            for item in fetched {
-                await HNCache.shared.storeItem(item, fillSource: .readLater, pinned: true)
-            }
-            stories = sorted(fetched)
-        } catch {
-            if stories.isEmpty { errorMessage = error.localizedDescription }
-        }
-    }
 
     /// Re-sorts the already-loaded stories array without a network call.
     func applySort() {
-        stories = sorted(stories)
+        stories = sortStories(stories)
     }
 
     func remove(id: Int) {
@@ -75,7 +40,7 @@ final class ReadLaterViewModel {
         stories.removeAll { $0.id == id }
     }
 
-    private func sorted(_ items: [HNItem]) -> [HNItem] {
+    func sortStories(_ items: [HNItem]) -> [HNItem] {
         switch sort {
         case .dateSaved:
             return items.sorted {

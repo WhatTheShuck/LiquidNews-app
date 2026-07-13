@@ -53,7 +53,7 @@ final class SearchViewModel {
         do {
             results = try await HNAPIService.shared.searchStories(query: trimmed, since: since)
         } catch {
-            if !(error is CancellationError) {
+            if !error.isCancellation {
                 errorMessage = error.localizedDescription
             }
         }

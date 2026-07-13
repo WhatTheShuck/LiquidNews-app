@@ -215,6 +215,18 @@ final class HNAPIService: @unchecked Sendable {
         let created_at_i: TimeInterval?
     }
 
+    /// Single source of truth for the Algolia hit → `HNItem` mapping used by search,
+    /// catch-up, and related-stories.
+    private func story(from hit: AlgoliaHit) -> HNItem? {
+        guard let id = Int(hit.objectID) else { return nil }
+        return HNItem(
+            id: id, type: .story, by: hit.author, time: hit.created_at_i,
+            title: hit.title, url: hit.url, score: hit.points,
+            descendants: hit.num_comments, text: nil, kids: nil,
+            deleted: nil, dead: nil
+        )
+    }
+
     func searchStories(query: String, since: Date) async throws -> [HNItem] {
         var components = URLComponents(string: "https://hn.algolia.com/api/v1/search")!
         components.queryItems = [
@@ -225,15 +237,7 @@ final class HNAPIService: @unchecked Sendable {
         ]
         let (data, _) = try await URLSession.shared.data(from: components.url!)
         let response = try decoder.decode(AlgoliaResponse.self, from: data)
-        return response.hits.compactMap { hit in
-            guard let id = Int(hit.objectID) else { return nil }
-            return HNItem(
-                id: id, type: .story, by: hit.author, time: hit.created_at_i,
-                title: hit.title, url: hit.url, score: hit.points,
-                descendants: hit.num_comments, text: nil, kids: nil,
-                deleted: nil, dead: nil
-            )
-        }
+        return response.hits.compactMap(story(from:))
     }
 
     /// Fetches HN stories within a specific date range, sorted by points or by date.
@@ -257,15 +261,7 @@ final class HNAPIService: @unchecked Sendable {
         ]
         let (data, _) = try await URLSession.shared.data(from: components.url!)
         let response = try decoder.decode(AlgoliaResponse.self, from: data)
-        let stories = response.hits.compactMap { hit -> HNItem? in
-            guard let id = Int(hit.objectID) else { return nil }
-            return HNItem(
-                id: id, type: .story, by: hit.author, time: hit.created_at_i,
-                title: hit.title, url: hit.url, score: hit.points,
-                descendants: hit.num_comments, text: nil, kids: nil,
-                deleted: nil, dead: nil
-            )
-        }
+        let stories = response.hits.compactMap(story(from:))
         return (stories, response.nbPages ?? 0)
     }
 
@@ -299,15 +295,7 @@ final class HNAPIService: @unchecked Sendable {
         ]
         let (data, _) = try await URLSession.shared.data(from: components.url!)
         let response = try decoder.decode(AlgoliaResponse.self, from: data)
-        return response.hits.compactMap { hit in
-            guard let id = Int(hit.objectID) else { return nil }
-            return HNItem(
-                id: id, type: .story, by: hit.author, time: hit.created_at_i,
-                title: hit.title, url: hit.url, score: hit.points,
-                descendants: hit.num_comments, text: nil, kids: nil,
-                deleted: nil, dead: nil
-            )
-        }
+        return response.hits.compactMap(story(from:))
     }
 
     // MARK: - Comment navigation
