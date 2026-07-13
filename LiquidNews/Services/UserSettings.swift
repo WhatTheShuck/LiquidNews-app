@@ -396,9 +396,10 @@ final class UserSettings {
         didSet { persist { kvStore.set(codeWrapLines, forKey: Keys.codeWrapLines) } }
     }
 
-    /// When true, comment cards use a live Liquid Glass surface instead of the fixed
-    /// ultraThinMaterial blur. Defaults to false — glass on every nested card can
-    /// cause visual artifacts and performance issues on busy threads.
+    /// When true (default), comment cards use a live Liquid Glass surface instead of
+    /// the fixed ultraThinMaterial blur. Only depth-0 cards carry live glass — nested
+    /// cards are tinted panels, and very tall cards fall back to material — so busy
+    /// threads stay artifact-free (see CommentCardBackground).
     var glassComments: Bool {
         didSet { persist { kvStore.set(glassComments, forKey: Keys.glassComments) } }
     }
@@ -712,7 +713,7 @@ final class UserSettings {
             case Keys.codeWrapLines:
                 codeWrapLines = (kvStore.object(forKey: key) as? Bool) ?? true
             case Keys.glassComments:
-                glassComments = kvStore.bool(forKey: key)
+                glassComments = (kvStore.object(forKey: key) as? Bool) ?? true
             case Keys.wordsOfWisdom:
                 wordsOfWisdom = kvStore.bool(forKey: key)
             case Keys.iPadReaderLayout:
@@ -837,7 +838,7 @@ final class UserSettings {
         readerShowImagesByDefault = (kvStore.object(forKey: Keys.readerShowImagesByDefault) as? Bool) ?? true
         safariReaderMode = (kvStore.object(forKey: Keys.safariReaderMode) as? Bool) ?? true
         codeWrapLines = (kvStore.object(forKey: Keys.codeWrapLines) as? Bool) ?? true
-        glassComments = kvStore.bool(forKey: Keys.glassComments)
+        glassComments = (kvStore.object(forKey: Keys.glassComments) as? Bool) ?? true
         wordsOfWisdom = kvStore.bool(forKey: Keys.wordsOfWisdom)
 
         let rawIPadReaderLayout = kvStore.string(forKey: Keys.iPadReaderLayout) ?? IPadReaderLayout.sideBySide.rawValue

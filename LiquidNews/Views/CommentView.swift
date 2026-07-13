@@ -166,6 +166,10 @@ struct CommentView: View {
         .modifier(CommentCardBackground(
             depth: depth, cornerRadius: 18, threadColor: threadColor,
             glass: settings.glassComments))
+        // Reply loads animate ancestor card heights (staggered 120ms/depth).
+        // Commit each card's animated frame as a single geometry change so
+        // the glass shape and the card content can't desync mid-animation.
+        .geometryGroup()
         .coachMarkTarget(isCoachMarkTarget ? .commentLongPress : nil)
         .coachMarkTarget(isCoachMarkTarget ? .commentTapCollapse : nil)
         .onLongPressGesture(minimumDuration: 0.4) {
@@ -208,14 +212,12 @@ struct CommentView: View {
             NavigationStack {
                 ThreadView(rootComment: thread, depth: depth + 1, opUsername: opUsername, story: story)
             }
-            .presentationDragIndicator(.visible)
-            .presentationCornerRadius(.glassCornerRadius)
+            .glassSheet()
             .iPadPageSheet()
         }
         .sheet(isPresented: $showReply) {
             NavigationStack { ComposeReplyView(parentId: comment.id) }
-                .presentationDragIndicator(.visible)
-                .presentationCornerRadius(.glassCornerRadius)
+                .glassSheet()
                 .iPadPageSheet()
         }
         .alert("Action Failed", isPresented: Binding(
@@ -372,13 +374,15 @@ struct CommentView: View {
             guard !Task.isCancelled else { return }
         }
 
-        withAnimation(.easeInOut(duration: 0.25)) { isLoadingReplies = true }
+        // Deliberately un-animated: initial population runs staggered across dozens
+        // of cards while the thread loads, and any in-flight animation transaction
+        // makes LazyVStack cells realised during it fly in from the top of the list.
+        // User-initiated growth (loadMoreReplies) keeps its animation.
+        isLoadingReplies = true
         let batch = Array(kids.prefix(count))
         let loaded = await Self.loadReplies(ids: batch)
-        withAnimation(.easeInOut(duration: 0.25)) {
-            replies = loaded
-            isLoadingReplies = false
-        }
+        replies = loaded
+        isLoadingReplies = false
     }
 
     // MARK: - Manual load
@@ -418,11 +422,21 @@ struct CommentView: View {
 
 // MARK: - Card background
 
-/// Uniform background for all depths: thread-colour tint behind the content over
-/// either `.ultraThinMaterial` (default) or a live Liquid Glass surface, per the
-/// user's "Glass comments" setting. `.ultraThinMaterial` is a fixed UIBlurEffect —
-/// no live sampling — so there is no flicker or colour desync when many cards are
-/// on screen simultaneously; glass live-samples and can glitch on busy threads.
+/// Card background for comment cards, per the user's "Glass comments" setting.
+///
+/// Glass mode: only depth-0 cards carry a live `.glassEffect`. Liquid Glass
+/// does not support nested/overlapping glass surfaces — a reply card's glass
+/// would live-sample its ancestors' glass output, which is what caused the
+/// flicker and colour-desync artifacts on busy threads. Nested cards use a
+/// plain thread-colour fill + stroke instead (no backdrop sampling); the
+/// parent's glass shows through the translucent tint, so the nested look is
+/// preserved (same treatment as the continue-thread preview boxes).
+/// Depth-0 cards taller than `glassHeightLimit` fall back to the material
+/// background: a single glass shape's backdrop pass covers the card's full
+/// bounds, and past a few screen-heights the renderer degrades visibly.
+///
+/// Non-glass mode (default): `.ultraThinMaterial` at every depth — a fixed
+/// UIBlurEffect with no live sampling, so no flicker regardless of thread size.
 /// Depth 0 gets a slightly stronger tint and stroke for root-comment prominence.
 private struct CommentCardBackground: ViewModifier {
     let depth: Int
@@ -430,32 +444,62 @@ private struct CommentCardBackground: ViewModifier {
     let threadColor: Color
     let glass: Bool
 
+    /// Above this height, a depth-0 glass card swaps to the material
+    /// background. ~2.5 iPhone screens; tune on device if artifacts persist.
+    static let glassHeightLimit: CGFloat = 2000
+
+    @State private var exceedsGlassHeightLimit = false
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+    }
+
+    /// True when this card should render live glass: depth 0, glass mode on,
+    /// and under the height limit.
+    private var glassActive: Bool { glass && depth == 0 && !exceedsGlassHeightLimit }
+
     func body(content: Content) -> some View {
-        if glass {
-            content
-                .background(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(threadColor.opacity(depth == 0 ? 0.12 : 0.08))
-                )
-                .glassEffect(in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5)
-                )
+        // `content` is deliberately outside the glass/material conditional:
+        // branching around it would re-identify the subtree when the height
+        // gate flips, resetting nested reply state. Only the background view
+        // switches arms.
+        content
+            .background { cardBackground }
+            .overlay(shape.stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5))
+            // Observed outside the background arms so the fallback card keeps
+            // reporting its height and can return to glass when the thread is
+            // collapsed. The action only fires when the Bool flips, and the
+            // swap can't oscillate: the background choice doesn't change
+            // layout height.
+            .onGeometryChange(for: Bool.self) { proxy in
+                proxy.size.height > Self.glassHeightLimit
+            } action: { exceeds in
+                exceedsGlassHeightLimit = exceeds
+            }
+    }
+
+    @ViewBuilder
+    private var cardBackground: some View {
+        if glassActive {
+            shape.fill(threadColor.opacity(0.12))
+                .glassEffect(in: shape)
+                // No morph transition when the glass surface appears or
+                // disappears (initial insert in the lazy stack, and the
+                // height-limit swap to/from material) — the morph is a
+                // second live-sampling animation on top of the resize.
+                .glassEffectTransition(.identity)
+        } else if glass && depth > 0 {
+            // Nested card: tint-only, no glass and no material. Slightly
+            // stronger fill than material mode's 0.08 to compensate for
+            // losing the per-card glass layer beneath it.
+            shape.fill(threadColor.opacity(0.10))
         } else {
-            content
-                .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(threadColor.opacity(depth == 0 ? 0.12 : 0.08))
-                    }
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(threadColor.opacity(depth == 0 ? 0.35 : 0.25), lineWidth: 0.5)
-                )
+            // Material: the non-glass default at every depth, and the
+            // fallback for depth-0 glass cards past the height limit.
+            ZStack {
+                shape.fill(.ultraThinMaterial)
+                shape.fill(threadColor.opacity(depth == 0 ? 0.12 : 0.08))
+            }
         }
     }
 }
@@ -464,7 +508,7 @@ private struct CommentCardBackground: ViewModifier {
 
 #Preview {
     ZStack {
-        AppTheme.backgroundGradient(for: .dark).ignoresSafeArea()
+        ThemeBackground(colorScheme: .dark).ignoresSafeArea()
         VStack(spacing: 10) {
             CommentView(comment: PreviewData.topComment, depth: 0)
             CommentView(comment: PreviewData.childComment, depth: 1)

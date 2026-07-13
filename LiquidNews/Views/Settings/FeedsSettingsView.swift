@@ -466,7 +466,7 @@ struct FeedsSettingsView: View {
                         Text("Glass comments")
                             .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
                             .foregroundStyle(.primary)
-                        Text("Liquid Glass comment cards. May cause visual artifacts, glitches, or slow scrolling on busy threads.")
+                        Text("Live Liquid Glass comment cards. Turn off for a simpler frosted look.")
                             .font(.system(size: subtitleFontSize))
                             .foregroundStyle(.secondary)
                     }
