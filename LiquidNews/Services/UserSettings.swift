@@ -237,6 +237,46 @@ enum CustomBackgroundKind: String, CaseIterable {
     case image
 }
 
+// MARK: - Feed entrance animation
+
+/// How feed story cards animate in on load events (initial load, category
+/// switch, pull-to-refresh). Rows realised later by scrolling never animate.
+enum FeedEntranceStyle: String, CaseIterable, Identifiable {
+    case off      = "off"
+    case fade     = "fade"
+    case drip     = "drip"
+    case condense = "condense"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .off:      return "Off"
+        case .fade:     return "Fade In"
+        case .drip:     return "Liquid Drip"
+        case .condense: return "Condense"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .off:      return "Cards appear instantly"
+        case .fade:     return "Cards fade in from the top"
+        case .drip:     return "Each card pours from the one above"
+        case .condense: return "Cards sharpen into focus"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .off:      return "minus.circle"
+        case .fade:     return "circle.dashed"
+        case .drip:     return "drop"
+        case .condense: return "sparkles"
+        }
+    }
+}
+
 @Observable
 final class UserSettings {
 
@@ -323,6 +363,11 @@ final class UserSettings {
     /// Enabled categories in user-defined display order (used by the chip picker).
     var orderedEnabledCategories: [StoryCategory] {
         feedCategoryOrder.filter { enabledFeedCategories.contains($0) }
+    }
+
+    /// How feed story cards animate in on load events.
+    var feedEntranceStyle: FeedEntranceStyle {
+        didSet { persist { kvStore.set(feedEntranceStyle.rawValue, forKey: Keys.feedEntranceStyle) } }
     }
 
     // MARK: - Link opening
@@ -567,6 +612,7 @@ final class UserSettings {
         static let customCuratedFeeds           = "LN_customCuratedFeeds"
         static let feedCategoryOrder            = "LN_feedCategoryOrder"
         static let enabledFeedCategories        = "LN_enabledFeedCategories"
+        static let feedEntranceStyle            = "LN_feedEntranceStyle"
         static let tapAction                    = "LN_tapAction"
         static let swipeLeftAction              = "LN_swipeLeftAction"
         static let swipeRightAction             = "LN_swipeRightAction"
@@ -619,7 +665,7 @@ final class UserSettings {
             Keys.enabledOptionalTabs, Keys.tabOrder,
             Keys.commentRenderingStyle, Keys.hideCuratedLoadingBanner,
             Keys.enabledBuiltInCuratedSources, Keys.customCuratedFeeds,
-            Keys.feedCategoryOrder, Keys.enabledFeedCategories,
+            Keys.feedCategoryOrder, Keys.enabledFeedCategories, Keys.feedEntranceStyle,
             Keys.tapAction, Keys.swipeLeftAction, Keys.swipeRightAction,
             Keys.defaultLinkOpen, Keys.commentLinkOpen, Keys.readerLinkOpen,
             Keys.hnThreadLinkOpen,
@@ -686,6 +732,8 @@ final class UserSettings {
             case Keys.enabledFeedCategories:
                 let raw = (kvStore.array(forKey: key) as? [String]) ?? StoryCategory.defaults.map(\.rawValue)
                 enabledFeedCategories = Set(raw.compactMap(StoryCategory.init(rawValue:)))
+            case Keys.feedEntranceStyle:
+                feedEntranceStyle = FeedEntranceStyle(rawValue: kvStore.string(forKey: key) ?? "") ?? .drip
             case Keys.tapAction:
                 tapAction = StoryAction(rawValue: kvStore.string(forKey: key) ?? "") ?? .openComments
             case Keys.swipeLeftAction:
@@ -802,6 +850,9 @@ final class UserSettings {
         let rawEnabled = (kvStore.array(forKey: Keys.enabledFeedCategories) as? [String])
             ?? StoryCategory.defaults.map(\.rawValue)
         enabledFeedCategories = Set(rawEnabled.compactMap(StoryCategory.init(rawValue:)))
+
+        let rawEntranceStyle = kvStore.string(forKey: Keys.feedEntranceStyle) ?? FeedEntranceStyle.drip.rawValue
+        feedEntranceStyle = FeedEntranceStyle(rawValue: rawEntranceStyle) ?? .drip
 
         let rawTap = kvStore.string(forKey: Keys.tapAction) ?? StoryAction.openComments.rawValue
         tapAction = StoryAction(rawValue: rawTap) ?? .openComments

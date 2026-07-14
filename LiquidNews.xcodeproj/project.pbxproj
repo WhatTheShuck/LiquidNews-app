@@ -40,6 +40,7 @@
 		AA000001000000000000F25 /* HNCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F24 /* HNCacheTests.swift */; };
 		AA000001000000000000F27 /* CacheReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F26 /* CacheReconcilerTests.swift */; };
 		AA000001000000000000F29 /* OfflineDownloadCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F28 /* OfflineDownloadCoordinatorTests.swift */; };
+		AA000001000000000000F31 /* FeedEntranceCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA000001000000000000F30 /* FeedEntranceCoordinatorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -109,6 +110,7 @@
 		AA000001000000000000F24 /* HNCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HNCacheTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F26 /* CacheReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheReconcilerTests.swift; sourceTree = "<group>"; };
 		AA000001000000000000F28 /* OfflineDownloadCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineDownloadCoordinatorTests.swift; sourceTree = "<group>"; };
+		AA000001000000000000F30 /* FeedEntranceCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedEntranceCoordinatorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -202,6 +204,7 @@
 				AA000001000000000000F22 /* DiskCacheTests.swift */,
 				AA000001000000000000F24 /* HNCacheTests.swift */,
 				AA000001000000000000F26 /* CacheReconcilerTests.swift */,
+				AA000001000000000000F30 /* FeedEntranceCoordinatorTests.swift */,
 				AA000001000000000000F28 /* OfflineDownloadCoordinatorTests.swift */,
 				AA000001000000000000F05 /* ImgurImageActionsTests.swift */,
 				AA000001000000000000F07 /* ReaderHTMLBuilderTests.swift */,
@@ -383,6 +386,7 @@
 				AA000001000000000000F23 /* DiskCacheTests.swift in Sources */,
 				AA000001000000000000F25 /* HNCacheTests.swift in Sources */,
 				AA000001000000000000F27 /* CacheReconcilerTests.swift in Sources */,
+				AA000001000000000000F31 /* FeedEntranceCoordinatorTests.swift in Sources */,
 				AA000001000000000000F29 /* OfflineDownloadCoordinatorTests.swift in Sources */,
 				AA000001000000000000F06 /* ImgurImageActionsTests.swift in Sources */,
 				AA000001000000000000F08 /* ReaderHTMLBuilderTests.swift in Sources */,

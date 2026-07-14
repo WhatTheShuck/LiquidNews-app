@@ -3,6 +3,7 @@
 
 import Foundation
 import Observation
+import SwiftUI
 
 nonisolated enum StoryCategory: String, CaseIterable, Identifiable, Hashable, Sendable {
     case top      = "Top"
@@ -36,6 +37,11 @@ final class StoriesViewModel {
     var errorMessage: String?
     var selectedCategory: StoryCategory = .top
 
+    /// Gates the card entrance animation to load events. A generation opens
+    /// whenever the feed is populated wholesale (initial load, category switch,
+    /// pull-to-refresh) — never for pagination appends.
+    let entrance = FeedEntranceCoordinator()
+
     // MARK: - Paging
 
     private let pageSize = 20
@@ -56,7 +62,11 @@ final class StoriesViewModel {
         if let cachedIDs = await HNCache.shared.cachedFeed(category), !cachedIDs.isEmpty {
             allIDs = cachedIDs
             let end = min(pageSize, cachedIDs.count)
-            stories = await HNCache.shared.cachedItems(ids: cachedIDs.prefix(end))
+            let cached = await HNCache.shared.cachedItems(ids: cachedIDs.prefix(end))
+            // Generation opens as the content lands (not at call start), so a
+            // slow read can't eat into the entrance-animation window.
+            entrance.beginGeneration()
+            stories = cached
             loadedCount = end
         } else {
             isLoading = true
@@ -75,7 +85,17 @@ final class StoriesViewModel {
             let end = min(pageSize, ids.count)
             let fresh = try await HNAPIService.shared.items(ids: Array(ids[..<end]))
             for item in fresh { await HNCache.shared.storeItem(item, fillSource: .readThrough, pinned: false) }
-            stories = CacheReconciler.reconcile(displayed: stories, fresh: fresh)
+            let reconciled = CacheReconciler.reconcile(displayed: stories, fresh: fresh)
+            if stories.isEmpty {
+                // Nothing cached: this is the initial population. Unanimated —
+                // the entrance modifier animates each card individually, and a
+                // surrounding transaction would make lazily-realised rows fly in.
+                entrance.beginGeneration()
+                stories = reconciled
+            } else {
+                // Cached snapshot already showing (same generation).
+                replaceStories(with: reconciled)
+            }
             loadedCount = end
         } catch {
             report(error)
@@ -111,7 +131,10 @@ final class StoriesViewModel {
             await HNCache.shared.storeFeed(ids, category: selectedCategory, fillSource: .readThrough)
             for item in newItems { await HNCache.shared.storeItem(item, fillSource: .readThrough, pinned: false) }
             allIDs = ids
-            stories = newItems
+            // A refresh is a load event: rows that survive keep their identity
+            // (no re-entrance), genuinely new rows cascade in.
+            entrance.beginGeneration()
+            replaceStories(with: newItems)
             loadedCount = end
             errorMessage = nil
         } catch {
@@ -120,6 +143,24 @@ final class StoriesViewModel {
     }
 
     // MARK: - Private
+
+    /// Replaces the displayed stories while rows are already on screen.
+    ///
+    /// Animated only when the row set and order are unchanged (pure field
+    /// updates — heights glide, nothing is inserted). Any structural change is
+    /// applied unanimated: a transaction over a List insertion makes the new
+    /// cells fly in from the top (the landmine documented in FeedEntrance),
+    /// and genuinely new rows get their motion from the entrance modifier
+    /// instead.
+    private func replaceStories(with newStories: [HNItem]) {
+        if newStories.map(\.id) == stories.map(\.id) {
+            withAnimation(.smooth) {
+                stories = newStories
+            }
+        } else {
+            stories = newStories
+        }
+    }
 
     /// Records an error for display unless it's a task cancellation.
     private func report(_ error: Error) {
@@ -137,6 +178,10 @@ final class StoriesViewModel {
         do {
             let newItems = try await HNAPIService.shared.items(ids: pageIDs)
             for item in newItems { await HNCache.shared.storeItem(item, fillSource: .readThrough, pinned: false) }
+            // Pagination is never a load event: a fast page 2 can land while
+            // the entrance window from the initial load is still open, so
+            // pre-mark these rows to keep them out of the cascade.
+            entrance.markSettled(newItems.map(\.id))
             stories.append(contentsOf: newItems)
             loadedCount = end
         } catch {

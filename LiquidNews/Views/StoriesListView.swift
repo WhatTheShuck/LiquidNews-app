@@ -120,15 +120,29 @@ struct StoriesListView: View {
 
     var body: some View {
         Group {
-            if viewModel.isLoading && viewModel.stories.isEmpty {
-                StoriesSkeletonView()
-            } else if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
+            if let msg = viewModel.errorMessage, viewModel.stories.isEmpty {
                 ErrorView(message: msg) {
                     Task { await viewModel.refresh() }
                 }
             } else {
                 storiesList
             }
+        }
+        // The loading skeleton is an overlay fading out above the list — not
+        // an animated branch swap. Swapping branches would create the List
+        // inside the crossfade transaction, and cells realised inside a
+        // transaction fly in from the top (see FeedEntrance). The `.animation`
+        // is scoped to the overlay so the List always mounts transaction-free;
+        // the backing keeps half-faded rows from showing through mid-fade.
+        .overlay {
+            ZStack {
+                if viewModel.isLoading && viewModel.stories.isEmpty {
+                    StoriesSkeletonView()
+                        .background(ThemeBackground().ignoresSafeArea())
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: viewModel.isLoading && viewModel.stories.isEmpty)
         }
         .animation(.default, value: networkMonitor.isOnline)
         .background(ThemeBackground().ignoresSafeArea())
@@ -528,6 +542,7 @@ struct StoriesListView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .feedEntrance(viewModel.entrance, id: story.id, index: index)
                 .coachMarkTarget(index == 0 ? .storySwipe : nil)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     swipeActionButton(settings.swipeLeftAction, story: story)

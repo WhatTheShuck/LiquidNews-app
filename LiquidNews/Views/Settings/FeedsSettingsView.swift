@@ -476,6 +476,73 @@ struct FeedsSettingsView: View {
                         .tint(AppTheme.accent)
                 }
                 .padding(16)
+
+                Divider().overlay(AppTheme.glassBorder).padding(.leading, 58)
+
+                // Feed card entrance animation
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        Image(systemName: settings.feedEntranceStyle.systemImage)
+                            .font(.system(size: 16))
+                            .foregroundStyle(AppTheme.accent)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Card entrance")
+                                .font(.system(size: rowFontSize, weight: .medium, design: .rounded))
+                                .foregroundStyle(.primary)
+                            Text(settings.feedEntranceStyle.subtitle)
+                                .font(.system(size: subtitleFontSize))
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 10)
+
+                    HStack(spacing: 0) {
+                        ForEach(FeedEntranceStyle.allCases, id: \.self) { style in
+                            Button {
+                                settings.feedEntranceStyle = style
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: style.systemImage)
+                                        .font(.system(size: 14, weight: .medium))
+                                    Text(style.label)
+                                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(
+                                    settings.feedEntranceStyle == style
+                                        ? AppTheme.accent.opacity(0.2)
+                                        : Color.clear
+                                )
+                                .foregroundStyle(
+                                    settings.feedEntranceStyle == style
+                                        ? AppTheme.accent
+                                        : Color.secondary
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            if style != FeedEntranceStyle.allCases.last {
+                                Divider()
+                                    .frame(height: 32)
+                                    .overlay(AppTheme.glassBorder)
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(AppTheme.glassBorder, lineWidth: 1)
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
+                }
             }
         }
         .glassCard()
